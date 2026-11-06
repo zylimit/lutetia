@@ -1,14 +1,28 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import asyncpg
 
 from .models import Attribute, Device, GpsPosition, Telemetry
 
 log = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+# Only connection-class faults are transient; data errors (server DataError, client-side encode errors) are not.
+# asyncio.TimeoutError is listed explicitly: on Python 3.9 it is not an OSError.
+TRANSIENT_DB_ERRORS = (OSError, asyncio.TimeoutError, asyncpg.PostgresConnectionError,
+                       asyncpg.OperatorInterventionError, asyncpg.InsufficientResourcesError,
+                       asyncpg.InterfaceError)  # ConnectionError is an OSError
+
+
+def is_transient_db_error(e: BaseException) -> bool:
+    # client-side asyncpg DataError subclasses both InterfaceError and ValueError: not transient
+    return isinstance(e, TRANSIENT_DB_ERRORS) and not isinstance(e, ValueError)
 
 
 def ms_to_dt(ms: Optional[int]) -> Optional[datetime]:
@@ -72,11 +86,37 @@ class Database:
             rows = await conn.fetch("SELECT device_id FROM device WHERE source = $1 ORDER BY device_id", source)
         return [r["device_id"] for r in rows]
 
-    # --- gps ---------------------------------------------------------------
-    async def insert_gps_positions(self, rows: Sequence[GpsPosition]) -> int:
-        """Idempotent batch insert; returns the number of rows actually inserted."""
+    async def _insert_skipping_poison(self, rows: Sequence[T], insert_batch: Callable[[Sequence[T]], Awaitable[int]],
+                                      describe: Callable[[T], str]) -> int:
+        """Whole batch first; on a non-transient error fall back to row by row and drop only the rows that still fail.
+        Transient errors (connection class) propagate untouched so the caller's retry takes over."""
         if not rows:
             return 0
+        try:
+            return await insert_batch(rows)
+        except Exception as e:
+            if is_transient_db_error(e):
+                raise
+            log.warning("insert batch of %d rows failed (%s: %s), retrying row by row", len(rows), type(e).__name__, e)
+        inserted = 0
+        for r in rows:
+            try:
+                inserted += await insert_batch([r])
+            except Exception as e:
+                if is_transient_db_error(e):
+                    raise
+                log.warning("dropped row %s: %s: %s", describe(r), type(e).__name__, e)
+        return inserted
+
+    # --- gps ---------------------------------------------------------------
+    async def insert_gps_positions(self, rows: Sequence[GpsPosition]) -> int:
+        """Idempotent batch insert; returns the number of rows actually inserted.
+        A poison row (non-transient error) is skipped with a warning instead of failing the whole batch."""
+        return await self._insert_skipping_poison(
+            rows, self._insert_gps_batch,
+            lambda r: "device_id=%s update_time=%s" % (r.device_id, getattr(ms_to_dt(r.update_time), "isoformat", lambda: None)()))
+
+    async def _insert_gps_batch(self, rows: Sequence[GpsPosition]) -> int:
         cols = list(zip(*[(
             r.device_id, ms_to_dt(r.update_time), ms_to_dt(r.device_time), ms_to_dt(r.arrived_time),
             r.lat, r.lon, r.speed_raw, r.course, r.altitude, r.total_distance, r.status, r.alarm,
@@ -102,8 +142,11 @@ class Database:
 
     # --- sensors -----------------------------------------------------------
     async def insert_telemetry(self, rows: Sequence[Telemetry]) -> int:
-        if not rows:
-            return 0
+        return await self._insert_skipping_poison(
+            rows, self._insert_telemetry_batch,
+            lambda r: "device_id=%s key=%s ts=%s" % (r.device_id, r.key, getattr(ms_to_dt(r.ts), "isoformat", lambda: None)()))
+
+    async def _insert_telemetry_batch(self, rows: Sequence[Telemetry]) -> int:
         cols = list(zip(*[(r.device_id, r.key, ms_to_dt(r.ts), r.value_num, r.value_str, r.origin) for r in rows]))
         async with self.pool.acquire() as conn:
             inserted = await conn.fetch(

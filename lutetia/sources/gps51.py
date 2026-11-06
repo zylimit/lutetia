@@ -9,11 +9,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import aiohttp
-import asyncpg
 from aiohttp import web
 
 from ..config import Config
-from ..db import Database
+from ..db import Database, is_transient_db_error
 from ..models import Device
 from ..parsers.gps51 import parse_lastposition, parse_monitorlist, parse_push_payload, parse_tracks
 
@@ -22,9 +21,6 @@ log = logging.getLogger(__name__)
 TOKEN_MAX_AGE = 23 * 3600          # vendor: token lives 24h, log in once per 23h
 STATUS_TOKEN_EXPIRED = (9903, 9906)
 STATUS_IP_RATE_LIMITED = 8902
-# Only connection-class faults are retried; data errors (server DataError, client-side encode errors) are dropped.
-TRANSIENT_DB_ERRORS = (OSError, asyncpg.PostgresConnectionError, asyncpg.OperatorInterventionError,
-                       asyncpg.InsufficientResourcesError, asyncpg.InterfaceError)  # ConnectionError is an OSError
 RETRY_BACKOFF_START, RETRY_BACKOFF_MAX = 1.0, 30.0
 
 
@@ -229,8 +225,7 @@ class PushReceiver:
                 n = await self.db.insert_gps_positions(rows)
                 break
             except Exception as e:
-                # client-side asyncpg DataError subclasses both InterfaceError and ValueError: not transient
-                if not isinstance(e, TRANSIENT_DB_ERRORS) or isinstance(e, ValueError):
+                if not is_transient_db_error(e):
                     raise
                 attempt += 1
                 log.warning("gps51 push: db write failed (%s), retry #%d in %ds", e, attempt, int(delay))

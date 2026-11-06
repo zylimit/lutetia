@@ -3,6 +3,7 @@
 断言按 Phase 1 修复契约的修后行为写，不迁就现有实现。全部 stub，无网络。"""
 import asyncio
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -117,7 +118,7 @@ async def test_f3_stop_gives_up_after_drain_timeout_and_logs_remaining(tmp_path,
     elapsed = time.monotonic() - t0
     assert 0.3 <= elapsed < 3.0, "DB 一直挂时 stop() 应在 drain_timeout(0.5s) 附近返回，实际 %.2fs" % elapsed
     errs = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
-    assert any("remaining" in m or "2" in m for m in errs), "超时应 log.error 带剩余条数，实际 error 行: %s" % errs
+    assert any(re.search(r"\b2 remaining pushes lost", m) for m in errs), "超时应 log.error 带剩余条数，实际 error 行: %s" % errs
 
 
 def _client(rc):
@@ -186,7 +187,8 @@ async def test_f2b_server_data_error_is_dropped_not_retried(tmp_path, sleeps):
     asyncpg.CannotConnectNowError("x"),
     asyncpg.InterfaceError("connection is closed"),
     ConnectionRefusedError(),
-], ids=["ConnectionDoesNotExist", "CannotConnectNow", "InterfaceError", "ConnectionRefused"])
+    asyncio.TimeoutError(),
+], ids=["ConnectionDoesNotExist", "CannotConnectNow", "InterfaceError", "ConnectionRefused", "AsyncioTimeout"])
 async def test_f2b_connection_class_errors_are_retried(tmp_path, sleeps, exc):
     # risk: high  (连接类故障必须原地重试，否则 pg 重启丢数据)
     db = StubDB(script=[exc, None])

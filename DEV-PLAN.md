@@ -93,10 +93,15 @@
 - 静默切换阈值 15 分钟（`[确认]`）——本机没有推送，启动后第 15 ～ 16 分钟出现 `gps51 push silent for 15 min -> polling every 60s`。
 
 **关键文件**：
+- `lutetia/sources/dingtek.py` — 拆成包：`dingtek/client.py`（DingtekClient 与 token 工具）、`dingtek/sync.py`（DingtekSync 与窗口常量）、`dingtek/ws.py`（DingtekWs 与退避常量），`dingtek/__init__.py` 原样 re-export 现有公开名，调用方 import 路径不变（Task 2.0 唯一 owner）
 - `tests/test_status.py` — 新建：cmd_status 的失联判定与退出码回归（Task 2.1 唯一 owner）
 - `lutetia/cli.py` — cmd_status 只读不改；测试若需要改它的可测性，改动归 Task 2.1 并在派单里写明
 
 **Task 清单**：
+- **Task 2.0：把 lutetia/sources/dingtek.py 拆到 300 行以内（Stage 2 文件规模项）** — 2026-11-06 复核时该文件 303 行、修完 N-3 / N-4 还会再长；按三个类拆成 `lutetia/sources/dingtek/` 包（client.py / sync.py / ws.py），`__init__.py` 把 DingtekClient、DingtekError、DingtekSync、DingtekWs 与常量 re-export，纯搬运不改逻辑；验证命令：`python -m pytest -q -p no:cacheprovider`（全绿、用例数不变）、`wc -l lutetia/sources/dingtek/*.py`（每个 < 300）、`python -c "from lutetia.sources.dingtek import DingtekClient, DingtekSync, DingtekWs, DingtekError"`
+  - Business Context：dev-builder 代码精简规则「单文件不超过 300 行，超了按职责拆分」；长跑之前拆完，Phase 2 的运行证据就落在最终布局上。区分例子：拆完 `tests/test_dingtek_ws.py` 不改一行仍全绿；`git diff --stat` 里逻辑行数净变化为 0（只有文件头的 import 与 re-export）。
+  - 依赖类型：功能前置 无；验证前置 无。共享写入：只有本 Task 动 dingtek 相关源码，Task 2.1 不碰。
+  - 证据产生者：MEDIUM 档（搬动超 300 行）——implementer 搬，code-reviewer Stage 0 + 1 复核一次（重点：没有逻辑改动、re-export 全），主 Agent 亲跑 pytest 与 wc。
 - **Task 2.1：新建 tests/test_status.py——失联判定与退出码回归（SC-5、SCOPE-7）** — 头行 `# risk: high`；复用 tests/test_db.py 的 db fixture 写法（DATABASE_URL 不可达则 skip）；每个用例用 `"test-status-" + uuid4()` 做 device_id，结束时删掉自己插的 device / sensor_telemetry / sensor_attribute 行。用例一：source=dingtek、expected_online=true、无任何遥测 → `cmd_status(cfg, args)`（args.max_age_hours=3）返回 1，capsys 输出含 `STALE` 与 `1 expected-online device(s) without recent data`。用例二：同上但 expected_online=false → 返回 0、输出无 `STALE`。用例三：expected_online=true、sensor_attribute 里 uploadInterval='2'、最新遥测 ts 为 3.5 小时前 → 返回 0；删掉 uploadInterval 行再跑 → 返回 1。用例四：Config 的 database_url 指向 127.0.0.1:1 时 `cmd_status` 抛连接异常（FLOW-3 失败路径，不许打印「全部正常」）。验证命令：`python -m pytest -q tests/test_status.py`
   - Business Context：status 的退出码是运维唯一的告警入口（FLOW-3），错报漏报都要人跑现场。区分例子：4072407783 从未上线、expected_online=false、没数据——不许算 STALE；一台在线 DC414 5 小时没数据——必须 STALE 且退出码 1。
   - 依赖类型：功能前置 无（cmd_status 已存在）；验证前置 lutetia-pg 在线；现有库里的真实设备行不动，用例只碰自己插的行。
@@ -137,7 +142,7 @@
 - `.env.example` — PUSH_PATH 行上加随机段说明（Task 3.1）
 
 **Task 清单**：
-- **Task 3.1：docker-compose 等库就绪再启动 + 部署文档补随机路径（SCOPE-10）** — 改 `docker-compose.yml`：db 服务加 `healthcheck`（`test: ["CMD-SHELL", "pg_isready -U lutetia -d lutetia"]`，interval 5s、timeout 3s、retries 10）；collector 的 `depends_on` 改为 `db: condition: service_healthy`。README 部署节第 2 步补「PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`，GPS51 后台填完整路径」；`.env.example` 的 PUSH_PATH 行上加同样一句注释。验证命令：`docker compose config >/dev/null && docker compose up -d --build && sleep 20 && docker compose ps && docker compose logs collector | grep -E 'applied 001_schema.sql|lutetia running' && curl -s localhost:8080/health; docker compose down -v`
+- **Task 3.1：docker-compose 等库就绪再启动 + 停机宽限期 + 部署文档补随机路径（SCOPE-10）** — 改 `docker-compose.yml`：db 服务加 `healthcheck`（`test: ["CMD-SHELL", "pg_isready -U lutetia -d lutetia"]`，interval 5s、timeout 3s、retries 10）；collector 的 `depends_on` 改为 `db: condition: service_healthy`；collector 加 `stop_grace_period: 40s`（推送队列清空上限是代码里的 30 秒，Docker 默认 10 秒就 SIGKILL 会把「N remaining pushes lost」那行日志都来不及打，2026-11-06 复核 N-5）。README 部署节第 2 步补「PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`，GPS51 后台填完整路径」；`.env.example` 的 PUSH_PATH 行上加同样一句注释。验证命令：`docker compose config >/dev/null && docker compose up -d --build && sleep 20 && docker compose ps && docker compose logs collector | grep -E 'applied 001_schema.sql|lutetia running' && curl -s localhost:8080/health; docker compose down -v`
   - Business Context：FLOW-1 第 1 步要求「一条命令起全套，容器先 migrate 再 run」；现在 collector 可能在 PostgreSQL 接受连接前就跑 migrate，报错后靠 restart 兜底，运维第一次看日志会以为部署坏了。区分例子：`docker compose up -d --build` 后 `docker compose logs collector` 第一行不应是 asyncpg 连接拒绝，而应是 `applied 001_schema.sql`。
   - 依赖类型：功能前置 无；验证前置 本机 docker compose v2（本机 2.40.3）、8080 空闲；本机验证会起第二个 PostgreSQL 容器，不发布端口，与 lutetia-pg 不冲突，验证完 `down -v` 清掉。
   - 证据产生者：LOW 档——implementer 自检并贴 `docker compose ps` 与 logs 输出；主 Agent 亲跑 `curl localhost:8080/health`。

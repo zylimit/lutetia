@@ -215,7 +215,7 @@ class DingtekSync:
             try:
                 n = await self.backfill_device(d.device_id, start_ms, end_ms)
                 flag = await self.refresh_attributes(d.device_id)
-            except (DingtekError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+            except (DingtekError, aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
                 log.exception("dingtek backfill %s (%s) failed", d.name, d.device_id)
                 self.last_failures.append((d.device_id, d.name or "", "%s: %s" % (type(e).__name__, e)))
                 continue
@@ -289,10 +289,13 @@ class DingtekWs:
             except aiohttp.WSServerHandshakeError as e:
                 log.warning("dingtek ws handshake failed: HTTP %s %s", e.status, e.message)   # str(e) carries the URL with ?token=
                 if e.status in (401, 403):
-                    try:
-                        await self.client.invalidate()
-                    except DingtekError as ie:
-                        log.error("dingtek re-auth failed: %s", self._redact(str(ie)))
+                    if time.monotonic() - self.client.token_obtained_at < WS_FRESH_TOKEN_S:
+                        log.error("dingtek ws handshake %s right after obtaining a token; not re-logging in, backing off", e.status)
+                    else:
+                        try:
+                            await self.client.invalidate()
+                        except DingtekError as ie:
+                            log.error("dingtek re-auth failed: %s", self._redact(str(ie)))
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001 - keep the ws loop alive; no traceback (it can embed the token URL)
