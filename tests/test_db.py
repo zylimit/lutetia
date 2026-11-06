@@ -1,4 +1,5 @@
 """Integration tests against a real PostgreSQL (DATABASE_URL); skipped when it is unreachable."""
+import dataclasses
 import os
 import uuid as uuidlib
 
@@ -8,7 +9,7 @@ from lutetia.config import load_dotenv
 from lutetia.db import Database
 from lutetia.models import Device
 from lutetia.parsers.dingtek import parse_attributes, parse_timeseries
-from lutetia.parsers.gps51 import parse_lastposition, parse_monitorlist, parse_push_payload
+from lutetia.parsers.gps51 import parse_lastposition, parse_push_payload
 
 load_dotenv()
 DB_URL = os.environ.get("DATABASE_URL", "")
@@ -27,17 +28,23 @@ async def db():
     await d.close()
 
 
-async def test_gps_insert_is_idempotent(db, gps51_lastposition, gps51_monitorlist):
-    await db.upsert_devices(parse_monitorlist(gps51_monitorlist))
-    rows = parse_lastposition(gps51_lastposition)
-    first = await db.insert_gps_positions(rows)
-    second = await db.insert_gps_positions(rows)
-    assert first in (0, len(rows))  # 0 if a previous run already stored them
-    assert second == 0
-    # a push for the same (deviceid, updatetime) is also a no-op
-    p = rows[0]
-    pushed = parse_push_payload({"deviceid": p.device_id, "lat": 1, "lon": 2, "updatetime": p.update_time})
-    assert await db.insert_gps_positions(pushed) == 0
+async def test_gps_insert_is_idempotent(db, gps51_lastposition):
+    dev = "test-db-" + str(uuidlib.uuid4())
+    rows = [dataclasses.replace(p, device_id=dev) for p in parse_lastposition(gps51_lastposition)]
+    await db.upsert_devices([Device("gps51", dev, "test", "t", None, {})])
+    try:
+        first = await db.insert_gps_positions(rows)
+        second = await db.insert_gps_positions(rows)
+        assert first == len(rows)
+        assert second == 0
+        # a push for the same (deviceid, updatetime) is also a no-op
+        p = rows[0]
+        pushed = parse_push_payload({"deviceid": dev, "lat": 1, "lon": 2, "updatetime": p.update_time})
+        assert await db.insert_gps_positions(pushed) == 0
+    finally:
+        async with db.pool.acquire() as conn:
+            await conn.execute("DELETE FROM gps_position WHERE device_id = $1", dev)
+            await conn.execute("DELETE FROM device WHERE device_id = $1", dev)
 
 
 async def test_telemetry_insert_is_idempotent(db, dingtek_history):
@@ -57,14 +64,20 @@ async def test_telemetry_insert_is_idempotent(db, dingtek_history):
 
 
 async def test_attributes_and_status(db, dingtek_summary):
-    uuid = "79702a70-9ba1-11f1-898a-012e63463e84"
-    await db.upsert_devices([Device("dingtek", uuid, "864317087586940", "DC414", None, {})])
-    attrs = parse_attributes(uuid, dingtek_summary[uuid]["attrs"])
-    await db.upsert_attributes(attrs)
-    await db.upsert_attributes(attrs)
-    await db.set_expected_online("dingtek", uuid, True)
-    status = {(r["source"], r["device_id"]): r for r in await db.device_status()}
-    assert status[("dingtek", uuid)]["expected_online"] is True
+    real = "79702a70-9ba1-11f1-898a-012e63463e84"
+    uuid = "test-db-" + str(uuidlib.uuid4())
+    await db.upsert_devices([Device("dingtek", uuid, "test", "DC414", None, {})])
+    try:
+        attrs = parse_attributes(uuid, dingtek_summary[real]["attrs"])
+        await db.upsert_attributes(attrs)
+        await db.upsert_attributes(attrs)
+        await db.set_expected_online("dingtek", uuid, True)
+        status = {(r["source"], r["device_id"]): r for r in await db.device_status()}
+        assert status[("dingtek", uuid)]["expected_online"] is True
+    finally:
+        async with db.pool.acquire() as conn:
+            await conn.execute("DELETE FROM sensor_attribute WHERE device_id = $1", uuid)
+            await conn.execute("DELETE FROM device WHERE device_id = $1", uuid)
 
 
 async def test_api_call_counter(db):

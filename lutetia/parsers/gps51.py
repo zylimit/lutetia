@@ -112,8 +112,13 @@ def parse_push_message(msg: Dict[str, Any]) -> Optional[GpsPosition]:
     return _position(device_id, msg, update_time, device_time, lat_key, lon_key, "push")
 
 
-def parse_push_payload(payload: Any) -> List[GpsPosition]:
-    """Accepts one message, a list of messages, or an envelope with a list under a common key."""
+def is_alarm_message(msg: Dict[str, Any]) -> bool:
+    """Alarm forwards carry alarmtype; they are counted, never stored as positions."""
+    return "alarmtype" in msg
+
+
+def push_items(payload: Any) -> List[Dict[str, Any]]:
+    """Splits a push body (one message, a list, or an envelope with a list) into dict items."""
     items: List[Any] = []
     if isinstance(payload, list):
         items = payload
@@ -125,12 +130,17 @@ def parse_push_payload(payload: Any) -> List[GpsPosition]:
                 if isinstance(payload.get(key), list):
                     items = payload[key]
                     break
+    return [m for m in items if isinstance(m, dict)]
+
+
+def parse_push_payload(payload: Any) -> List[GpsPosition]:
     out = []
-    for m in items:
-        if isinstance(m, dict):
-            p = parse_push_message(m)
-            if p:
-                out.append(p)
+    for m in push_items(payload):
+        if is_alarm_message(m):
+            continue
+        p = parse_push_message(m)
+        if p:
+            out.append(p)
     return out
 
 

@@ -14,7 +14,8 @@ from aiohttp import web
 from ..config import Config
 from ..db import Database, is_transient_db_error
 from ..models import Device
-from ..parsers.gps51 import parse_lastposition, parse_monitorlist, parse_push_payload, parse_tracks
+from ..parsers.gps51 import (is_alarm_message, parse_lastposition, parse_monitorlist, parse_push_payload,
+                             parse_tracks, push_items)
 
 log = logging.getLogger(__name__)
 
@@ -182,16 +183,23 @@ class PushReceiver:
         self.queue: "asyncio.Queue[Any]" = asyncio.Queue()
         self.started_at = time.monotonic()
         self.last_push_at: Optional[float] = None
+        self.last_position_at: Optional[float] = None
         self.received = 0
         self.stored = 0
         self.rejected = 0
         self.unrecognised = 0
+        self.alarms = 0
         self.failed = 0
         self.drain_timeout = 30.0
         self._runner: Optional[web.AppRunner] = None
         self._consumer: Optional[asyncio.Task] = None
 
     def silent_for(self) -> float:
+        """Seconds since the last recognisable position message (what polling fallback watches)."""
+        return time.monotonic() - (self.last_position_at or self.started_at)
+
+    def message_silent_for(self) -> float:
+        """Seconds since the last valid JSON body of any kind."""
         return time.monotonic() - (self.last_push_at or self.started_at)
 
     async def _handle(self, request: web.Request) -> web.Response:
@@ -209,15 +217,24 @@ class PushReceiver:
     async def _health(self, request: web.Request) -> web.Response:
         return web.json_response({"status": "ok", "received": self.received, "stored": self.stored,
                                   "rejected": self.rejected, "unrecognised": self.unrecognised,
-                                  "failed": self.failed, "queued": self.queue.qsize(),
-                                  "silent_sec": int(self.silent_for())})
+                                  "alarms": self.alarms, "failed": self.failed, "queued": self.queue.qsize(),
+                                  "silent_sec": int(self.silent_for()),
+                                  "message_silent_sec": int(self.message_silent_for())})
 
     async def _store(self, payload: Any) -> None:
+        alarm_items = [m for m in push_items(payload) if is_alarm_message(m)]
+        for m in alarm_items:
+            log.info("gps51 push: alarm message deviceid=%s stralarm=%s, counted not stored",
+                     m.get("deviceid"), m.get("stralarm"))
+        self.alarms += len(alarm_items)
         rows = parse_push_payload(payload)
-        if not rows:
-            self.unrecognised += 1
-            keys = list(payload.keys())[:10] if isinstance(payload, dict) else type(payload).__name__
-            log.warning("gps51 push: unrecognised payload, keys=%s", keys)
+        if rows:
+            self.last_position_at = time.monotonic()  # before the write: a duplicate delivery still proves liveness
+        else:
+            if not alarm_items:
+                self.unrecognised += 1
+                keys = list(payload.keys())[:10] if isinstance(payload, dict) else type(payload).__name__
+                log.warning("gps51 push: unrecognised payload, keys=%s", keys)
             return
         delay, attempt = RETRY_BACKOFF_START, 0
         while True:

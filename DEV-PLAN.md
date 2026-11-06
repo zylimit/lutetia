@@ -20,7 +20,9 @@
 
 ---
 
-## Phase 1: 首版对账——对照 Spec 审查、兼容与密钥闸、推送接收端实测
+## Phase 1: 首版对账——对照 Spec 审查、兼容与密钥闸、推送接收端实测 ✅
+
+交付记录（2026-11-06，用户确认完成，四态门 CONCERNS）：提交 48f97bd（Task 1.2）、060fd04（Task 1.1 HIGH 4 条修复 + Task 1.3）、5e8d5b5（复核残留 + Spec v1.1）。证据：本机 49 passed、python:3.9-slim 40 passed、SC-3 四步实测、SC-1 同区间复跑 12 台 0 new rows。残留进 progress.md 待办 #9 ～ #16。
 
 **交付内容**：
 - 首版代码对照 Spec 过一轮完整审查，HIGH 缺陷修完并复核，Medium / Low 记进 progress.md 残留。
@@ -81,12 +83,16 @@
 ## Phase 2: 常驻采集本地长跑——WebSocket 实时、静默轮询、巡检退出码
 
 **交付内容**：
+- `lutetia/sources/dingtek.py` 拆成包，每个文件 < 300 行，公开名与 import 路径不变。
+- 推送「静默」改按最近一条能认出的位置消息算；带 alarmtype 的报警转发识别后只计数不入库；/health 增加 alarms 与 message_silent_sec（Spec v1.2，用户 2026-11-06 决定）。
 - `lutetia run` 在本机连续跑 2 小时：10 台在线 DC414 各有新行，最新 volt / temperature 与厂家 REST 一致，期间 Dingtek 登录 0 次（SC-2）。
 - 推送静默 15 分钟后自动切轮询、碰到预算暂停 1 小时，日志与 api_call 表能对上（SC-4 本地变体，预算压到 20）。
 - `lutetia status` 的失联判定有回归测试：应在线设备超时退出码 1，非在线设备不告警，uploadInterval 长的设备按 2 倍宽限（SC-5）。
+- 现有 DB 用例不再改写本地真库的真实设备行（审查 M-8）。
 - SIGTERM 后进程干净退出（任务取消、接收端关闭、连接池关闭），退出码 0。
 
 **验证的假设**：
+- 静默按位置算之后，本机没有推送时切换时机不变（启动后 15 ～ 16 分钟），长跑日志里 `silent_sec` 与 `message_silent_sec` 在只收到报警 / 认不出消息时分道扬镳——Task 2.2 用例 + 长跑中手工 POST 一条报警消息验证。
 - WebSocket 订阅在小时级心跳的设备上稳定（Spec「Dingtek 实时订阅」条目，来源代码现状；2026-11-05 只连过约 2 分钟）——2 小时内 `dingtek ws` 日志有新行、断线有 `reconnecting` 与退避记录、没有连续失败。
 - `[推断]` 失联阈值「3 小时与 2 倍 uploadInterval 取大」——Task 2.1 用例三：uploadInterval='2'（小时）、最新数据 3.5 小时前，不报 STALE；删掉 uploadInterval 行再跑，报 STALE。
 - `[推断]` 日预算到顶暂停 1 小时（FLOW-2 失败路径）——本地预算压到 20，日志出现 `gps51 daily budget reached: 20/20; polling paused for 1h`，之后 1 小时 api_call 里 gps51 行数不再增长。
@@ -96,6 +102,9 @@
 - `lutetia/sources/dingtek.py` — 拆成包：`dingtek/client.py`（DingtekClient 与 token 工具）、`dingtek/sync.py`（DingtekSync 与窗口常量）、`dingtek/ws.py`（DingtekWs 与退避常量），`dingtek/__init__.py` 原样 re-export 现有公开名，调用方 import 路径不变（Task 2.0 唯一 owner）
 - `tests/test_status.py` — 新建：cmd_status 的失联判定与退出码回归（Task 2.1 唯一 owner）
 - `lutetia/cli.py` — cmd_status 只读不改；测试若需要改它的可测性，改动归 Task 2.1 并在派单里写明
+- `lutetia/parsers/gps51.py` — 新增 is_alarm_message / push_items，parse_push_payload 跳过报警项（Task 2.2 唯一 owner）
+- `lutetia/sources/gps51.py` — PushReceiver 的 last_position_at / alarms / message_silent_for 与 /health 字段（Task 2.2 唯一 owner）
+- `tests/test_db.py` — 改用 `test-db-*` id 并自清理，不再碰真实设备行（Task 2.3 唯一 owner）
 
 **Task 清单**：
 - **Task 2.0：把 lutetia/sources/dingtek.py 拆到 300 行以内（Stage 2 文件规模项）** — 2026-11-06 复核时该文件 303 行、修完 N-3 / N-4 还会再长；按三个类拆成 `lutetia/sources/dingtek/` 包（client.py / sync.py / ws.py），`__init__.py` 把 DingtekClient、DingtekError、DingtekSync、DingtekWs 与常量 re-export，纯搬运不改逻辑；验证命令：`python -m pytest -q -p no:cacheprovider`（全绿、用例数不变）、`wc -l lutetia/sources/dingtek/*.py`（每个 < 300）、`python -c "from lutetia.sources.dingtek import DingtekClient, DingtekSync, DingtekWs, DingtekError"`
@@ -106,9 +115,17 @@
   - Business Context：status 的退出码是运维唯一的告警入口（FLOW-3），错报漏报都要人跑现场。区分例子：4072407783 从未上线、expected_online=false、没数据——不许算 STALE；一台在线 DC414 5 小时没数据——必须 STALE 且退出码 1。
   - 依赖类型：功能前置 无（cmd_status 已存在）；验证前置 lutetia-pg 在线；现有库里的真实设备行不动，用例只碰自己插的行。
   - 证据产生者：MEDIUM 档（新文件约 80 行）——tester（fresh，不是首版作者）写；code-reviewer Stage 0 + 1 复核一次；主 Agent 亲跑读输出。
+- **Task 2.2：推送静默按位置算 + 报警转发只计数（Spec v1.2，SCOPE-3、SCOPE-9）** — `lutetia/parsers/gps51.py`：新增 `is_alarm_message(msg) -> bool`（`"alarmtype" in msg`）与 `push_items(payload) -> List[dict]`（把 parse_push_payload 里单条 / 数组 / 信封三种形态的拆项逻辑抽出来），`parse_push_payload` 改用 push_items 并跳过报警项；`lutetia/sources/gps51.py` PushReceiver：新增 `last_position_at`（_store 里 parse_push_payload 返回非空时记 monotonic）、`alarms` 计数（_store 里按 push_items 数报警项，写一行 info 带 deviceid / stralarm，不入库）、`message_silent_for()`（原 last_push_at 口径），`silent_for()` 改按 last_position_at，/health 加 `alarms`、`message_silent_sec`；README /health 字段清单补这两项；fallback_loop 不改。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_gps51_parser.py tests/test_push_receiver.py`、全量 pytest、`python -m compileall -q lutetia`
+  - Business Context：Spec v1.2「推送静默切轮询」「GPS51 推送接收」「健康端点」；用户 2026-11-06 决定。区分例子：POST 一条带 alarmtype 的报警消息 → 200、alarms 加一、库里不出现该行、silent_sec 不归零、message_silent_sec 归零；POST 一条位置（哪怕是重复投递、0 新增） → silent_sec 归零。
+  - 依赖类型：功能前置 无；验证前置 lutetia-pg 在线。共享写入：parsers/gps51.py 与 sources/gps51.py 本 Task 唯一 owner；tests/test_push_receiver.py 与 tests/test_gps51_parser.py 由 tester 写，implementer 只读。
+  - 证据产生者：MEDIUM 档（碰解析器）——tester 先按契约写用例，implementer 修绿，code-reviewer Stage 0 + 1 复核一次，主 Agent 亲跑。
+- **Task 2.3：tests/test_db.py 不再改写本地真库的真实设备行（审查 M-8）** — `test_gps_insert_is_idempotent` 不再 upsert monitorlist 样例里的真实设备、不再给真实 deviceid 插位置：把 parse_lastposition 的行复制成 `device_id="test-db-" + uuid4()` 再插，并先 upsert 一条同 id 的 Device；`test_attributes_and_status` 把真实 UUID 79702a70… 换成 `test-db-` 前缀 id；两条都在 finally 里删掉自己插的 device / gps_position / sensor_attribute 行；断言不变。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_db.py`，跑完 `docker exec lutetia-pg psql -U lutetia -d lutetia -tAc "select count(*) from device where device_id like 'test-db-%'"` 为 0
+  - Business Context：审查 M-8 实测真设备 79702a70… 的 device.extra 被测试写成 `{}`、sensor_attribute 被样例值覆盖；dev-builder 测试隔离规则「绝不写用户的生产库」。区分例子：跑完测试后 `select extra from device where device_id='79702a70-9ba1-11f1-898a-012e63463e84'` 仍是厂家同步来的完整记录，不是 `{}`。
+  - 依赖类型：功能前置 无；验证前置 lutetia-pg 在线。
+  - 证据产生者：LOW 档——tester 改（它是测试文件），主 Agent 亲跑 pytest 与 psql。
 
 **验收标准**：
-- `python -m pytest -q` 全绿，含 tests/test_status.py 4 条；原有用例未破坏。
+- `python -m pytest -q -p no:cacheprovider` 全绿，含 tests/test_status.py 4 条、Task 2.2 的解析器与接收端用例；原有用例未破坏；`wc -l lutetia/sources/dingtek/*.py` 每个 < 300。
 - 2 小时长跑证据（命令：`GPS51_DAILY_BUDGET=20 lutetia run 2>&1 | tee /tmp/lutetia-run.log`，2 小时后 `kill -TERM <pid>`）：
   - 日志有 `dingtek ws connected, 12 subscriptions`；
   - 查库 `select d.name, count(*) from sensor_telemetry t join device d on d.device_id=t.device_id where t.origin='ws' and t.ts > now() - interval '2 hours' and d.expected_online group by d.name` 返回 10 行、每行 ≥ 1；

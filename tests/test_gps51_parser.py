@@ -72,3 +72,32 @@ def test_push_falls_back_to_arrivedtime():
     p = parse_push_payload({"deviceid": "1", "lat": 1, "lon": 2, "arrivedtime": 5})[0]
     assert p.update_time == 5
     assert parse_push_payload({"deviceid": "1", "lat": 1, "lon": 2}) == []
+
+
+# ---- Task 2.2: 报警消息识别 / 拆项 / 跳过报警 ----
+def test_alarm_message_detection():
+    # risk: high
+    from lutetia.parsers.gps51 import is_alarm_message
+    assert is_alarm_message({"deviceid": "x", "alarmtype": 1}) is True
+    assert is_alarm_message({"deviceid": "x", "lat": 1, "lon": 2}) is False
+
+
+def test_push_items_three_shapes():
+    # risk: high
+    from lutetia.parsers.gps51 import push_items
+    one = {"deviceid": "a", "lat": 1, "lon": 2, "updatetime": 1}
+    two = {"deviceid": "b", "lat": 1, "lon": 2, "updatetime": 2}
+    assert push_items(one) == [one]
+    assert push_items([one, two]) == [one, two]
+    assert push_items({"records": [one, two]}) == [one, two]
+    assert push_items({"hello": "world"}) == []
+
+
+def test_parse_push_payload_skips_alarm_items():
+    # risk: high
+    pos = {"deviceid": "a", "lat": 48.8, "lon": 2.2, "updatetime": 1793900000000}
+    alarm = {"deviceid": "a", "alarmtype": 1, "stralarm": "SOS", "lat": 48.8, "lon": 2.2, "updatetime": 1793900001000}
+    rows = parse_push_payload([pos, alarm])
+    assert len(rows) == 1 and rows[0].update_time == 1793900000000
+    assert parse_push_payload([alarm]) == []
+    assert parse_push_payload(alarm) == []

@@ -38,7 +38,9 @@ pytest
    - `unrecognised`：合法 JSON 但认不出格式、未入库的推送数
    - `failed`：非数据库类异常、被丢弃的推送数
    - `queued`：队列里尚未写库的条数
-   - `silent_sec`：距上次收到有效推送的秒数
+   - `alarms`：报警转发（带 alarmtype）的条数，只计数不入库
+   - `silent_sec`：距最近一条能认出的位置消息的秒数，轮询兜底看它
+   - `message_silent_sec`：距最近一条合法 JSON 的秒数
 
 ## 数据表
 

@@ -202,3 +202,75 @@ async def test_f2b_connection_class_errors_are_retried(tmp_path, sleeps, exc):
         assert getattr(rc, "failed", 0) == 0
     finally:
         rc._consumer.cancel()
+
+
+# ---- Task 2.2: 静默按位置算 + 报警只计数 ----
+class ZeroDB(StubDB):
+    """insert 一律返回 0（重复投递）。"""
+    async def insert_gps_positions(self, rows):
+        self.calls += 1
+        return 0
+
+
+ALARM = {"deviceid": "4072400634", "alarmtype": 1, "stralarm": "SOS", "lat": 48.83, "lon": 2.26,
+         "updatetime": 1793900002000}
+
+
+async def _post_and_drain(rc, payload):
+    async with _client(rc) as cl:
+        r = await cl.post("/gps51/push", json=payload)
+        assert r.status == 200
+        await _drain(rc)
+
+
+async def test_alarm_payload_counted_not_stored_and_does_not_reset_position_silence(tmp_path):
+    # risk: high
+    db = StubDB()
+    rc = g.PushReceiver(make_cfg(tmp_path), db)
+    rc.started_at -= 100
+    rc._consumer = asyncio.create_task(rc._consume())
+    try:
+        await _post_and_drain(rc, ALARM)
+        assert rc.alarms == 1
+        assert db.calls == 0
+        assert rc.unrecognised == 0
+        assert rc.silent_for() > 99, "报警不是位置，位置静默不得归零；实际 %s" % rc.silent_for()
+        assert rc.message_silent_for() < 1
+    finally:
+        rc._consumer.cancel()
+
+
+async def test_position_payload_resets_position_silence_even_if_duplicate(tmp_path):
+    # risk: high
+    db = ZeroDB()
+    rc = g.PushReceiver(make_cfg(tmp_path), db)
+    rc.started_at -= 100
+    rc._consumer = asyncio.create_task(rc._consume())
+    try:
+        await _post_and_drain(rc, PUSH)
+        assert db.calls == 1
+        assert rc.silent_for() < 1
+    finally:
+        rc._consumer.cancel()
+
+
+async def test_unrecognised_payload_does_not_reset_position_silence(tmp_path):
+    # risk: high
+    rc = g.PushReceiver(make_cfg(tmp_path), StubDB())
+    rc.started_at -= 100
+    rc._consumer = asyncio.create_task(rc._consume())
+    try:
+        await _post_and_drain(rc, {"hello": "world"})
+        assert rc.unrecognised == 1
+        assert rc.silent_for() > 99
+    finally:
+        rc._consumer.cancel()
+
+
+async def test_health_has_alarms_and_message_silent_sec(tmp_path):
+    # risk: medium
+    rc = g.PushReceiver(make_cfg(tmp_path), StubDB())
+    async with _client(rc) as cl:
+        body = await (await cl.get("/health")).json()
+    assert isinstance(body.get("alarms"), int)
+    assert isinstance(body.get("message_silent_sec"), int)

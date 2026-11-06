@@ -48,7 +48,7 @@ def patch_sleep(monkeypatch, stop_after):
                 raise asyncio.CancelledError()
             d = 0
         return await real(d, *a, **k)
-    monkeypatch.setattr(dk.asyncio, "sleep", fake)
+    monkeypatch.setattr(asyncio, "sleep", fake)
     return rec
 
 
@@ -81,7 +81,7 @@ async def test_f1_handshake_401_does_not_leak_jwt_into_logs(monkeypatch, caplog)
     finally:
         await srv.close()
     # 只看被测代码的 logger；aiohttp.access 是测试服务端自己的访问日志，URL 里本来就带 token，不属被测范围
-    recs = [r for r in caplog.records if r.name == "lutetia.sources.dingtek"]
+    recs = [r for r in caplog.records if r.name.startswith("lutetia.sources.dingtek")]
     text = "\n".join(r.getMessage() + (r.exc_text or "") + str(r.exc_info and r.exc_info[1]) for r in recs)
     assert SECRET not in text and "SECRETSIG" not in text, "日志中出现了 JWT"
     assert any("401" in r.getMessage() for r in recs), "握手失败应至少有一条日志带 401"
