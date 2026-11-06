@@ -47,7 +47,7 @@ async def _gps_body(db: Any, dev: str) -> Tuple[str, Optional[datetime]]:
     pos = table(["时间", "lat", "lon", "speed_kmh", "origin"],
                 [[fmt_ts(r["update_time"]), r["lat"], r["lon"], r["speed_kmh"], r["origin"]] for r in rows])
     return ('<div id="map"></div><p id="chart-note"></p>'
-            '<p class="attrib">地图 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</p>' + stats + "<h2>最近位置</h2>" + pos,
+            '<p class="attrib">地图 © Google（测试阶段直拉瓦片，不商用）</p>' + stats + "<h2>最近位置</h2>" + pos,
             rows[0]["update_time"] if rows else None)
 
 

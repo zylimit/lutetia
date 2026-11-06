@@ -45,8 +45,8 @@
   function drawMap(data) {
     var map = L.map('map');
     L.Icon.Default.imagePath = '/static/vendor/images/';
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map);
     var pos = data.positions;
     if (!pos.length) {
       say('暂无位置');

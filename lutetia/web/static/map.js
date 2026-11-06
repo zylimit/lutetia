@@ -36,8 +36,8 @@
   function draw(data) {
     var map = L.map('map');
     L.Icon.Default.imagePath = '/static/vendor/images/';
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map);
     var layers = [];
     function addItem(item, kindName, layer) {
       var li = el('li', item.name + ' · ' + kindName + ' · ' + (item.update_time || item.last_ts || '-'));

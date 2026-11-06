@@ -137,7 +137,7 @@ async def test_gps_page_renders_map_and_positions(db):
             assert r.status == 200
             html = await r.text()
             for s in ('id="map"', "/static/vendor/leaflet.js", "/static/vendor/leaflet.css",
-                      "/static/device.js", "openstreetmap.org", "里程表 7777.0 km"):
+                      "/static/device.js", "© Google", "里程表 7777.0 km"):
                 assert s in html, s
             tail = html.split("最近位置", 1)[1]
             assert "22.5011" in tail and "22.5022" in tail

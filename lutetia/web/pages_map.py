@@ -11,7 +11,7 @@ async def map_page(request: web.Request) -> web.Response:
     body = ('<p><a href="/dashboard/">← 看板</a></p><h1>位置地图</h1>'
             '<p class="period"><a href="/dashboard/map?tracks=1">近 7 天轨迹</a> · <a href="/dashboard/map">只看最后位置</a></p>'
             '<div id="map-wrap"><div id="map" data-days="%s"></div><ul id="device-list"></ul></div>'
-            '<p id="map-note"></p><p class="attribution">底图 © OpenStreetMap contributors</p>' % days)
+            '<p id="map-note"></p><p class="attribution">底图 © Google（测试阶段直拉瓦片，不商用）</p>' % days)
     return page("位置地图", body, head='<link rel="stylesheet" href="/static/vendor/leaflet.css">',
                 scripts='<script src="/static/vendor/leaflet.js" defer></script><script src="/static/map.js" defer></script>')
 
