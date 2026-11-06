@@ -185,7 +185,7 @@ GPS51 账号 usertype=2、multilogin=1，5 台设备里只有 4072400634 和 407
 | 推送「静默」按最近一条能认出的位置消息算，不按任何合法 JSON 算 | 任何合法 JSON 都算有消息 | 厂家只推报警或心跳时位置已经断了几小时也不会切轮询；代价是设备长期静止时多耗轮询配额 | 用户（2026-11-06，采纳审查反例 1） |
 | 带 alarmtype 的报警转发消息识别后只计数不入库 | 当位置入库；用位置覆盖报警 | 报警与真实位置同 updatetime 时先到的报警会把真实位置挤掉；报警表结构等真实样例 | 用户（2026-11-06，采纳审查反例 2） |
 | 只读看板进本版范围（取代 OUT-1 的「看盘」） | 维持非目标，用 DBeaver / Grafana 直连库 | 用户要一页就能看状态、好维护；AI 的异议：地基阶段多一个 HTTP 暴露面，数据还没攒起来 | 用户坚持（2026-11-06「还是做个简单的看板吧」「仅能搞个简单呈现，不能修改数据，只看」）；AI 建议暂缓，理由见左，记录在案 |
-| 云主机入口走 HTTPS + 域名，Caddy 自动签证书，采集容器端口不直接对公网发布 | 明文 http 8080 + IP 白名单；nginx + certbot 手工续证 | 用户要求 HTTPS 并会申请域名，后续接口都走域名；Caddy 零维护续证 | 用户（2026-11-06）定 HTTPS + 域名；代理选型为 AI 建议 `[默认]` |
+| 云主机入口走 HTTPS + 域名，nginx + certbot 签证续证，采集容器端口只发布到 127.0.0.1 | Caddy 自动证书（AI 原默认）；明文 http 8080 + IP 白名单 | 用户要求 HTTPS 并点名 certbot；主机 nginx / certbot 已在跑别的站点，并入一个 server block 最省事 | 用户（2026-11-06）定 HTTPS + 域名 + certbot；Caddy 方案 → 被 2026-11-06 取代 |
 | 先做单租户：一个管理员登录看板 + 一把 API key 给自己的程序；多租户 SaaS 进「以后」 | 现在就做多租户（租户表、每租户厂家账号与用户、数据隔离） | 用户想把它当 SaaS 服务器，但目前只有巴黎项目一个客户；多租户要先过架构设计与 DFX，风险档位会升到「对外」 | 用户（2026-11-06 选「先单租户」） |
 | 查询 API 只读、Bearer API key、只给自己的程序 | 开放给外部客户并允许写 | 写路径只留厂家推送，权限模型留给多租户那一步 | 用户（2026-11-06 选「自己的程序，只读查询」） |
 | 看板登录密码不写死在代码里，走环境变量 | 代码里写死 admin / 123456 | Spec 凭据规则 + 页面要挂公网域名 | AI 坚持；用户本机可填 123456，上云前必须换 |
@@ -203,7 +203,7 @@ GPS51 账号 usertype=2、multilogin=1，5 台设备里只有 4072400634 和 407
 | 推荐技术栈 | Python ≥ 3.9（pyproject requires-python）、aiohttp ≥ 3.9（HTTP 客户端 + 推送接收端 + WebSocket）、asyncpg ≥ 0.29、pytest + pytest-asyncio | 代码现状。2026-11-06 核过 PyPI：asyncpg 0.32.0 要求 Python ≥ 3.9；aiohttp 3.14.5 要求 Python ≥ 3.10，目标机若真是 3.9，pip 会退到最后支持 3.9 的 aiohttp 3.1x，写法不受影响；本地开发 venv 是 3.14，容器是 3.12 |
 | 数据存储 | 自有 PostgreSQL 16（compose 里 postgres:16-alpine，数据卷持久化） | 数据归项目，分析者要查，丢了等于厂家删了就没了 |
 | 部署方式 | `docker compose up -d --build`；容器启动顺序 migrate → run；状态目录与数据库各挂一个卷；云主机上 compose 多一个 Caddy 服务做 HTTPS 入口 | 一条命令起全套；token 文件跨重启复用 |
-| HTTPS 入口（云主机） | Caddy（官方 `caddy:2` 镜像）做反向代理：域名解析到主机后自动向 Let's Encrypt 签证书并自动续期，80 自动跳 443；`/gps51/push/<随机段>` 与 `/health` 转给采集容器 8080，`/dashboard/` 转给 8081 并在 Caddy 层加 basic_auth；采集容器的端口不再直接对公网发布。本机开发与 compose 本地验证不起 Caddy，照用 http | 用户 2026-11-06 决定云主机必须 HTTPS 并绑域名、后续接口都走域名；选 Caddy 是因为自动证书零维护（AI 建议，`[默认]`，用户可换 nginx + certbot）。2026-11-06 WebSearch 核过 compose 用法与 basic_auth 写法，落地前再对官方文档核语法 |
+| HTTPS 入口（云主机） | 主机自带的 nginx 1.24 做反向代理 + certbot 2.9（nginx 插件）向 Let's Encrypt 签证书并由 systemd timer 自动续期，80 跳 443；`/gps51/push/<随机段>` 与 `/health` 转给采集容器（127.0.0.1:8080），其余（`/`、`/login`、`/logout`、`/dashboard/`、`/api/`）转给看板容器在宿主机上的发布端口（127.0.0.1:18081，由 DASHBOARD_PUBLISH_PORT 决定，因为主机的 8081 已被别的服务占用）；nginx 传 X-Forwarded-For / X-Forwarded-Proto，应用开 DASHBOARD_TRUST_PROXY；compose 的两个端口只发布到 127.0.0.1。主机：Ubuntu 24.04，129.226.4.226（新加坡），域名 iot.digifiber.net 在 Cloudflare 灰云（仅 DNS）解析到它。本机开发不起 nginx，照用 http | 用户 2026-11-06 定 HTTPS + 域名，并点名「certbot 搞一下」，取代 AI 原先的 Caddy 默认（→ 被 2026-11-06 取代）；主机实查（ssh hub）nginx 与 certbot 已装且 80 / 443 已被其它站点占用，所以用 server block 并入而不是另起代理 |
 
 ## 非功能与隐含合规
 | 类别 | 要求（数字或「不要求」） | 优先级 | 来源 |
@@ -245,3 +245,4 @@ GPS51 账号 usertype=2、multilogin=1，5 台设备里只有 4072400634 和 407
 | 2026-11-06 | 「转发」是不是把数据转出去 | 用户担心数据被转走；AI 解释：「数据转发」是途强物联平台的功能名，指厂家把位置推给我们的接收端，我们落自己的库，不往别处转 | 无条目改动，记录以免再误读 |
 | 2026-11-06 | 看板要登录吗；API 怎么验证；是不是 SaaS | 用户：要登录界面，admin / 123456；想当 SaaS 服务器。AI 问两题，用户选「先单租户」「自己的程序，只读查询」。密码写死被 AI 顶回，改走环境变量 | SCOPE-11 加登录、SCOPE-12 查询 API；SC-7 改、SC-8 新增；功能需求「看板登录」「只读查询 API」「看板暴露面」；规则与例外加 2 行；非功能安全；决策依据加 3 行；「以后」加多租户 SaaS |
 | 2026-11-06 | 本机长跑 GPS51 轮询为什么失败 | 自查日志：openapi 回 8904，本机出口 IP 77.136.66.231 不在途强白名单；已告知用户可在后台加白名单，服务自己不碰（OUT-4） | 无条目改动；待办：8904 应像登录失败一样退避 |
+| 2026-11-06 | 域名、主机、HTTPS 用什么 | 用户：子域名 iot.digifiber.net（Cloudflare 灰云 A 记录 → 129.226.4.226）、部署到 `ssh hub` 那台（Ubuntu-MangosV5，新加坡）、「certbot 搞一下」 | 技术方向「HTTPS 入口」改 nginx + certbot；决策依据对应行；问题表第 4 行的「域名」子问题已答 |

@@ -27,8 +27,8 @@ services:
       API_KEY: ${API_KEY:?set API_KEY in .env}
       GPS51_DAILY_BUDGET: ${GPS51_DAILY_BUDGET:-1400}
     ports:
-      - "8080:8080"          # GPS51 push receiver; put behind an HTTPS reverse proxy on the fixed IP
-      - "127.0.0.1:8081:8081"  # dashboard + query API, loopback only; Caddy fronts it (Phase 3)
+      - "127.0.0.1:${PUSH_PUBLISH_PORT:-8080}:8080"       # GPS51 push receiver, loopback only; host nginx fronts it with HTTPS
+      - "127.0.0.1:${DASHBOARD_PUBLISH_PORT:-8081}:8081"  # dashboard + query API, loopback only; host nginx fronts it
     volumes:
       - lutetia-state:/data
     depends_on:

@@ -14,3 +14,7 @@ state/
 
 # pip install . 在容器里跑过会留下 setuptools 构建目录
 build/
+
+# 给云主机准备的环境文件副本（.env.host 之类），同样是密钥
+.env.*
+!.env.example

@@ -63,13 +63,16 @@ curl -H "Authorization: Bearer $API_KEY" \
   "http://127.0.0.1:8081/api/v1/telemetry?device_id=<uuid>&key=volt&since=2026-11-01T00:00:00Z"
 ```
 
-## 部署（固定公网 IP 的云主机）
+## 部署（固定公网 IP 的云主机，nginx + certbot HTTPS）
 
-1. 把主机公网 IP 加进 GPS51 后台「白名单」，openapi 才放行。
-2. `docker compose up -d --build`，推送接收端监听 8080，建议前面加 HTTPS 反代。`.env` 里的 PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`，GPS51 后台填完整路径。
-3. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `http://<IP>:8080/gps51/push`（或反代后的 https 地址）。
-4. `docker compose exec collector lutetia backfill dingtek --from 2026-08-21` 做首次回补。
-5. 用 `GET /health` 和 `lutetia status` 做监控。
+主机上已有 nginx 与 certbot；本项目并入一个 `iot.digifiber.net` 的 server block，容器端口只绑 127.0.0.1，公网只有 nginx 的 443。
+
+1. 把主机公网 IP（129.226.4.226）加进 GPS51 后台「白名单」，openapi 才放行。
+2. 首次：在主机克隆仓库到 `~/lutetia`，并在本机把环境文件 scp 到 `hub:~/lutetia/` 下（文件名见 `.env.example` 同目录）。必须有非空的 DASHBOARD_PWD、API_KEY、PUSH_PATH；PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`；主机 8081 被占，加一行 `DASHBOARD_PUBLISH_PORT=18081`（nginx 配置指向它）。
+3. 在主机 `~/lutetia` 下运行 `bash deploy/host-deploy.sh`：git pull → 查必填键 → `docker compose up -d --build` → 装 nginx 配置 → `nginx -t` → reload → 无证书才 `certbot --nginx` → 打印冒烟结果。可重复运行。
+4. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `https://iot.digifiber.net/gps51/push/<随机段>`；看板在 `https://iot.digifiber.net/dashboard/`。
+5. `docker compose exec collector lutetia backfill dingtek --from 2026-08-21` 做首次回补。
+6. 用 `GET /health` 和 `lutetia status` 做监控。
    `/health` 返回字段：
    - `received`：收到并入队的推送数
    - `stored`：已写库的新行数
