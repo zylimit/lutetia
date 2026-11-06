@@ -202,9 +202,9 @@
 
 ---
 
-## Phase 4: 看板增强——设备详情与曲线、异常总览、位置地图、局部刷新与手机适配
+## Phase 4: 看板增强——设备详情与曲线、异常总览、位置地图、局部刷新与手机适配 ✅
 
-交付记录（2026-11-07 00:5x，本机四步走 CONCERNS；生产部署与浏览器走查待用户）：提交 a2d2303（Task 4.1）、76d6058（Task 4.2，alarmLevel 不判红）、afc3e58（Task 4.3）、59742ce（Task 4.4）、补测 1 笔（Phase 级 tester 5 处缺口）。四步走：① 交付清单四条实物齐全，看板之外只动 config.py / db.py 且在关键文件表内；② 四个 Task 各有 tester 先行用例 + Phase 级补缺口，全量 177 passed；③ compileall + static-check 全绿，web 零写 SQL，最大文件 179 行；④ 本机 compose 重建（镜像 00:43:01 晚于提交），13 项页面 / 数据口冒烟全 OK，未登录 302 / 401，404 带 CSP，30 天曲线数据口 10 ms、地图数据口 47 ms。审查：4.2 / 4.3 / 4.4 各一轮 Stage 0 + 1，无 HIGH，Medium 顺手修 5 处，残留见 progress.md #45 ～ #51。未完成：浏览器目视（曲线、地图瓦片与标记、375 px）、生产 `bash deploy/host-deploy.sh` 重跑、SC-9 逐条——等用户亲敲 /release-builder。
+交付记录（2026-11-07 00:5x，本机四步走 CONCERNS；生产部署与浏览器走查待用户）：提交 a2d2303（Task 4.1）、76d6058（Task 4.2，alarmLevel 不判红）、afc3e58（Task 4.3）、59742ce（Task 4.4）、补测 1 笔（Phase 级 tester 5 处缺口）。四步走：① 交付清单四条实物齐全，看板之外只动 config.py / db.py 且在关键文件表内；② 四个 Task 各有 tester 先行用例 + Phase 级补缺口，全量 177 passed；③ compileall + static-check 全绿，web 零写 SQL，最大文件 179 行；④ 本机 compose 重建（镜像 00:43:01 晚于提交），13 项页面 / 数据口冒烟全 OK，未登录 302 / 401，404 带 CSP，30 天曲线数据口 10 ms、地图数据口 47 ms。审查：4.2 / 4.3 / 4.4 各一轮 Stage 0 + 1，无 HIGH，Medium 顺手修 5 处，残留见 progress.md #45 ～ #51。生产（2026-11-07 01:00，用户亲敲 /release-builder，deployer 在 hub 跑 host-deploy.sh，主 Agent 独立核三件套）：HEAD 319298b / version 0.2.0，容器 01:00:53 创建、镜像 01:00:50 构建（晚于提交 00:59:26），nginx 与证书未动；`https://iot.digifiber.net/health` 200（HTTP/2）、http→https 301；登录后首页 / 地图页 / 井盖详情 / GPS 详情 200，overview 17 台 2 项异常（两台巴黎 GPS 失联）、map 5 台 GPS（4 有位置）+ 12 井盖，7 个静态文件 200（chart.umd.js 210 KB），未登录 302 / 401，404 带 CSP。SC-9 计时从巴黎到主机：30 天曲线数据口 0.94 s，其中网络往返占大头（/health 同路径约 0.9 s，服务端本机 10 ms）。标签 v0.2.0。仍未验：浏览器目视（曲线、地图瓦片与标记、375 px）由用户在 https://iot.digifiber.net/dashboard/ 看。
 
 **交付内容**：
 - 图表与地图库随包自托管（Chart.js 4.6.1、Leaflet 1.9.4 + 许可证文本），`/static/` 由应用自己服务；看板页加 CSP 等安全头；首页去掉整页重载，改为页面脚本每 60 秒拉会话鉴权的 JSON 数据口做局部更新；所有看板页带 viewport、窄屏不横向溢出。
