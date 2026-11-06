@@ -1,9 +1,8 @@
 """Login pages and the read-only dashboard (server-rendered, every dynamic value escaped)."""
-import html
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlsplit
+from typing import Any, Dict, List
+from urllib.parse import quote, urlsplit
 
 from aiohttp import web
 
@@ -11,48 +10,12 @@ from ..db import max_age_hours
 from . import anomalies
 from .data import build_anomalies
 from .auth import COOKIE_NAME, check_password, client_ip, require_session
+from .html import esc, fmt_ago, fmt_ts, page, table
 
 log = logging.getLogger(__name__)
 
-def esc(v: Any) -> str:
-    return html.escape("" if v is None else str(v))
-
-
-def fmt_ts(ts: Optional[datetime]) -> str:
-    return ts.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if ts else "-"
-
-
-def fmt_ago(ts: Optional[datetime], now: datetime) -> str:
-    if ts is None:
-        return "-"
-    minutes = max(0, int((now - ts).total_seconds() // 60))
-    if minutes < 60:
-        return "%d 分钟" % minutes
-    if minutes < 24 * 60:
-        return "%d 小时" % (minutes // 60)
-    return "%d 天" % (minutes // (24 * 60))
-
-
 def fmt_secs(sec: float) -> str:
     return fmt_ago(datetime.now(timezone.utc) - timedelta(seconds=sec), datetime.now(timezone.utc))
-
-
-def page(title: str, body: str, script: bool = False) -> web.Response:
-    js = '<script src="/static/app.js" defer></script>' if script else ""
-    doc = ('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-           '<title>%s</title><link rel="stylesheet" href="/static/app.css"></head><body>%s%s</body></html>'
-           % (esc(title), body, js))
-    return web.Response(text=doc, content_type="text/html")
-
-
-def table(headers: List[str], rows: List[List[Any]], row_class: Optional[List[str]] = None, tbody_id: str = "", cards: bool = False) -> str:
-    out = [("<table class=\"cards\">" if cards else "<table>") + "<thead><tr>" + "".join("<th>%s</th>" % esc(h) for h in headers) + "</tr></thead>",
-           '<tbody id="%s">' % esc(tbody_id) if tbody_id else "<tbody>"]
-    for i, r in enumerate(rows):
-        cls = ' class="%s"' % row_class[i] if row_class and row_class[i] else ""
-        out.append("<tr%s>" % cls + "".join('<td data-label="%s">%s</td>' % (esc(headers[j] if j < len(headers) else ""), esc(c))
-                                          for j, c in enumerate(r)) + "</tr>")
-    return "".join(out) + "</tbody></table>"
 
 
 def login_page(message: str = "", next_url: str = "", status: int = 200) -> web.Response:
@@ -112,6 +75,10 @@ async def logout(request: web.Request) -> web.Response:
     raise resp
 
 
+def device_url(source: str, device_id: str) -> str:
+    return "/dashboard/device/%s/%s" % (quote(str(source), safe=""), quote(str(device_id), safe=""))
+
+
 def devices_section(rows: List[Dict[str, Any]], now: datetime) -> str:
     cells, classes = [], []
     for r in rows:
@@ -123,7 +90,8 @@ def devices_section(rows: List[Dict[str, Any]], now: datetime) -> str:
                       fmt_ts(last), fmt_ago(last, now), "STALE" if stale else ""])
         classes.append("stale" if stale else "")
     return "<h2>设备总览</h2>" + table(
-        ["source", "device_id", "名字", "类型", "应在线", "最后入库", "距今", "状态"], cells, classes, "tbl-devices", cards=True)
+        ["source", "device_id", "名字", "类型", "应在线", "最后入库", "距今", "状态"], cells, classes, "tbl-devices", cards=True,
+        links={"名字": lambda i: device_url(rows[i]["source"], rows[i]["device_id"])})
 
 
 def sensors_section(rows: List[Dict[str, Any]]) -> str:
@@ -135,12 +103,14 @@ def sensors_section(rows: List[Dict[str, Any]]) -> str:
             d["ts"] = r["ts"]
     cells = [[d["name"], dev, d.get("volt"), d.get("temperature"), d.get("rsrp"), fmt_ts(d["ts"])]
              for dev, d in sorted(by_dev.items(), key=lambda kv: str(kv[1]["name"]))]
-    return "<h2>最新读数</h2>" + table(["名字", "device_id", "volt (V)", "temperature", "rsrp (dBm)", "时间"], cells, tbody_id="tbl-sensor", cards=True)
+    return "<h2>最新读数</h2>" + table(["名字", "device_id", "volt (V)", "temperature", "rsrp (dBm)", "时间"], cells, tbody_id="tbl-sensor", cards=True,
+                                                                            links={"名字": lambda i: device_url("dingtek", cells[i][1])})
 
 
 def gps_section(rows: List[Dict[str, Any]]) -> str:
     cells = [[r["name"], r["device_id"], fmt_ts(r["update_time"]), r["lat"], r["lon"], r["speed_kmh"], r["origin"]] for r in rows]
-    return "<h2>最后位置</h2>" + table(["名字", "device_id", "时间", "lat", "lon", "speed_kmh", "origin"], cells, tbody_id="tbl-gps")
+    return "<h2>最后位置</h2>" + table(["名字", "device_id", "时间", "lat", "lon", "speed_kmh", "origin"], cells, tbody_id="tbl-gps",
+                                                                                    links={"名字": lambda i: device_url("gps51", cells[i][1])})
 
 
 def collector_section(ctx: Any, calls: List[Dict[str, Any]], now: datetime) -> str:

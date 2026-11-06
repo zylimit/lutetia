@@ -21,7 +21,12 @@
   function fmtSecs(sec) { return fmtAgo(new Date(Date.now() - sec * 1000).toISOString(), Date.now()); }
   function cell(v) { return v === null || v === undefined ? '' : String(v); }
 
-  function fill(id, rows, classes, labels) {
+  function deviceHref(source, id) {
+    return '/dashboard/device/' + encodeURIComponent(source) + '/' + encodeURIComponent(id);
+  }
+
+  // hrefs: optional { columnIndex: function(rowIndex) -> url } rendering that cell as a link
+  function fill(id, rows, classes, labels, hrefs) {
     var tbody = document.getElementById(id);
     if (!tbody) { return; }
     while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
@@ -31,7 +36,14 @@
       cells.forEach(function (c, j) {
         var td = document.createElement('td');
         if (labels) { td.dataset.label = labels[j] || ''; }
-        td.textContent = cell(c);
+        if (hrefs && hrefs[j]) {
+          var a = document.createElement('a');
+          a.href = hrefs[j](i);
+          a.textContent = cell(c);
+          td.appendChild(a);
+        } else {
+          td.textContent = cell(c);
+        }
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -71,7 +83,8 @@
     fill('tbl-devices', data.devices.map(function (r) {
       return [r.source, r.device_id, r.name, r.device_type, online[r.expected_online] || '?',
         fmtTs(r.last_ts), fmtAgo(r.last_ts, now), r.stale ? 'STALE' : ''];
-    }), data.devices.map(function (r) { return r.stale ? 'stale' : ''; }), DEVICE_LABELS);
+    }), data.devices.map(function (r) { return r.stale ? 'stale' : ''; }), DEVICE_LABELS,
+      { 2: function (i) { return deviceHref(data.devices[i].source, data.devices[i].device_id); } });
 
     var byDev = {}, order = [];
     data.latest_sensor.forEach(function (r) {
@@ -83,11 +96,11 @@
     order.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
     fill('tbl-sensor', order.map(function (d) {
       return [d.name, d.id, d.volt, d.temperature, d.rsrp, fmtTs(d.ts)];
-    }), null, SENSOR_LABELS);
+    }), null, SENSOR_LABELS, { 0: function (i) { return deviceHref('dingtek', order[i].id); } });
 
     fill('tbl-gps', data.latest_gps.map(function (r) {
       return [r.name, r.device_id, fmtTs(r.update_time), r.lat, r.lon, r.speed_kmh, r.origin];
-    }));
+    }), null, null, { 0: function (i) { return deviceHref('gps51', data.latest_gps[i].device_id); } });
 
     var rc = data.receiver;
     fill('tbl-receiver', rc ? [[rc.received, rc.stored, rc.rejected, rc.unrecognised, rc.alarms, rc.failed,

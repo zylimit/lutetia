@@ -338,3 +338,16 @@ class Database:
                 device_id, days, limit,
             )
         return [dict(r) for r in rows]
+
+    async def get_device(self, source: str, device_id: str) -> Optional[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT source, device_id, name, device_type, expected_online, extra, updated_at "
+                "FROM device WHERE source = $1 AND device_id = $2", source, device_id)
+        return dict(row) if row else None
+
+    async def device_attributes(self, device_id: str) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT key, value, last_update_ts FROM sensor_attribute WHERE device_id = $1 ORDER BY key", device_id)
+        return [dict(r) for r in rows]

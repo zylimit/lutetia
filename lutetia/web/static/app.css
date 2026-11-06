@@ -18,3 +18,5 @@ tr.stale { background: #fdd; }
   table.cards td::before { content: attr(data-label) ": "; font-weight: bold; }
   body { padding: 8px; margin: 8px; }
 }
+.chart { position: relative; height: 220px; max-width: 900px; margin-bottom: 12px; }
+#map { height: 320px; max-width: 900px; margin-bottom: 12px; }
