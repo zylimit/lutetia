@@ -1,0 +1,16 @@
+html, body { max-width: 100%; overflow-x: hidden; }
+body { font-family: sans-serif; margin: 16px; }
+table { border-collapse: collapse; margin-bottom: 16px; }
+th, td { border: 1px solid #999; padding: 3px 8px; text-align: left; }
+tr.stale { background: #fdd; }
+.stale { background: #fdd; }
+@media (max-width: 600px) {
+  table { display: block; overflow-x: auto; }
+  table.cards { overflow-x: visible; }
+  table.cards thead { display: none; }
+  table.cards tbody, table.cards tr, table.cards td { display: block; }
+  table.cards tr { border: 1px solid #999; margin-bottom: 8px; }
+  table.cards td { border: none; padding: 2px 8px; }
+  table.cards td::before { content: attr(data-label) ": "; font-weight: bold; }
+  body { padding: 8px; margin: 8px; }
+}

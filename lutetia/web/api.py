@@ -1,32 +1,18 @@
 """Read-only JSON query API (Bearer API key). GET only: nothing here writes to the database."""
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Any, Optional, Tuple
-
-import json
 
 from aiohttp import web
 
 from ..db import ms_to_dt
 from .auth import require_api_key
+from .jsonutil import _dumps, validate_device_id
 
 DEFAULT_LIMIT, MAX_LIMIT = 1000, 10000
 
 
 class BadParam(Exception):
     pass
-
-
-def _json_default(o: Any) -> Any:
-    if isinstance(o, datetime):
-        return o.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f").rstrip("0").rstrip(".") + "Z"
-    if isinstance(o, Decimal):
-        return float(o)
-    raise TypeError("not JSON serializable: %s" % type(o).__name__)
-
-
-def _dumps(obj: Any) -> str:
-    return json.dumps(obj, default=_json_default)
 
 
 def _json(obj: Any, status: int = 200) -> web.Response:
@@ -51,6 +37,9 @@ def _parse_common(request: web.Request) -> Tuple[str, Optional[datetime], Option
     device_id = q.get("device_id", "")
     if not device_id:
         raise BadParam("device_id required")
+    err = validate_device_id(device_id)
+    if err:
+        raise BadParam(err)
     try:
         limit = int(q.get("limit", DEFAULT_LIMIT))
     except ValueError:

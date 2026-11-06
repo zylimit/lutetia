@@ -157,6 +157,16 @@ def require_session(handler: Handler) -> Handler:
     return wrapper
 
 
+def require_session_json(handler: Handler) -> Handler:
+    async def wrapper(request: web.Request) -> web.StreamResponse:
+        user = request.app["ctx"].signer.verify(request.cookies.get(COOKIE_NAME, ""))
+        if user is None:
+            return web.json_response({"error": "login required"}, status=401)
+        request["user"] = user
+        return await handler(request)
+    return wrapper
+
+
 def require_api_key(handler: Handler) -> Handler:
     async def wrapper(request: web.Request) -> web.StreamResponse:
         expected = request.app["ctx"].cfg.api_key

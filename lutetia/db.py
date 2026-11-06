@@ -292,3 +292,33 @@ class Database:
                 device_id, key, since, until, limit,
             )
         return [dict(r) for r in rows]
+
+    async def telemetry_series(self, device_id: str, keys: Sequence[str], days: int, hourly: bool) -> List[Dict[str, Any]]:
+        """Read-only chart series; up to 1501 newest rows per key so the caller can detect truncation."""
+        if hourly:
+            inner = ("SELECT key, date_trunc('hour', ts) AS ts, avg(value_si) AS value_si FROM sensor_telemetry_v "
+                     "WHERE device_id = $1 AND key = $2 AND ts >= now() - make_interval(days => $3) GROUP BY key, 2 "
+                     "ORDER BY 2 DESC LIMIT 1501")
+        else:
+            inner = ("SELECT key, ts, value_si FROM sensor_telemetry_v "
+                     "WHERE device_id = $1 AND key = $2 AND ts >= now() - make_interval(days => $3) "
+                     "ORDER BY ts DESC LIMIT 1501")
+        out: List[Dict[str, Any]] = []
+        async with self.pool.acquire() as conn:
+            for key in keys:
+                rows = await conn.fetch("SELECT * FROM (" + inner + ") s ORDER BY ts", device_id, key, days)
+                out.extend(dict(r) for r in rows)
+        return out
+
+    async def positions_recent(self, device_id: str, days: int, limit: int) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT update_time, lat, lon, speed_kmh, moving, origin
+                FROM gps_position_v
+                WHERE device_id = $1 AND update_time >= now() - make_interval(days => $2)
+                ORDER BY update_time DESC LIMIT $3
+                """,
+                device_id, days, limit,
+            )
+        return [dict(r) for r in rows]

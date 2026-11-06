@@ -19,7 +19,7 @@ lutetia = "lutetia.cli:main"
 include = ["lutetia*"]
 
 [tool.setuptools.package-data]
-lutetia = ["sql/*.sql"]
+lutetia = ["sql/*.sql", "web/static/**"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
