@@ -8,3 +8,6 @@ state/
 
 # SiteMaster / Claude Code 框架家底：本机迭代、不进产品仓（与姊妹下游仓一致；缺此条时 untracked .claude/ 会把档位误升 strict、误触 three-file-sync-gate）。
 .claude/
+
+# serena MCP 本机索引与记忆，不进产品仓
+.serena/
