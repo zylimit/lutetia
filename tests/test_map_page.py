@@ -186,3 +186,78 @@ async def test_dashboard_links_to_map(db):
         r = await client.get("/dashboard/")
         assert r.status == 200
         assert 'href="/dashboard/map"' in await r.text()
+
+
+async def test_map_data_gps_without_position_is_listed_with_nulls(db):
+    # risk: high -- device row present, gps_position empty: still listed (LEFT JOIN), null coords, empty track (also under days=7)
+    gp = _gps_id()
+    await db.upsert_devices([Device("gps51", gp, "map-nopos", "GPS", True, {})])
+    try:
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            for params in ({}, {"days": "7"}):
+                r = await client.get("/dashboard/data/map", params=params)
+                assert r.status == 200, params
+                g = [x for x in (await r.json())["gps"] if x["device_id"] == gp]
+                assert len(g) == 1, params
+                assert g[0]["lat"] is None and g[0]["lon"] is None and g[0]["update_time"] is None
+                assert g[0]["track"] == []
+    finally:
+        await cleanup(db, gp)
+
+
+async def test_map_data_out_of_range_and_huge_latitude_skipped_not_500(db):
+    # risk: high -- regression lock for 2026-11-07 review Medium: lat "999" and a 401-char numeric string must be dropped, not 500
+    out_of_range, huge, ok = _dt_id(), _dt_id(), _dt_id()
+    now = datetime.now(timezone.utc)
+    await db.upsert_devices([Device("dingtek", d, "map-" + n, "DC414", True, {})
+                             for d, n in ((out_of_range, "oor"), (huge, "huge"), (ok, "ok"))])
+    try:
+        await db.upsert_attributes([Attribute(out_of_range, "latitude", "999", _ms(now)),
+                                    Attribute(out_of_range, "longitude", "2.35", _ms(now)),
+                                    Attribute(huge, "latitude", "1" + "0" * 400, _ms(now)),
+                                    Attribute(huge, "longitude", "2.35", _ms(now)),
+                                    Attribute(ok, "latitude", "48.85", _ms(now)),
+                                    Attribute(ok, "longitude", "2.35", _ms(now))])
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            r = await client.get("/dashboard/data/map")
+            assert r.status == 200
+            ids = {x["device_id"] for x in (await r.json())["manholes"]}
+            assert out_of_range not in ids
+            assert huge not in ids
+            assert ok in ids  # control: valid coords still listed, so the skips above are real filtering
+    finally:
+        await cleanup(db, out_of_range, huge, ok)
+
+
+async def test_map_data_days_zero_equals_omitted(db):
+    # risk: medium -- contract: days omitted or "0" => no tracks, identical payload shape
+    gp = _gps_id()
+    now = datetime.now(timezone.utc)
+    await db.upsert_devices([Device("gps51", gp, "map-d0", "GPS", True, {})])
+    try:
+        await db.insert_gps_positions([_gps(gp, now - timedelta(hours=1), 22.5022, 114.0022, 2000.0)])
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            r0 = await client.get("/dashboard/data/map", params={"days": "0"})
+            r1 = await client.get("/dashboard/data/map")
+            assert r0.status == 200 and r1.status == 200
+            g0 = [x for x in (await r0.json())["gps"] if x["device_id"] == gp]
+            g1 = [x for x in (await r1.json())["gps"] if x["device_id"] == gp]
+            assert len(g0) == len(g1) == 1
+            assert g0[0] == g1[0]
+            assert g0[0]["track"] == []
+            assert g0[0]["lat"] == pytest.approx(22.5022)
+    finally:
+        await cleanup(db, gp)
+
+
+async def test_map_page_tracks_other_values_ignored(db):
+    # risk: medium -- only tracks=1 turns tracks on; "7" and NUL byte stay at data-days="0"
+    async with TestClient(TestServer(make_app(db))) as client:
+        await login(client)
+        for q in ("?tracks=7", "?tracks=%00"):
+            r = await client.get("/dashboard/map" + q)
+            assert r.status == 200, q
+            assert 'data-days="0"' in await r.text(), q

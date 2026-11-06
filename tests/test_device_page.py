@@ -87,6 +87,16 @@ async def test_device_page_404s(db):
             r = await client.get(path, allow_redirects=False)
             assert r.status == 404, path
             assert "default-src 'self'" in r.headers.get("Content-Security-Policy", ""), path
+    # control: an existing device on the same route answers 200, so the 404s above mean "not found", not "route missing"
+    dev = _dt_id()
+    await db.upsert_devices([Device("dingtek", dev, "dash-404ctl", "DC414", True, {})])
+    try:
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            r = await client.get("/dashboard/device/dingtek/" + dev, allow_redirects=False)
+            assert r.status == 200
+    finally:
+        await cleanup(db, dev)
 
 
 async def test_dingtek_page_renders_charts_and_tables(db):
@@ -127,7 +137,7 @@ async def test_gps_page_renders_map_and_positions(db):
             assert r.status == 200
             html = await r.text()
             for s in ('id="map"', "/static/vendor/leaflet.js", "/static/vendor/leaflet.css",
-                      "/static/device.js", "openstreetmap.org", "7777"):
+                      "/static/device.js", "openstreetmap.org", "里程表 7777.0 km"):
                 assert s in html, s
             tail = html.split("最近位置", 1)[1]
             assert "22.5011" in tail and "22.5022" in tail

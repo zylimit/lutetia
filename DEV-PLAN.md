@@ -204,6 +204,8 @@
 
 ## Phase 4: 看板增强——设备详情与曲线、异常总览、位置地图、局部刷新与手机适配
 
+交付记录（2026-11-07 00:5x，本机四步走 CONCERNS；生产部署与浏览器走查待用户）：提交 a2d2303（Task 4.1）、76d6058（Task 4.2，alarmLevel 不判红）、afc3e58（Task 4.3）、59742ce（Task 4.4）、补测 1 笔（Phase 级 tester 5 处缺口）。四步走：① 交付清单四条实物齐全，看板之外只动 config.py / db.py 且在关键文件表内；② 四个 Task 各有 tester 先行用例 + Phase 级补缺口，全量 177 passed；③ compileall + static-check 全绿，web 零写 SQL，最大文件 179 行；④ 本机 compose 重建（镜像 00:43:01 晚于提交），13 项页面 / 数据口冒烟全 OK，未登录 302 / 401，404 带 CSP，30 天曲线数据口 10 ms、地图数据口 47 ms。审查：4.2 / 4.3 / 4.4 各一轮 Stage 0 + 1，无 HIGH，Medium 顺手修 5 处，残留见 progress.md #45 ～ #51。未完成：浏览器目视（曲线、地图瓦片与标记、375 px）、生产 `bash deploy/host-deploy.sh` 重跑、SC-9 逐条——等用户亲敲 /release-builder。
+
 **交付内容**：
 - 图表与地图库随包自托管（Chart.js 4.6.1、Leaflet 1.9.4 + 许可证文本），`/static/` 由应用自己服务；看板页加 CSP 等安全头；首页去掉整页重载，改为页面脚本每 60 秒拉会话鉴权的 JSON 数据口做局部更新；所有看板页带 viewport、窄屏不横向溢出。
 - 首页顶部异常总览：失联 / 低电压 / 报警中 / 推送通道 / GPS51 配额 / Dingtek 登录次数，无异常显示「全部正常」。

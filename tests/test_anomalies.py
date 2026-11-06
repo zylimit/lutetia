@@ -185,3 +185,14 @@ def test_low_volt_config_default_and_env(monkeypatch):
     assert Config.from_env().low_volt == pytest.approx(3.4)
     monkeypatch.setenv("DASHBOARD_LOW_VOLT", "3.3")
     assert Config.from_env().low_volt == pytest.approx(3.3)
+
+
+def test_push_rule_respects_custom_silent_limit():
+    # risk: medium -- push_silent_limit_sec is a parameter, not the 900s default: 150 > 120 red, 100 <= 120 clean
+    a = _anom()
+    kw = dict(push_silent_limit_sec=120)
+    r = kinds(a.compute(NOW, [], [], [], {"silent_sec": 150}, [], 1400, 3.4, **kw), "push")
+    assert len(r) == 1 and r[0]["level"] == a.LEVEL_RED
+    assert kinds(a.compute(NOW, [], [], [], {"silent_sec": 100}, [], 1400, 3.4, **kw), "push") == []
+    # same 150s under the default limit must NOT fire: proves the parameter, not a lowered constant, drives it
+    assert kinds(a.compute(NOW, [], [], [], {"silent_sec": 150}, [], 1400, 3.4), "push") == []
