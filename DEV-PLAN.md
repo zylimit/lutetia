@@ -202,9 +202,61 @@
 
 ---
 
+## Phase 4: 看板增强——设备详情与曲线、异常总览、位置地图、局部刷新与手机适配
+
+**交付内容**：
+- 图表与地图库随包自托管（Chart.js 4.6.1、Leaflet 1.9.4 + 许可证文本），`/static/` 由应用自己服务；看板页加 CSP 等安全头；首页去掉整页重载，改为页面脚本每 60 秒拉会话鉴权的 JSON 数据口做局部更新；所有看板页带 viewport、窄屏不横向溢出。
+- 首页顶部异常总览：失联 / 低电压 / 报警中 / 推送通道 / GPS51 配额 / Dingtek 登录次数，无异常显示「全部正常」。
+- 设备详情页：井盖 7 天原始点或 30 天按小时平均的电压、温度、信号曲线 + 最近 50 条上报 + 属性表；GPS 设备最后位置小地图 + 最近 50 条位置 + 里程与运动标志。
+- 位置地图页：5 台 GPS 最后位置（可选近 7 天轨迹点）+ 12 台井盖固定坐标（属性 latitude / longitude），标记弹窗链接到详情页，OpenStreetMap 底图与署名。
+
+**验证的假设**：
+- `[默认]` 30 天曲线按小时平均后每键 ≤ 720 点、详情页整体 ≤ 6 条查询且 1 秒内——Task 4.3 验收在生产库量级（14.9 万行）计时。
+- `[默认]` 低电压阈值 3.4 V、配额 ≥ 80% 标黄、推送静默 > 15 分钟且在轮询标红——Task 4.2 用例固定这些数字，Spec 问题表留阈值待答。
+- `[默认]` OpenStreetMap 瓦片能从用户浏览器直连（公司网络可能拦）——Task 4.4 验收时在用户浏览器开一次地图页，拦了就换底图源。
+- 井盖属性里的 latitude / longitude 是真实安装坐标（2026-11-06 看到属性 key 里有这两项，值没核）——Task 4.4 验收在地图上目视是否落在巴黎。
+
+**关键文件**：
+- `lutetia/web/static/vendor/{chart.umd.js,leaflet.js,leaflet.css,images/*}` + `static/LICENSES.md` + `static/app.css` + `static/app.js` — Task 4.1 唯一 owner（4.3 / 4.4 各加自己的 `device.js` / `map.js`，不改 app.js）
+- `lutetia/web/data.py` — 新建：会话鉴权 JSON 数据口 overview / telemetry / positions（Task 4.1）；4.2 往 overview 里加 anomalies 字段，4.4 加 `/dashboard/data/map`
+- `lutetia/web/auth.py` — 加 `require_session_json`（无会话回 401 JSON）（Task 4.1）
+- `lutetia/web/app.py` — 静态路由、安全头中间件、注册 data 路由（Task 4.1）；4.2 ～ 4.4 各加一行注册，串行执行避免冲突
+- `lutetia/web/dashboard.py` — 首页改：去 meta refresh、加 viewport / 样式 / 脚本、表体加 id（Task 4.1）；4.2 加异常块；4.3 把设备名改成链接
+- `lutetia/web/anomalies.py` — 新建：纯函数规则（Task 4.2 唯一 owner）
+- `lutetia/web/pages_device.py` — 新建（Task 4.3 唯一 owner）；`lutetia/web/pages_map.py` — 新建（Task 4.4 唯一 owner）
+- `lutetia/db.py` — 加 `telemetry_series(device_id, keys, days, hourly)`、`positions_recent(device_id, days, limit)`（Task 4.1）、`manhole_locations()`（Task 4.4）
+- `lutetia/config.py` — 加 `DASHBOARD_LOW_VOLT`（默认 3.4）（Task 4.2）；`pyproject.toml` package-data 加 `web/static/**`（Task 4.1）
+- `tests/test_dashboard_data.py`（4.1）、`tests/test_anomalies.py`（4.2）、`tests/test_device_page.py`（4.3）、`tests/test_map_page.py`（4.4）— tester
+
+**Task 清单**：
+- **Task 4.1：看板基础——静态资源自托管 + 会话 JSON 数据口 + 局部刷新 + 手机适配 + 安全头（SCOPE-13 ④，SC-9）** — 从 jsdelivr 按精确版本下载 `chart.js@4.6.1/dist/chart.umd.js`、`leaflet@1.9.4/dist/{leaflet.js,leaflet.css,images/marker-icon.png,marker-icon-2x.png,marker-shadow.png}` 进 `lutetia/web/static/vendor/`，附 `LICENSES.md`（MIT / BSD-2 原文 + 版本号）；`pyproject.toml` package-data 加 `web/static/**`；`app.py`：`add_static("/static/", ...)`（不需登录，`show_index=False`）、安全头中间件（`Content-Security-Policy: default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'`、`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: same-origin`）、注册 data 路由；`auth.py` 加 `require_session_json`（无会话 → 401 `{"error":"login required"}`）；`data.py`：`GET /dashboard/data/overview`（device_status + stale 标记 + latest_sensor_values + latest_gps_positions + receiver 计数 + call_summary(24) + `anomalies: []` 占位 + generated_at）、`GET /dashboard/data/telemetry?device_id=&keys=volt,temperature,rsrp&days=7|30`（7 天原始点，30 天 `date_trunc('hour')` 平均；days 只许 7 或 30 否则 400；每键 ≤ 1500 点）、`GET /dashboard/data/positions?device_id=&days=7`（≤ 2000 条，倒序）；`db.py` 加 `telemetry_series` 与 `positions_recent`；`dashboard.py` 首页去掉 `http-equiv=refresh`，加 `<meta name="viewport">`、`/static/app.css`、`/static/app.js`，五张表的 tbody 加 id（`tbl-devices` / `tbl-sensor` / `tbl-gps` / `tbl-receiver` / `tbl-calls`）与 `#last-refresh`；`app.js`：每 60 秒 fetch overview、用 textContent 重绘各 tbody（不拼 HTML 字符串）、失败时在 `#last-refresh` 显示「刷新失败」而不清空表；`app.css`：基础排版、≤ 600 px 表格横向滚动、STALE 行色保留。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_dashboard_data.py tests/test_dashboard.py`、全量 pytest、`python -m compileall -q lutetia`、`pip install -q . --target <临时目录> --no-deps && ls <临时目录>/lutetia/web/static/vendor`（文件齐）、`grep -niE '\b(insert|update|delete|truncate|drop)\b' lutetia/web/*.py`（零命中）
+  - Business Context：Spec v1.4「局部刷新与手机适配」「看板数据口」；安全底线：数据口只认会话、静态资源不含数据、API key 不进浏览器、CSP 只放本站与 OSM 瓦片。区分例子：无 cookie `GET /dashboard/data/overview` → 401 JSON；带 cookie → 200 且含 devices / receiver / anomalies 键；`days=10` → 400；`/static/vendor/chart.umd.js` 无 cookie 也 200；首页响应头含 CSP；首页 HTML 不再含 `http-equiv="refresh"`。
+  - 依赖类型：功能前置 Phase 2 / 3 已提交；验证前置 lutetia-pg 在线、本机能访问 jsdelivr（2026-11-06 核过可下载）。共享写入：本 Task 唯一 owner 见关键文件。
+  - 证据产生者：HIGH 档（新增会话鉴权面 + 静态服务 + 超 300 行）——implementer（sonnet）；tester 独立写 tests/test_dashboard_data.py；code-reviewer 全三 Stage（重点：数据口鉴权、CSP、静态目录不越界、聚合 SQL 参数化）；主 Agent 亲跑并在本机 compose 栈重建后用浏览器开一次。
+- **Task 4.2：首页异常总览（SCOPE-13 ②）** — `lutetia/web/anomalies.py`：纯函数 `compute(devices, latest_sensor, latest_alarm_values, receiver, calls_24h, budget, low_volt) -> List[dict]`（每条 `{"level": "red"|"yellow", "kind": "stale"|"low_volt"|"alarm"|"push"|"quota"|"login", "device_id"?, "name"?, "detail": str}`；规则：失联同 status；低电压 `volt_si < low_volt`；报警 alarmFall / alarmLevel / alarmBattery 最新值非 0；推送 `silent_sec > 900` 且轮询中 → red；GPS51 24h 调用 ≥ 80% 预算 → yellow，≥ 100% → red；Dingtek 24h login > 1 → red）；`db.py` 加 `latest_alarm_values()`（三个 alarm 键最新值）；`config.py` 加 `low_volt` ← DASHBOARD_LOW_VOLT 默认 3.4；`data.py` overview 填 anomalies；`dashboard.py` 首页顶部块（无异常一行「全部正常」）；`app.js` 一并刷新该块。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_anomalies.py tests/test_dashboard_data.py`、全量、compileall
+  - Business Context：Spec v1.4「异常总览」；首要动作「一眼看到哪台断了」。区分例子：一台 expected_online 且最新数据 5 小时前 → stale red；volt 3.35 V → low_volt；alarmFall=1 → alarm；24h gps51 调用 1200 / 预算 1400 → quota yellow。
+  - 依赖类型：功能前置 Task 4.1（数据口与 app.js）；验证前置 lutetia-pg 在线。
+  - 证据产生者：MEDIUM 档——implementer；tester 写 tests/test_anomalies.py（纯函数全覆盖 + 数据口含 anomalies）；code-reviewer Stage 0 + 1；主 Agent 亲跑。
+- **Task 4.3：设备详情页 + 历史曲线（SCOPE-13 ①）** — `lutetia/web/pages_device.py`：`GET /dashboard/device/{source}/{device_id}`（require_session；未知设备 404 页）：井盖页含三个 canvas（volt / temperature / rsrp）、7 / 30 天切换链接、最近 50 条上报表（query_telemetry）、属性表（sensor_attribute）；GPS 页含小地图容器（Leaflet，最后位置一个标记）、最近 50 条位置表（query_positions）、里程表与 moving；`static/device.js`：按 `data-device-id` / `data-days` 调 `/dashboard/data/telemetry|positions` 画图（Chart.js line，时间轴用 ts 字符串，不引 date 适配器）；`dashboard.py` 首页设备名改成链接；`db.py` 加 `device_attributes(device_id)`。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_device_page.py`、全量、compileall，并在生产库量级计时 `telemetry_series(…, 30, hourly=True)` < 300 ms
+  - Business Context：Spec v1.4「设备详情页」。区分例子：`/dashboard/device/dingtek/<uuid>` 登录后 200 且含三个 canvas 与 50 行表；`/dashboard/device/gps51/4072400634` 含地图容器与里程 14790.9；`/dashboard/device/x/y` → 404；未登录 → 302 /login。
+  - 依赖类型：功能前置 Task 4.1；验证前置 lutetia-pg 在线。
+  - 证据产生者：MEDIUM 档——implementer；tester 写 tests/test_device_page.py；code-reviewer Stage 0 + 1（重点 HTML 转义、路径参数校验）；主 Agent 亲跑 + 浏览器开一台井盖详情看曲线。
+- **Task 4.4：位置地图页（SCOPE-13 ③）** — `lutetia/web/pages_map.py`：`GET /dashboard/map`（require_session）含全屏地图容器与设备列表侧栏；`data.py` 加 `GET /dashboard/data/map`（GPS 最后位置 + 可选 `days=7` 轨迹点 + 井盖固定坐标）；`db.py` 加 `manhole_locations()`（从 sensor_attribute 的 latitude / longitude 取，缺的跳过）；`static/map.js`：Leaflet + OSM 瓦片（attribution 必须显示）、GPS 用默认标记、井盖用圆点，弹窗含名字 / 最后时间 / 关键读数 / 详情页链接；首页导航加「地图」。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_map_page.py`、全量、compileall；主 Agent 在浏览器开地图页看 OSM 瓦片能否加载、标记是否落在巴黎
+  - Business Context：Spec v1.4「位置地图」。区分例子：`/dashboard/data/map` 返回 gps 数组（≤ 5 项，每项 lat / lon / update_time）与 manholes 数组（≤ 12 项）；两台巴黎 GPS 标记在 48.83, 2.26 附近；页面 HTML 含 `openstreetmap.org` 署名。
+  - 依赖类型：功能前置 Task 4.1（Leaflet 已自托管、数据口框架）；验证前置 用户浏览器能连 tile.openstreetmap.org。
+  - 证据产生者：MEDIUM 档——implementer；tester 写 tests/test_map_page.py；code-reviewer Stage 0 + 1；主 Agent 浏览器目视。
+
+**验收标准**：
+- `python -m pytest -q -p no:cacheprovider` 全绿，含四个新测试文件；原有用例未破坏；`lutetia/web/*.py` 零写 SQL；每个文件 < 300 行。
+- 本机 compose 栈重建后浏览器走一遍：首页顶部异常块、60 秒后 `#last-refresh` 时间变化且页面不闪、点一台井盖看到 30 天曲线、地图页看到 17 个标记、手机宽度（浏览器 375 px）无横向滚动条。
+- 生产：`bash deploy/host-deploy.sh` 二跑（证书与配置都在则跳过 certbot），`https://iot.digifiber.net/static/vendor/chart.umd.js` 200，登录后四个页面各开一次；SC-9 逐条过。
+- 设计规范按下一步判定跳过：表格 + 曲线 + 地图，样式跟随库默认；跳过理由与日期记 progress。
+
+---
+
 ## 技术栈
 
-沿用首版，不引新依赖、不升级。版本为 2026-11-06 本机 venv 实装与 Spec 技术方向表记录的 PyPI 核对结果。
+沿用首版，Python 侧不引新依赖、不升级；v1.4 起前端静态库随包自托管（见下表）。版本为 2026-11-06 本机 venv 实装与 Spec 技术方向表记录的 PyPI 核对结果。
 
 | 层级 | 技术 | 版本 | 说明 |
 |------|------|------|------|
@@ -215,6 +267,8 @@
 | 数据库 | PostgreSQL | 16（postgres:16-alpine） | 本机 lutetia-pg 容器 127.0.0.1:15433；生产 compose 内网 db:5432 |
 | 部署 | Docker Compose | v2（本机 2.40.3） | migrate → run；状态目录与数据各一卷 |
 | 包管理 | pip + venv | — | `pip install -e ".[dev]"`；内网侧装包加 `-i https://mirrors.aliyun.com/pypi/simple` |
+| 前端静态库（v1.4） | Chart.js / Leaflet | 4.6.1（MIT）/ 1.9.4（BSD-2-Clause） | 2026-11-06 向 npm 仓库核过版本与许可证；从 jsdelivr 按精确版本下载进 `lutetia/web/static/vendor/` 随包发布，不走 CDN；地图底图 OpenStreetMap 标准瓦片（浏览器直连，页面保留署名） |
+| 反向代理 / 证书（v1.3） | nginx / certbot | 1.24（主机自带）/ 2.9 | 主机 nginx server block + Let's Encrypt，`deploy/host-deploy.sh` 幂等部署 |
 
 ## 数据库表
 
