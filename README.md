@@ -31,6 +31,14 @@ pytest
 3. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `http://<IP>:8080/gps51/push`（或反代后的 https 地址）。
 4. `docker compose exec collector lutetia backfill dingtek --from 2026-08-21` 做首次回补。
 5. 用 `GET /health` 和 `lutetia status` 做监控。
+   `/health` 返回字段：
+   - `received`：收到并入队的推送数
+   - `stored`：已写库的新行数
+   - `rejected`：请求体为空或不是合法 JSON、被 400 拒绝的次数
+   - `unrecognised`：合法 JSON 但认不出格式、未入库的推送数
+   - `failed`：非数据库类异常、被丢弃的推送数
+   - `queued`：队列里尚未写库的条数
+   - `silent_sec`：距上次收到有效推送的秒数
 
 ## 数据表
 

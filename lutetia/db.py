@@ -80,7 +80,7 @@ class Database:
         cols = list(zip(*[(
             r.device_id, ms_to_dt(r.update_time), ms_to_dt(r.device_time), ms_to_dt(r.arrived_time),
             r.lat, r.lon, r.speed_raw, r.course, r.altitude, r.total_distance, r.status, r.alarm,
-            r.strstatus, r.stralarm, r.moving, r.temp1, r.temp2, r.temp3, r.temp4, r.origin, json.dumps(r.raw),
+            r.strstatus, r.stralarm, r.moving, r.temp1, r.temp2, r.temp3, r.temp4, r.origin, r.raw,
         ) for r in rows]))
         async with self.pool.acquire() as conn:
             inserted = await conn.fetch(

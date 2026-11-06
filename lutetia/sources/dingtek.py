@@ -5,7 +5,7 @@ import base64
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 
@@ -22,6 +22,10 @@ PAGE_LIMIT = 1000             # ThingsBoard per-key limit on values/timeseries
 DAY_MS = 86400000
 MIN_WINDOW_MS = 15 * 60000
 WS_ERR_UNAUTHORIZED = 3
+WS_BACKOFF_START = 5.0
+WS_BACKOFF_MAX = 120.0
+WS_STABLE_SESSION_S = 60.0    # a session shorter than this does not reset the reconnect backoff
+WS_FRESH_TOKEN_S = 120.0      # errorCode=3 this soon after obtaining a token: re-login would not help
 
 
 class DingtekError(Exception):
@@ -46,6 +50,7 @@ class DingtekClient:
         self._lock = asyncio.Lock()
         self._last_login_attempt = 0.0
         self._login_failures = 0
+        self.token_obtained_at = 0.0      # time.monotonic() of last successful login/refresh; 0.0 = loaded from disk
 
     @property
     def token(self) -> Optional[str]:
@@ -84,6 +89,7 @@ class DingtekClient:
                 raise DingtekError("dingtek login failed: HTTP %d %s" % (r.status, text[:200]))
         d = json.loads(text)
         self._token, self._refresh_token, self._login_failures = d["token"], d.get("refreshToken"), 0
+        self.token_obtained_at = time.monotonic()
         self._save()
         log.info("dingtek login ok, token exp in %.0f min", (_jwt_exp(self._token) - time.time()) / 60)
 
@@ -99,6 +105,7 @@ class DingtekClient:
                 return False
             d = await r.json()
         self._token, self._refresh_token = d["token"], d.get("refreshToken", self._refresh_token)
+        self.token_obtained_at = time.monotonic()
         self._save()
         log.info("dingtek token refreshed")
         return True
@@ -164,6 +171,7 @@ class DingtekClient:
 class DingtekSync:
     def __init__(self, client: DingtekClient, db: Database):
         self.client, self.db = client, db
+        self.last_failures: List[Tuple[str, str, str]] = []   # (uuid, name, error) of the last backfill
 
     async def sync_devices(self) -> List[Device]:
         devices = parse_devices({"data": await self.client.list_devices()})
@@ -201,11 +209,19 @@ class DingtekSync:
     async def backfill(self, start_ms: int, end_ms: Optional[int] = None) -> int:
         end_ms = end_ms or int(time.time() * 1000)
         total = 0
-        for d in await self.sync_devices():
-            n = await self.backfill_device(d.device_id, start_ms, end_ms)
-            flag = await self.refresh_attributes(d.device_id)
+        self.last_failures = []
+        devices = await self.sync_devices()
+        for d in devices:
+            try:
+                n = await self.backfill_device(d.device_id, start_ms, end_ms)
+                flag = await self.refresh_attributes(d.device_id)
+            except (DingtekError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+                log.exception("dingtek backfill %s (%s) failed", d.name, d.device_id)
+                self.last_failures.append((d.device_id, d.name or "", "%s: %s" % (type(e).__name__, e)))
+                continue
             total += n
             log.info("dingtek backfill %s (%s): %d new rows, active=%s", d.name, d.device_id, n, flag)
+        log.info("dingtek backfill done: %d new rows, %d/%d devices failed", total, len(self.last_failures), len(devices))
         return total
 
     async def reconcile(self, days: int = 2) -> int:
@@ -245,7 +261,10 @@ class DingtekWs:
                 if data.get("errorCode"):
                     log.warning("dingtek ws error %s: %s", data.get("errorCode"), data.get("errorMsg"))
                     if data.get("errorCode") == WS_ERR_UNAUTHORIZED:
-                        await self.client.invalidate()
+                        if time.monotonic() - self.client.token_obtained_at < WS_FRESH_TOKEN_S:
+                            log.error("dingtek ws errorCode=3 right after obtaining a token; not re-logging in, backing off")
+                        else:
+                            await self.client.invalidate()
                         return
                     continue
                 self.last_msg_at = time.monotonic()
@@ -256,23 +275,29 @@ class DingtekWs:
                     if n:
                         log.info("dingtek ws: %s %d new values", sub_map.get(data.get("subscriptionId")), n)
 
+    def _redact(self, text: str) -> str:
+        tok = self.client.token
+        return text.replace(tok, "<token>") if tok else text
+
     async def run(self) -> None:
-        backoff = 5.0
+        backoff = WS_BACKOFF_START
         while True:
+            started = time.monotonic()
             try:
                 await self._session_once()
-                backoff = 5.0
                 log.info("dingtek ws closed, reconnecting")
             except aiohttp.WSServerHandshakeError as e:
-                log.warning("dingtek ws handshake failed: %s", e)
+                log.warning("dingtek ws handshake failed: HTTP %s %s", e.status, e.message)   # str(e) carries the URL with ?token=
                 if e.status in (401, 403):
                     try:
                         await self.client.invalidate()
-                    except DingtekError:
-                        log.exception("dingtek re-auth failed")
+                    except DingtekError as ie:
+                        log.error("dingtek re-auth failed: %s", self._redact(str(ie)))
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                log.exception("dingtek ws session failed")
+            except Exception as e:  # noqa: BLE001 - keep the ws loop alive; no traceback (it can embed the token URL)
+                log.error("dingtek ws session failed: %s: %s", type(e).__name__, self._redact(str(e)))
+            if time.monotonic() - started >= WS_STABLE_SESSION_S:
+                backoff = WS_BACKOFF_START
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 120.0)
+            backoff = min(backoff * 2, WS_BACKOFF_MAX)

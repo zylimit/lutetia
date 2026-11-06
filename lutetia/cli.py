@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -9,9 +10,10 @@ import aiohttp
 from . import log as logsetup
 from .config import Config
 from .db import Database
-from .sources.dingtek import DingtekClient, DingtekSync
-from .sources.gps51 import Gps51Client, Gps51Poller
+from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
+from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
+log = logging.getLogger(__name__)
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
 
 
@@ -46,9 +48,12 @@ async def cmd_backfill(cfg: Config, args) -> int:
             end = _date_ms(args.to) + 86400000 - 1 if args.to else None
             n = await sync.backfill(_date_ms(getattr(args, "from")), end)
             print("inserted rows:", n)
+            for uuid, name, err in sync.last_failures:
+                print("FAILED %s (%s): %s" % (name, uuid, err))
+            failed = bool(sync.last_failures)
     finally:
         await db.close()
-    return 0
+    return 1 if failed else 0
 
 
 async def cmd_status(cfg: Config, args) -> int:
@@ -132,7 +137,12 @@ def main(argv=None) -> None:
     cfg = Config.from_env()
     logsetup.setup(cfg.log_level)
     cfg.require("database_url")
-    sys.exit(asyncio.run(args.fn(cfg, args)))
+    try:
+        rc = asyncio.run(args.fn(cfg, args))
+    except (Gps51Error, DingtekError) as e:
+        log.error("%s", e)
+        sys.exit(1)
+    sys.exit(rc)
 
 
 if __name__ == "__main__":

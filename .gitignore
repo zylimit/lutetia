@@ -11,3 +11,6 @@ state/
 
 # serena MCP 本机索引与记忆，不进产品仓
 .serena/
+
+# pip install . 在容器里跑过会留下 setuptools 构建目录
+build/
