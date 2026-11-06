@@ -10,3 +10,17 @@ _Last updated: 2026-11-07_
 - 2026-11-06: 角色定位——Lutetia 是生产者（采集、落库、经 HTTPS 域名提供只读 API 的服务端），看板是消费者；看板先在本仓逐步完善、不单开项目（只走与 API 相同的只读查询，不碰采集链路），其他团队要定制看板走 SCOPE-12 的 API 自建；拆成独立应用的时机是出现第二个消费者、需要前端团队或多租户（依据：用户纠正原话「你理解错了，你要的看板是应用，独立的消费者，你现在看法的 SaaS 是个生产者」，随后问「或者你觉得没有必要单独启动一个项目，你可以直接完善现在的看板」，AI 给出拆与不拆的代价后建议不拆，用户同意并说「如果其他团队要做，他们继续去定制」；用户口中的「SaaS」指服务端角色，不是多租户商业形态；feedback 已记 .claude/feedback/2026-11-06-saas-is-producer-dashboard-is-consumer.md；适用范围：Spec v1.4 决策依据「角色定位」行与 SCOPE-12，Phase 4 及之后的看板工作；取代：无——纠正的是主 Agent 口头提议「在 Code 目录下单开一个看板项目」，该提议未成决策；同日「先做单租户…多租户 SaaS 进以后」那条继续生效）
 - 2026-11-06: 看板增强四项进本版范围（SCOPE-13 / SC-9）：设备详情页 + 7 天原始点 / 30 天按小时平均的电压 / 温度 / 信号曲线、首页异常总览（失联 / 低电压默认 3.4 V / alarmFall・alarmLevel・alarmBattery 非 0 / 推送静默超 15 分钟且在轮询 / GPS51 配额 ≥ 80% 黄 ≥ 100% 红 / Dingtek 24h 登录 > 1）、GPS 最后位置与井盖固定坐标地图、首页 60 秒局部刷新 + viewport + ≤ 600 px 适配；仍只读、仍需登录；OUT-1 收窄为跨设备分析报表与带操作的后台；设计规范按下一步判定跳过（依据：用户 2026-11-06 四项全选并说「好」「我们逐步完善看板」；各阈值与 7 / 30 天为 AI `[默认]`，低电压阈值进 Spec 问题表（DASHBOARD_LOW_VOLT 可调）；适用范围：Spec v1.4、DEV-PLAN Phase 4 Task 4.1 ～ 4.4；取代：同日「只读看板进本版范围」那条里「图表 / 报表 / 分析仍在非目标」的图表与地图部分）
 - 2026-11-06: 看板前端库随包自托管——Chart.js 4.6.1（MIT）与 Leaflet 1.9.4（BSD-2-Clause）从 jsdelivr 按精确版本下载进 `lutetia/web/static/vendor/` 作 package-data、附许可证与 sha256，不走 CDN；地图底图用 OpenStreetMap 标准瓦片（浏览器直连、页面保留署名）；页面脚本只调会话鉴权的 `/dashboard/data/*` 数据口，API key 不进浏览器；看板页加 CSP（只放本站与 OSM 瓦片）等安全头（依据：2026-11-06 向 npm 仓库核过两库版本与许可证、jsdelivr 三个文件可下载；内网或限制出网也能开看板；key 进页面等于公开；适用范围：lutetia/web/static/、data.py、app.py 中间件，Phase 4 全部 Task；取代：无）
+
+## Archived TODO
+- [P1][DONE][#7] Phase 3 Task 3.2 HTTPS 入口——按用户「certbot 搞一下」改成主机 nginx + certbot（不用 Caddy）：deploy/nginx/iot.digifiber.net.conf、幂等 deploy/host-deploy.sh、compose 端口只绑回环 + 发布端口可配、README 部署节；两轮 Stage 0 + 1 复核的 HIGH 2 条 / Medium 1 条全修并沙箱复验；已在云主机真跑通（evidence：commit bd82b4f；主机 `~/lutetia` HEAD c7d8eac，`sudo nginx -t` successful，`certbot certificates` 列出 iot.digifiber.net）
+- [P0][DONE][#21] 提交 Phase 2 后半段：Task 2.4 看板 + 登录、Task 2.5 只读 API、审查修复 W1 ～ W9、Spec v1.3 / CHANGELOG / DEV-PLAN / progress 一并入库（evidence：commit 5a96b8f；全量 131 passed、predev-lint 与 plan-lint 通过）
+- [P0][DONE][#20] Phase 2 本机长跑——65 分钟（12:48Z ～ 13:53Z）优雅停，节点与证据见 Done（evidence：scratchpad/longrun.log、longrun-final.txt）
+- [P1][DONE][#8] Phase 1 收口：F12 / F13 / N-3 / N-4 / N-6 修复与 Spec v1.1 / CHANGELOG / DEV-PLAN 一并提交，四步走 CONCERNS，用户 2026-11-06 确认完成（evidence：commit 5e8d5b5）
+- [P1][DONE][#9] Task 2.0 把 lutetia/sources/dingtek.py 拆成 dingtek/ 包（evidence：commit 732a570）
+- [P1][DONE][#10] 两条待定已由用户答：静默按能认出的位置算；报警识别后只计数不入库（evidence：Product-Spec.md v1.2、commit 732a570）
+- [P1][DONE][#11] M-8：tests/test_db.py 改用 `test-db-*` id 并自清理，不再碰真实设备行（evidence：commit 732a570）
+- [P1][DONE][#1] Task 1.1 首版对照 Spec 审查并修 HIGH 缺陷（evidence：commit 060fd04）
+- [P1][DONE][#2] Task 1.2 新建 tests/test_compat.py（evidence：commit 48f97bd）
+- [P1][DONE][#3] Task 1.3 PushReceiver 补 unrecognised 计数进 /health，SC-3 本机实测（evidence：commit 060fd04）
+- [P1][DONE][#4] `.serena/` 加进 .gitignore（evidence：commit 48f97bd）
+- [P1][DONE][#5] Spec SC-1 基线改实数并记 CHANGELOG——随 v1.1 修订一并改，用户 2026-11-06 复述未挑出错即签字（evidence：commit 5e8d5b5；./Product-Spec.md 成功判据表）

@@ -26,7 +26,7 @@ pytest
 
 ## 看板与登录
 
-常驻服务里的第二个 HTTP 监听提供只读看板（服务端渲染，60 秒自动刷新，没有任何写入口）。本机打开 `http://127.0.0.1:8081/`，未登录会跳到登录页；账号 `DASHBOARD_USER`（默认 `admin`），密码 `DASHBOARD_PWD`，会话 cookie 12 小时有效，同一 IP 连续输错 5 次锁 5 分钟。
+常驻服务里的第二个 HTTP 监听提供只读看板（服务端渲染 + 每 60 秒局部刷新，没有任何写入口）。v0.2.0 起看板有四块：首页顶部异常总览（失联 / 低电压 / 报警 / 推送通道 / GPS51 配额 / Dingtek 登录次数，无异常显示「全部正常」）、设备详情页（点任一设备名：井盖 7 / 30 天电压温度信号曲线 + 最近 50 条 + 属性表，GPS 最后位置小地图 + 位置表 + 里程）、位置地图页（`/dashboard/map`，12 台井盖固定点 + GPS 最后位置，`?tracks=1` 带近 7 天轨迹，OpenStreetMap 底图）、手机宽度适配。图表与地图库（Chart.js 4.6.1、Leaflet 1.9.4）随包自托管在 `/static/`，不走 CDN；页面带 CSP 等安全头。本机打开 `http://127.0.0.1:8081/`，未登录会跳到登录页；账号 `DASHBOARD_USER`（默认 `admin`），密码 `DASHBOARD_PWD`，会话 cookie 12 小时有效，同一 IP 连续输错 5 次锁 5 分钟。
 
 | 环境变量 | 默认 | 说明 |
 |---|---|---|
@@ -34,7 +34,8 @@ pytest
 | `DASHBOARD_LISTEN_PORT` | `8081` | 监听端口 |
 | `DASHBOARD_USER` | `admin` | 登录账号 |
 | `DASHBOARD_PWD` | 空 | 登录密码，只从环境变量读；空则任何人都登不进 |
-| `DASHBOARD_TRUST_PROXY` | `false` | 只在前面恰好一层受信反向代理（Caddy）时设 `true`（仅信任回环/私网来源，取 X-Forwarded-For 最后一个值，即该代理追加的那个）；**直接绑公网时不要开**，否则伪造该头可绕过登录锁定 |
+| `DASHBOARD_TRUST_PROXY` | `false` | 只在前面恰好一层受信反向代理（nginx）时设 `true`（仅信任回环/私网来源，取 X-Forwarded-For 最后一个值，即该代理追加的那个）；**直接绑公网时不要开**，否则伪造该头可绕过登录锁定 |
+| `DASHBOARD_LOW_VOLT` | `3.4` | 首页异常总览的低电压阈值（V）：低于它标黄，再低 0.2 V 标红 |
 | `API_KEY` | 空 | 查询 API 的 Bearer key；空则所有 API 请求都返回 401 |
 | `SESSION_SECRET` | 空 | cookie 签名密钥；空则每次启动随机生成，重启后要重新登录 |
 
