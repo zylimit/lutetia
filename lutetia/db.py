@@ -262,14 +262,35 @@ class Database:
                     SELECT (SELECT min(device_id) FROM gps_position WHERE device_id > ids.device_id)
                     FROM ids WHERE ids.device_id IS NOT NULL
                 )
-                SELECT ids.device_id, d.name, p.update_time, p.lat, p.lon, p.speed_kmh, p.speed_raw, p.origin
+                SELECT ids.device_id, d.name, p.update_time, p.lat, p.lon, p.speed_kmh, p.speed_raw, p.origin, p.moving, p.total_distance_km
                 FROM ids LEFT JOIN device d ON d.device_id = ids.device_id AND d.source = 'gps51'
                 CROSS JOIN LATERAL (
-                    SELECT update_time, lat, lon, speed_kmh, speed_raw, origin FROM gps_position_v p
+                    SELECT update_time, lat, lon, speed_kmh, speed_raw, origin, moving, total_distance_km FROM gps_position_v p
                     WHERE p.device_id = ids.device_id ORDER BY update_time DESC LIMIT 1
                 ) p
                 WHERE ids.device_id IS NOT NULL
                 ORDER BY ids.device_id
+                """
+            )
+        return [dict(r) for r in rows]
+
+    async def manhole_locations(self) -> List[Dict[str, Any]]:
+        # regex-filter in a subquery before the cast; <=3 integer digits and <=12 decimals cannot overflow double precision
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT d.device_id, d.name, la.v AS lat, lo.v AS lon
+                FROM device d
+                JOIN (SELECT device_id, value::double precision AS v FROM
+                        (SELECT device_id, value FROM sensor_attribute
+                         WHERE key = 'latitude' AND value ~ '^-?[0-9]{1,3}(\\.[0-9]{1,12})?$' OFFSET 0) f) la
+                  ON la.device_id = d.device_id
+                JOIN (SELECT device_id, value::double precision AS v FROM
+                        (SELECT device_id, value FROM sensor_attribute
+                         WHERE key = 'longitude' AND value ~ '^-?[0-9]{1,3}(\\.[0-9]{1,12})?$' OFFSET 0) f) lo
+                  ON lo.device_id = d.device_id
+                WHERE d.source = 'dingtek' AND la.v BETWEEN -90 AND 90 AND lo.v BETWEEN -180 AND 180
+                ORDER BY d.name, d.device_id
                 """
             )
         return [dict(r) for r in rows]

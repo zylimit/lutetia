@@ -145,7 +145,7 @@ async def dashboard(request: web.Request) -> web.Response:
     gps = await ctx.db.latest_gps_positions()
     calls = await ctx.db.call_summary(24)
     items = await build_anomalies(ctx, now, status, sensors, calls)
-    body = ('<p><a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div>' + devices_section(status, now)
+    body = ('<p><a href="/dashboard/map">地图</a> · <a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div>' + devices_section(status, now)
             + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now))
     return page("Lutetia 看板", body, script=True)
 

@@ -108,7 +108,48 @@ async def positions(request: web.Request) -> web.Response:
     return _json({"device_id": device_id, "days": days, "positions": rows})
 
 
+MAP_TRACK_DAYS = 7
+MAP_TRACK_LIMIT = 500
+
+
+async def _gps_entries(db: object, status: List[Dict], with_tracks: bool) -> List[Dict]:
+    latest = {r["device_id"]: r for r in await db.latest_gps_positions()}  # type: ignore[attr-defined]
+    names = {r["device_id"]: r["name"] for r in status if r["source"] == "gps51"}
+    out: List[Dict] = []
+    for dev in list(names) + [d for d in latest if d not in names]:
+        p = latest.get(dev)
+        track: List = []
+        if with_tracks and p is not None:
+            rows = await db.positions_recent(dev, MAP_TRACK_DAYS, MAP_TRACK_LIMIT)  # type: ignore[attr-defined]
+            track = [[r["lat"], r["lon"]] for r in reversed(rows)]  # newest first from db
+        out.append({"device_id": dev, "name": names.get(dev) or (p or {}).get("name") or dev,
+                    "lat": p["lat"] if p else None, "lon": p["lon"] if p else None,
+                    "update_time": p["update_time"] if p else None, "speed_kmh": p["speed_kmh"] if p else None,
+                    "moving": p["moving"] if p else None, "total_distance_km": p["total_distance_km"] if p else None,
+                    "track": track})
+    return out
+
+
+@require_session_json
+async def map_data(request: web.Request) -> web.Response:
+    days = request.query.get("days", "0")
+    if days not in ("0", "7"):
+        return _bad("days must be 0 or 7")
+    db = request.app["ctx"].db
+    now = datetime.now(timezone.utc)
+    status = await db.device_status()
+    last = {r["device_id"]: r["last_ts"] for r in status}
+    vals: Dict[str, Dict] = {}
+    for r in await db.latest_sensor_values(("volt", "temperature")):
+        vals.setdefault(r["device_id"], {})[r["key"]] = r["value_si"]
+    manholes = [{"device_id": m["device_id"], "name": m["name"] or m["device_id"], "lat": m["lat"], "lon": m["lon"],
+                 "last_ts": last.get(m["device_id"]), "volt": vals.get(m["device_id"], {}).get("volt"),
+                 "temperature": vals.get(m["device_id"], {}).get("temperature")} for m in await db.manhole_locations()]
+    return _json({"generated_at": now, "gps": await _gps_entries(db, status, days == "7"), "manholes": manholes})
+
+
 def register_data(app: web.Application) -> None:
     app.router.add_get("/dashboard/data/overview", overview)
     app.router.add_get("/dashboard/data/telemetry", telemetry)
     app.router.add_get("/dashboard/data/positions", positions)
+    app.router.add_get("/dashboard/data/map", map_data)

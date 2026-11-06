@@ -16,6 +16,7 @@ from .auth import LoginLimiter, SessionSigner
 from .dashboard import register_dashboard
 from .data import register_data
 from .pages_device import register_device_pages
+from .pages_map import register_map_pages
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ class WebServer:
         register_api(app)
         register_data(app)
         register_device_pages(app)
+        register_map_pages(app)
         app.router.add_static("/static/", STATIC_DIR, show_index=False, follow_symlinks=False)
         return app
 
