@@ -38,7 +38,34 @@
     });
   }
 
+  var KIND_LABELS = { stale: '失联', low_volt: '低电压', alarm: '报警', push: '推送通道', quota: '配额', login: '登录次数' };
+
+  function renderAnomalies(data) {
+    var box = document.getElementById('anomalies');
+    if (!box) { return; }
+    while (box.firstChild) { box.removeChild(box.firstChild); }
+    var h = document.createElement('h2');
+    h.textContent = '异常总览 · ' + data.anomaly_summary;
+    box.appendChild(h);
+    if (!data.anomalies.length) {
+      var p = document.createElement('p');
+      p.className = 'ok';
+      p.textContent = '全部正常';
+      box.appendChild(p);
+      return;
+    }
+    var ul = document.createElement('ul');
+    data.anomalies.forEach(function (a) {
+      var li = document.createElement('li');
+      li.className = a.level;
+      li.textContent = '[' + (KIND_LABELS[a.kind] || a.kind) + '] ' + (a.name || '') + ' · ' + a.detail;
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  }
+
   function render(data) {
+    renderAnomalies(data);
     var now = new Date(data.generated_at).getTime();
     var online = { true: '是', false: '否' };
     fill('tbl-devices', data.devices.map(function (r) {

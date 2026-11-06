@@ -3,6 +3,10 @@ body { font-family: sans-serif; margin: 16px; }
 table { border-collapse: collapse; margin-bottom: 16px; }
 th, td { border: 1px solid #999; padding: 3px 8px; text-align: left; }
 tr.stale { background: #fdd; }
+.red { background: #fdd; }
+.yellow { background: #ffe8b3; }
+.ok { color: #1a7f37; }
+#anomalies ul { padding-left: 20px; }
 .stale { background: #fdd; }
 @media (max-width: 600px) {
   table { display: block; overflow-x: auto; }

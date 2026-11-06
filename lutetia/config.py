@@ -42,6 +42,7 @@ class Config:
     api_key: str = ""
     session_secret: str = ""
     trust_proxy: bool = False
+    low_volt: float = 3.4
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -72,6 +73,7 @@ class Config:
             api_key=e("API_KEY", ""),
             session_secret=e("SESSION_SECRET", ""),
             trust_proxy=e("DASHBOARD_TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes"),
+            low_volt=float(e("DASHBOARD_LOW_VOLT", "3.4")),
         )
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
         return cfg

@@ -236,6 +236,22 @@ class Database:
             )
         return [dict(r) for r in rows]
 
+    async def latest_alarm_values(self, keys: Sequence[str]) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT d.device_id, d.name, k.key, t.value_num, t.ts
+                FROM device d CROSS JOIN unnest($1::text[]) AS k(key)
+                CROSS JOIN LATERAL (
+                    SELECT value_num, ts FROM sensor_telemetry_v t
+                    WHERE t.device_id = d.device_id AND t.key = k.key ORDER BY ts DESC LIMIT 1
+                ) t
+                WHERE d.source = 'dingtek'
+                """,
+                list(keys),
+            )
+        return [dict(r) for r in rows]
+
     async def latest_gps_positions(self) -> List[Dict[str, Any]]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(

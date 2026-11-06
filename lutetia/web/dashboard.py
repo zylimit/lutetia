@@ -8,6 +8,8 @@ from urllib.parse import urlsplit
 from aiohttp import web
 
 from ..db import max_age_hours
+from . import anomalies
+from .data import build_anomalies
 from .auth import COOKIE_NAME, check_password, client_ip, require_session
 
 log = logging.getLogger(__name__)
@@ -155,6 +157,15 @@ def collector_section(ctx: Any, calls: List[Dict[str, Any]], now: datetime) -> s
     return "<h2>采集器状态</h2>" + rec + api + info
 
 
+def anomalies_section(items: List[Dict[str, Any]]) -> str:
+    head = "<h2>异常总览 · %s</h2>" % esc(anomalies.summarize(items))
+    if not items:
+        return head + '<p class="ok">全部正常</p>'
+    lis = "".join('<li class="%s">[%s] %s · %s</li>' % (esc(i["level"]), esc(anomalies.KIND_LABELS.get(i["kind"], i["kind"])),
+                                                       esc(i.get("name", "")), esc(i["detail"])) for i in items)
+    return head + "<ul>%s</ul>" % lis
+
+
 @require_session
 async def dashboard(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
@@ -163,7 +174,8 @@ async def dashboard(request: web.Request) -> web.Response:
     sensors = await ctx.db.latest_sensor_values(("volt", "temperature", "rsrp"))
     gps = await ctx.db.latest_gps_positions()
     calls = await ctx.db.call_summary(24)
-    body = ('<p><a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies"></div>' + devices_section(status, now)
+    items = await build_anomalies(ctx, now, status, sensors, calls)
+    body = ('<p><a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div>' + devices_section(status, now)
             + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now))
     return page("Lutetia 看板", body, script=True)
 

@@ -6,6 +6,7 @@ from typing import Dict, List
 from aiohttp import web
 
 from ..db import max_age_hours
+from . import anomalies
 from .auth import require_session_json
 from .jsonutil import _dumps, validate_device_id
 
@@ -33,6 +34,12 @@ def receiver_counts(rcv: object) -> object:
     return out
 
 
+async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict]) -> List[Dict]:
+    return anomalies.compute(now, devices, sensors, await ctx.db.latest_alarm_values(anomalies.ALARM_KEYS), receiver_counts(ctx.receiver),  # type: ignore[attr-defined]
+                             calls, ctx.cfg.gps51_daily_budget, ctx.cfg.low_volt,  # type: ignore[attr-defined]
+                             push_silent_limit_sec=ctx.cfg.push_silence_min * 60)  # type: ignore[attr-defined]
+
+
 @require_session_json
 async def overview(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
@@ -43,14 +50,18 @@ async def overview(request: web.Request) -> web.Response:
         last = r["last_ts"]
         stale = bool(r["expected_online"]) and (last is None or now - last > timedelta(hours=limit))
         devices.append(dict(r, stale=stale, max_age_h=limit))
+    sensors = await ctx.db.latest_sensor_values(DEFAULT_KEYS)
+    calls = await ctx.db.call_summary(24)
+    items = await build_anomalies(ctx, now, devices, sensors, calls)
     return _json({
         "generated_at": now,
         "devices": devices,
-        "latest_sensor": await ctx.db.latest_sensor_values(DEFAULT_KEYS),
+        "latest_sensor": sensors,
         "latest_gps": await ctx.db.latest_gps_positions(),
         "receiver": receiver_counts(ctx.receiver),
-        "api_calls_24h": await ctx.db.call_summary(24),
-        "anomalies": [],
+        "api_calls_24h": calls,
+        "anomalies": items,
+        "anomaly_summary": anomalies.summarize(items),
     })
 
 
