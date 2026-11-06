@@ -53,9 +53,12 @@ class Database:
             await self.pool.close()
 
     async def migrate(self, sql_dir: Path) -> List[str]:
+        files = sorted(Path(sql_dir).glob("*.sql")) if Path(sql_dir).is_dir() else []
+        if not files:
+            raise SystemExit("no migration files found in %s" % sql_dir)
         applied = []
         async with self.pool.acquire() as conn:
-            for f in sorted(Path(sql_dir).glob("*.sql")):
+            for f in files:
                 await conn.execute(f.read_text(encoding="utf-8"))
                 applied.append(f.name)
         return applied

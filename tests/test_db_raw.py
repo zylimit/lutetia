@@ -14,7 +14,7 @@ from lutetia.parsers.gps51 import parse_push_payload
 
 load_dotenv()
 DB_URL = os.environ.get("DATABASE_URL", "")
-SQL_002 = Path(__file__).resolve().parents[1] / "sql" / "002_raw_jsonb_fix.sql"
+SQL_002 = Path(__file__).resolve().parents[1] / "lutetia" / "sql" / "002_raw_jsonb_fix.sql"
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ async def test_f8_insert_stores_raw_as_jsonb_object(db):
 
 async def test_f8_migration_002_converts_string_raw_to_object_and_is_idempotent(db):
     # risk: high  (存量 4 行字符串 raw 靠这个迁移修；事务内跑并回滚，不改真库其它行)
-    assert SQL_002.exists(), "缺 sql/002_raw_jsonb_fix.sql"
+    assert SQL_002.exists(), "缺 lutetia/sql/002_raw_jsonb_fix.sql"
     sql = SQL_002.read_text(encoding="utf-8")
     dev = "test-raw-" + str(uuidlib.uuid4())
     async with db.pool.acquire() as conn:

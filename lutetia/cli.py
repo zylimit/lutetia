@@ -14,7 +14,7 @@ from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
 from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
 log = logging.getLogger(__name__)
-SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
+SQL_DIR = Path(__file__).resolve().parent / "sql"
 
 
 def _date_ms(s: str) -> int:
@@ -110,7 +110,7 @@ async def cmd_gps51(cfg: Config, args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lutetia", description="Paris IoT collector (GPS51 + Dingtek)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("migrate", help="apply sql/*.sql").set_defaults(fn=cmd_migrate)
+    sub.add_parser("migrate", help="apply lutetia/sql/*.sql").set_defaults(fn=cmd_migrate)
     sub.add_parser("run", help="run the collector service").set_defaults(fn=cmd_run)
     b = sub.add_parser("backfill", help="pull history over REST (idempotent)")
     b.add_argument("source", choices=["dingtek"])

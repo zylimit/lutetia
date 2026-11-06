@@ -66,7 +66,7 @@ curl -H "Authorization: Bearer $API_KEY" \
 ## 部署（固定公网 IP 的云主机）
 
 1. 把主机公网 IP 加进 GPS51 后台「白名单」，openapi 才放行。
-2. `docker compose up -d --build`，推送接收端监听 8080，建议前面加 HTTPS 反代。
+2. `docker compose up -d --build`，推送接收端监听 8080，建议前面加 HTTPS 反代。`.env` 里的 PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`，GPS51 后台填完整路径。
 3. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `http://<IP>:8080/gps51/push`（或反代后的 https 地址）。
 4. `docker compose exec collector lutetia backfill dingtek --from 2026-08-21` 做首次回补。
 5. 用 `GET /health` 和 `lutetia status` 做监控。

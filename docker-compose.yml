@@ -7,6 +7,11 @@ services:
       POSTGRES_DB: lutetia
     volumes:
       - lutetia-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lutetia -d lutetia"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
   collector:
@@ -20,13 +25,16 @@ services:
       DASHBOARD_TRUST_PROXY: "true"
       DASHBOARD_PWD: ${DASHBOARD_PWD:?set DASHBOARD_PWD in .env}
       API_KEY: ${API_KEY:?set API_KEY in .env}
+      GPS51_DAILY_BUDGET: ${GPS51_DAILY_BUDGET:-1400}
     ports:
       - "8080:8080"          # GPS51 push receiver; put behind an HTTPS reverse proxy on the fixed IP
       - "127.0.0.1:8081:8081"  # dashboard + query API, loopback only; Caddy fronts it (Phase 3)
     volumes:
       - lutetia-state:/data
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    stop_grace_period: 40s
     restart: unless-stopped
 
 volumes:
