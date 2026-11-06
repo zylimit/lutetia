@@ -89,7 +89,9 @@
 - 推送静默 15 分钟后自动切轮询、碰到预算暂停 1 小时，日志与 api_call 表能对上（SC-4 本地变体，预算压到 20）。
 - `lutetia status` 的失联判定有回归测试：应在线设备超时退出码 1，非在线设备不告警，uploadInterval 长的设备按 2 倍宽限（SC-5）。
 - 现有 DB 用例不再改写本地真库的真实设备行（审查 M-8）。
-- SIGTERM 后进程干净退出（任务取消、接收端关闭、连接池关闭），退出码 0。
+- 只读看板 + 登录（Spec v1.3 SCOPE-11 / SC-7）：同进程第二个 HTTP 监听，登录页（admin / 环境变量密码，签名会话 cookie，错 5 次锁 5 分钟）后一页四表（设备总览含 STALE、DC414 最新读数、GPS 最后位置、采集器状态），无任何写路径，默认只绑 127.0.0.1。
+- 只读查询 API（SCOPE-12 / SC-8）：`/api/v1/devices|positions|telemetry|status` 四个 GET，Bearer API key（环境变量，常量时间比较），JSON 带工程单位与原始值，limit 上限 10000。
+- SIGTERM 后进程干净退出（任务取消、接收端关闭、看板关闭、连接池关闭），退出码 0。
 
 **验证的假设**：
 - 静默按位置算之后，本机没有推送时切换时机不变（启动后 15 ～ 16 分钟），长跑日志里 `silent_sec` 与 `message_silent_sec` 在只收到报警 / 认不出消息时分道扬镳——Task 2.2 用例 + 长跑中手工 POST 一条报警消息验证。
@@ -105,6 +107,14 @@
 - `lutetia/parsers/gps51.py` — 新增 is_alarm_message / push_items，parse_push_payload 跳过报警项（Task 2.2 唯一 owner）
 - `lutetia/sources/gps51.py` — PushReceiver 的 last_position_at / alarms / message_silent_for 与 /health 字段（Task 2.2 唯一 owner）
 - `tests/test_db.py` — 改用 `test-db-*` id 并自清理，不再碰真实设备行（Task 2.3 唯一 owner）
+- `lutetia/web/__init__.py`、`lutetia/web/app.py` — 新建：WebServer 类（aiohttp 第二监听、启动时的绑定 / 凭据检查、路由注册、start / stop）（Task 2.4 唯一 owner；Task 2.5 只在 app.py 加一行注册 API 路由）
+- `lutetia/web/auth.py` — 新建：会话 cookie 签发 / 校验（HMAC-SHA256，12 小时）、登录失败计数与锁定、`require_session` 装饰器、`require_api_key` 装饰器（Task 2.4 唯一 owner）
+- `lutetia/web/dashboard.py` — 新建：登录页 / 退出 / 看板页四表 HTML 渲染，全部 html.escape（Task 2.4 唯一 owner）
+- `lutetia/web/api.py` — 新建：四个 GET JSON 接口（Task 2.5 唯一 owner）
+- `lutetia/db.py` — 新增只读查询 latest_sensor_values / latest_gps_positions / list_devices / query_positions / query_telemetry 与纯函数 max_age_hours（Task 2.4 加前三个与 max_age_hours，Task 2.5 加后两个；Task 2.0 ～ 2.3 不碰它）
+- `lutetia/config.py`、`lutetia/service.py`、`lutetia/cli.py`（cmd_status 改用 max_age_hours）、`docker-compose.yml`（8081 只发布到宿主机 127.0.0.1、DASHBOARD_* / API_KEY / SESSION_SECRET 环境变量）、`.env.example`、`README.md`（看板与 API 一节）— Task 2.4（README 的 API 段归 Task 2.5）
+- `tests/test_web_auth.py`、`tests/test_dashboard.py` — 新建：会话签名 / 过期 / 锁定、未登录跳转、登录后四表、无写控件、非回环无密码拒启（tester，Task 2.4 验证）
+- `tests/test_api.py` — 新建：401 / 200、四接口形状、limit 上限、无非 GET 路由（tester，Task 2.5 验证）
 
 **Task 清单**：
 - **Task 2.0：把 lutetia/sources/dingtek.py 拆到 300 行以内（Stage 2 文件规模项）** — 2026-11-06 复核时该文件 303 行、修完 N-3 / N-4 还会再长；按三个类拆成 `lutetia/sources/dingtek/` 包（client.py / sync.py / ws.py），`__init__.py` 把 DingtekClient、DingtekError、DingtekSync、DingtekWs 与常量 re-export，纯搬运不改逻辑；验证命令：`python -m pytest -q -p no:cacheprovider`（全绿、用例数不变）、`wc -l lutetia/sources/dingtek/*.py`（每个 < 300）、`python -c "from lutetia.sources.dingtek import DingtekClient, DingtekSync, DingtekWs, DingtekError"`
@@ -123,9 +133,18 @@
   - Business Context：审查 M-8 实测真设备 79702a70… 的 device.extra 被测试写成 `{}`、sensor_attribute 被样例值覆盖；dev-builder 测试隔离规则「绝不写用户的生产库」。区分例子：跑完测试后 `select extra from device where device_id='79702a70-9ba1-11f1-898a-012e63463e84'` 仍是厂家同步来的完整记录，不是 `{}`。
   - 依赖类型：功能前置 无；验证前置 lutetia-pg 在线。
   - 证据产生者：LOW 档——tester 改（它是测试文件），主 Agent 亲跑 pytest 与 psql。
+- **Task 2.4：看板 + 登录（SCOPE-11、SC-7）** — 新建 `lutetia/web/` 包：`app.py` WebServer（第二 aiohttp 监听，启动时绑非回环地址而 DASHBOARD_PWD 或 API_KEY 为空则 SystemExit；`build_app()` 供测试用 aiohttp TestServer）、`auth.py`（SessionSigner HMAC-SHA256 签名 cookie 12 小时、LoginLimiter 同 IP 错 5 次锁 5 分钟、check_password 常量时间、require_session / require_api_key 装饰器）、`dashboard.py`（GET / → 302 /dashboard/；GET/POST /login；GET /logout；GET /dashboard/ 四表 HTML，全部 html.escape，60 秒 meta refresh）；`db.py` 加纯函数 `max_age_hours(default_h, upload_interval_h)` 与只读查询 `latest_sensor_values(keys)`、`latest_gps_positions()`；`cli.py` cmd_status 改用 max_age_hours；`config.py` 加 DASHBOARD_LISTEN_HOST / PORT / USER / PWD、API_KEY、SESSION_SECRET；`service.py` 在 receiver.start() 后启 WebServer、finally 里 stop；`docker-compose.yml` collector 加 DASHBOARD_LISTEN_HOST=0.0.0.0、`${DASHBOARD_PWD:?}`、`${API_KEY:?}` 与 `127.0.0.1:8081:8081`；`.env.example` 与 README 看板一节。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_web_auth.py tests/test_dashboard.py`、全量 pytest、`python -m compileall -q lutetia`、`wc -l lutetia/web/*.py`（每个 < 300）
+  - Business Context：Spec v1.3「看板登录」「只读看板」「看板暴露面」、规则与例外「看板与查询 API 只读」「鉴权凭据全部来自环境变量」；用户 2026-11-06「要有个登录界面」「仅能简单呈现，不能修改数据，只看」「我也好维护」。区分例子：未登录 GET /dashboard/ → 302 到 /login；密码错 5 次 → 第 6 次 429；登录后页面里一台 expected_online 且无数据的设备那行带 STALE；页面源码里除登录页外没有 `<form` / `<button` / `<input`；`lutetia/web/**` 源码里搜不到 INSERT / UPDATE / DELETE。
+  - 依赖类型：功能前置 Task 2.0 ～ 2.3 已提交（732a570）；验证前置 lutetia-pg 在线；tester 与 implementer 并行，API 名按契约固定。共享写入：`lutetia/web/**`、db.py、config.py、service.py、cli.py、compose、.env.example、README 看板节归 Task 2.4；tests/test_web_auth.py、tests/test_dashboard.py 归 tester。
+  - 证据产生者：HIGH 档（鉴权路径 + 超 300 行）——implementer（sonnet，见开发规则）；code-reviewer 全三 Stage；tester 独立写用例；主 Agent 亲跑 pytest，并在长跑结束后用浏览器或 curl 走一遍登录。
+- **Task 2.5：只读查询 API（SCOPE-12、SC-8）** — 新建 `lutetia/web/api.py`：`register_api(app, ctx)` 注册四个 GET（`/api/v1/devices`、`/api/v1/positions`、`/api/v1/telemetry`、`/api/v1/status`），全部套 require_api_key；参数：device_id（positions / telemetry 必填）、key（telemetry 可选）、since / until（ISO 8601 或毫秒）、limit（默认 1000、上限 10000，超上限 400）；JSON 时间戳 ISO 8601 UTC 带 Z，位置带 speed_kmh 与 speed_raw，遥测带 value_si 与 value_num / value_str；`db.py` 加 `list_devices()`、`query_positions(...)`、`query_telemetry(...)`（只读，参数化）；`app.py` 加一行注册；README 加 API 一节（四个接口、curl 例子、401 说明）。验证命令：`python -m pytest -q -p no:cacheprovider tests/test_api.py`、全量 pytest、`python -m compileall -q lutetia`
+  - Business Context：Spec v1.3「只读查询 API」、规则与例外「看板与查询 API 只读」；用户 2026-11-06「自己的程序，只读查询」。区分例子：不带 Authorization → 401 且 WWW-Authenticate: Bearer；`positions?device_id=4072400634&limit=10` → 10 条以内、update_time 倒序、每条含 speed_kmh；`limit=20000` → 400；路由表里没有 POST / PUT / DELETE。
+  - 依赖类型：功能前置 Task 2.4（require_api_key 与 WebServer 在它里面）；验证前置 lutetia-pg 在线。共享写入：api.py 与 db.py 的两个新查询归 Task 2.5，app.py 只改注册那一行。
+  - 证据产生者：MEDIUM 档（碰鉴权但复用 2.4 的装饰器，约 150 行）——implementer；code-reviewer Stage 0 + 1；tester 写 tests/test_api.py；主 Agent 亲跑并用 curl 带 key 调一次。
 
 **验收标准**：
-- `python -m pytest -q -p no:cacheprovider` 全绿，含 tests/test_status.py 4 条、Task 2.2 的解析器与接收端用例；原有用例未破坏；`wc -l lutetia/sources/dingtek/*.py` 每个 < 300。
+- `python -m pytest -q -p no:cacheprovider` 全绿，含 tests/test_status.py 4 条、Task 2.2 的解析器与接收端用例、tests/test_web_auth.py / test_dashboard.py / test_api.py；原有用例未破坏；`wc -l lutetia/sources/dingtek/*.py lutetia/web/*.py` 每个 < 300。
+- 看板本机走一遍：`lutetia run` 起来后浏览器开 http://127.0.0.1:8081/ → 跳登录 → admin + 本地密码登录 → 四表都有数据、两台 GPS 设备标 STALE（本机无推送）→ 退出后再开被拦回登录页；`curl -s -o /dev/null -w '%{http_code}' localhost:8081/api/v1/devices` 为 401，带 `-H "Authorization: Bearer $API_KEY"` 为 200。
 - 2 小时长跑证据（命令：`GPS51_DAILY_BUDGET=20 lutetia run 2>&1 | tee /tmp/lutetia-run.log`，2 小时后 `kill -TERM <pid>`）：
   - 日志有 `dingtek ws connected, 12 subscriptions`；
   - 查库 `select d.name, count(*) from sensor_telemetry t join device d on d.device_id=t.device_id where t.origin='ws' and t.ts > now() - interval '2 hours' and d.expected_online group by d.name` 返回 10 行、每行 ≥ 1；

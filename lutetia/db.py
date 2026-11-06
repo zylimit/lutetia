@@ -35,6 +35,11 @@ async def _init_conn(conn: asyncpg.Connection) -> None:
     await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
 
 
+def max_age_hours(default_hours: float, upload_interval_h: Optional[float]) -> float:
+    """STALE threshold: a sensor that uploads every N hours is only stale after 2N hours."""
+    return max(default_hours, 2 * (upload_interval_h or 0))
+
+
 class Database:
     def __init__(self, url: str):
         self.url = url
@@ -209,5 +214,78 @@ class Database:
             rows = await conn.fetch(
                 "SELECT source, action, count(*) AS n FROM api_call WHERE called_at >= $1 GROUP BY source, action ORDER BY source, action",
                 since,
+            )
+        return [dict(r) for r in rows]
+
+    async def latest_sensor_values(self, keys: Sequence[str]) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT d.device_id, d.name, k.key, t.value_si, t.value_num, t.value_str, t.ts
+                FROM device d CROSS JOIN unnest($1::text[]) AS k(key)
+                CROSS JOIN LATERAL (
+                    SELECT value_si, value_num, value_str, ts FROM sensor_telemetry_v t
+                    WHERE t.device_id = d.device_id AND t.key = k.key ORDER BY ts DESC LIMIT 1
+                ) t
+                WHERE d.source = 'dingtek'
+                """,
+                list(keys),
+            )
+        return [dict(r) for r in rows]
+
+    async def latest_gps_positions(self) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                WITH RECURSIVE ids AS (
+                    SELECT min(device_id) AS device_id FROM gps_position
+                    UNION ALL
+                    SELECT (SELECT min(device_id) FROM gps_position WHERE device_id > ids.device_id)
+                    FROM ids WHERE ids.device_id IS NOT NULL
+                )
+                SELECT ids.device_id, d.name, p.update_time, p.lat, p.lon, p.speed_kmh, p.speed_raw, p.origin
+                FROM ids LEFT JOIN device d ON d.device_id = ids.device_id AND d.source = 'gps51'
+                CROSS JOIN LATERAL (
+                    SELECT update_time, lat, lon, speed_kmh, speed_raw, origin FROM gps_position_v p
+                    WHERE p.device_id = ids.device_id ORDER BY update_time DESC LIMIT 1
+                ) p
+                WHERE ids.device_id IS NOT NULL
+                ORDER BY ids.device_id
+                """
+            )
+        return [dict(r) for r in rows]
+
+    async def list_devices(self) -> List[Dict[str, Any]]:
+        keep = ("source", "device_id", "name", "device_type", "expected_online", "last_ts")
+        return [{k: r[k] for k in keep} for r in await self.device_status()]
+
+    async def query_positions(self, device_id: str, since: Optional[datetime], until: Optional[datetime],
+                              limit: int) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT device_id, update_time, device_time, arrived_time, lat, lon, speed_kmh, speed_raw, course,
+                       altitude, total_distance_km, moving, temp1_c, origin
+                FROM gps_position_v
+                WHERE device_id = $1 AND ($2::timestamptz IS NULL OR update_time >= $2)
+                  AND ($3::timestamptz IS NULL OR update_time <= $3)
+                ORDER BY update_time DESC LIMIT $4
+                """,
+                device_id, since, until, limit,
+            )
+        return [dict(r) for r in rows]
+
+    async def query_telemetry(self, device_id: str, key: Optional[str], since: Optional[datetime],
+                              until: Optional[datetime], limit: int) -> List[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT device_id, key, ts, value_si, value_num, value_str, origin
+                FROM sensor_telemetry_v
+                WHERE device_id = $1 AND ($2::text IS NULL OR key = $2)
+                  AND ($3::timestamptz IS NULL OR ts >= $3) AND ($4::timestamptz IS NULL OR ts <= $4)
+                ORDER BY ts DESC LIMIT $5
+                """,
+                device_id, key, since, until, limit,
             )
         return [dict(r) for r in rows]

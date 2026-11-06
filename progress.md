@@ -3,16 +3,18 @@ _Last updated: 2026-11-06_
 
 ## Pinned（仅高置信"必须遵守"写入；受保护不可修订）
 - GPS51 绝不自动循环调 querytracks，连每日回补也不走它（依据：厂家明文禁止服务器自动同步轨迹，违者封 API——Spec 规则与例外、TASK.md 反直觉设计 1；适用范围：所有自动路径；人手敲 `lutetia gps51 tracks` 不在此列，每设备每天 5 次由人自己数）
-- 凭据只从环境变量读；代码、日志、测试、回执里零密码零 token（依据：TASK.md Agent 约束、Spec SC-6；适用范围：全仓；本地 .env 已 gitignore 可以放，但不读它核对、不整包导出）
+- 凭据只从环境变量读；代码、日志、测试、回执里零密码零 token（依据：TASK.md Agent 约束、Spec SC-6；适用范围：全仓，含 DASHBOARD_PWD / API_KEY / SESSION_SECRET；本地 .env 已 gitignore 可以放，但不读它核对、不整包导出）
 - 代码按 Python 3.9 写法：无 match、无 `X | Y` 类型联合、无 3.10+ 标准库（依据：目标机 Python 版本未定，TASK.md Agent 约束；适用范围：lutetia/** 与 tests/**；容器用 python:3.12-slim 不受影响）
 - 调试期对真实接口有上限：GPS51 每次运行总调用 ≤ 20 次、间隔 ≥ 2 秒；Dingtek 只在 token 文件不存在时登录一次（依据：Spec 规则与例外，TASK.md Agent 约束；适用范围：本机开发与验收；生产不适用）
 - .claude/ 框架脚手架目录不入库（依据：用户 2026-11-06 决定，与姊妹下游仓一致；适用范围：本仓；.gitignore 已有此条）
+- 看板与查询 API 只读：`lutetia/web/**` 不许有任何写库、写文件、调厂家接口的路径，SQL 只有参数化 SELECT，API 只注册 GET（依据：用户 2026-11-06 原话「仅能搞个简单呈现」「不能修改数据，只看」「自己的程序，只读查询」；适用范围：SCOPE-11 / SCOPE-12 全部代码与后续改动；要加操作先过权限设计，进 Spec「以后」）
+- 云主机入口必须 HTTPS + 域名，后续接口都走域名，采集容器端口不直接对公网发布（依据：用户 2026-11-06 原话「放到云主机也要开 https，我要申请域名来绑定，后面通过域名来调用接口」；适用范围：Phase 3 部署；本机开发与 compose 本地验证照用 http）
 
 ## Decisions（按时间顺序追加，历史不可改；三要素缺一不算决策）
-- 2026-11-06: 本轮开发计划不加新功能，只把 SC-1 ～ SC-5 逐条拿到客观证据，顺手补验证中发现的缺口（依据：首版提交 9d8cc7e 已覆盖 SCOPE-1 ～ SCOPE-10 全部功能条目，但成功判据里只有 SC-6 有运行证据；适用范围：DEV-PLAN.md 本版 3 个 Phase 5 个 Task；取代：无）
+- 2026-11-06: 本轮开发计划不加新功能，只把 SC-1 ～ SC-5 逐条拿到客观证据，顺手补验证中发现的缺口（依据：首版提交 9d8cc7e 已覆盖 SCOPE-1 ～ SCOPE-10 全部功能条目，但成功判据里只有 SC-6 有运行证据；适用范围：DEV-PLAN.md 本版 3 个 Phase 5 个 Task；取代：无）→ 被 2026-11-06（用户拉进只读看板与查询 API）取代：Phase 2 自 Task 2.4 起含新功能
 - 2026-11-06: 本地任何 GPS51 运行先设 `GPS51_DAILY_BUDGET=20`，让代码自己的预算守护兜住调试期上限（依据：Spec 调试期约束每次运行 ≤ 20 次；预算按 api_call 表 24 小时内计数，跨运行累计，比按次更严；适用范围：本机开发与 Phase 1 / Phase 2 验收；生产 compose 不带这个覆盖；取代：无）
 - 2026-11-06: implementer 一律 sonnet，HIGH 档也不传 opus；code-reviewer 按框架默认（依据：Spec 决策依据「解析映射与单元测试用 haiku，采集主循环用 sonnet，不用 opus」，来自 TASK.md 模型分配，用户当前指令优先于框架的 HIGH 档升 opus 规则；适用范围：本项目所有 implementer 派单；取代：无）
-- 2026-11-06: Phase 3 部署默认把 PUSH_PATH 设成带随机段的路径，不做鉴权、不加 HTTPS 终结（依据：Spec 待定 4 押后期间的默认是明文 8080 不鉴权，随机路径段是零代码缓解；适用范围：到用户回答待定 4 之前；用户要共享密钥校验时回 DEV-PLAN 开 Task 改 PushReceiver._handle，现在不预开；取代：无）
+- 2026-11-06: Phase 3 部署默认把 PUSH_PATH 设成带随机段的路径，不做鉴权、不加 HTTPS 终结（依据：Spec 待定 4 押后期间的默认是明文 8080 不鉴权，随机路径段是零代码缓解；适用范围：到用户回答待定 4 之前；用户要共享密钥校验时回 DEV-PLAN 开 Task 改 PushReceiver._handle，现在不预开；取代：无）→ 被 2026-11-06（HTTPS + 域名）取代：HTTPS 终结改为必做，随机路径段保留、推送口仍不鉴权
 - 2026-11-06: 推送写库失败策略——连接类故障（OSError、asyncio.TimeoutError、asyncpg.PostgresConnectionError、OperatorInterventionError、InsufficientResourcesError、非 ValueError 的 InterfaceError）在内存里退避 1 秒起翻倍、封顶 30 秒、无限重试直到成功；其它异常（服务端 DataError 等数据类错误、解析 bug）丢弃该 payload 并计 failed（依据：审查 H-2 发现 200 后写库失败即丢行，服务是唯一存档；F2b 发现整个 PostgresError 都重试会被一条毒行卡死队列；判定函数 `is_transient_db_error` 在 db.py；适用范围：PushReceiver._store 一条路径；落盘缓冲是下一版的事；取代：无）
 - 2026-11-06: 批量写入遇非瞬时异常回退逐行插，仍失败的那一行丢弃并写 warning（带 device_id 与时间），瞬时异常整批或逐行都原样上抛让调用方重试（依据：复核 N-1——整批 INSERT 要么全成要么全败，一条 moving=70000 这类毒行会让轮询游标永不推进、每分钟烧配额且所有设备都存不进去；适用范围：db.py 的 insert_gps_positions 与 insert_telemetry 两条写入路径；取代：无）
 - 2026-11-06: 停机顺序为先停收新请求、给队列最多 30 秒（drain_timeout）写完、再取消消费者；容器 stop_grace_period 要配 40 秒（依据：审查 H-3 停机直接 cancel 丢队列；复核 N-5 Docker 默认 10 秒 SIGKILL 会让清队列来不及；适用范围：PushReceiver.stop 与 docker-compose 的 collector 服务；进程被 SIGKILL 时队列里的推送仍会丢，Spec 已记为残余风险；取代：无）
@@ -21,33 +23,67 @@ _Last updated: 2026-11-06_
 - 2026-11-06: Dingtek WebSocket 重连退避只在会话撑满 60 秒后才归零，连上就断的按 5→10→…→120 增长；拿到 token 120 秒内再被拒（errorCode=3 或握手 401 / 403）不重新登录、只按退避等待（依据：审查 M-4 服务端一连上就关时永远 5 秒且每 15 秒登录一次，违反「Dingtek 登录 24h ≤ 1」；复核 N-3 握手 401 路径同样要保护；适用范围：DingtekWs.run；取代：无）
 - 2026-11-06: GPS51 登录失败按 60 秒 × 2^(n-1) 退避、封顶 1 小时，退避期内 ensure_token 不发网络请求直接抛 Gps51Error；请求超时与网络异常也记一条 ok=False 的 api_call；轮询游标在本批入库成功后才推进（依据：审查 M-2 服务先起、白名单后加那段时间会把 1400 预算全烧在 login 上；M-3 超时不计数让配额守护低估用量；H-4 游标先推进遇写库失败永久跳过那批记录；适用范围：Gps51Client.login / _post 与 Gps51Poller.poll_once；取代：无）
 - 2026-11-06: git 作者身份在仓库本地配成 `zylimit <zylimitde@gmail.com>`（依据：本机没有任何 user.* 配置，首版提交 9d8cc7e 用的是 tailscale 主机名自动生成的邮箱；适用范围：本仓本机提交，不改全局配置；取代：无）
-- 2026-11-06: 审查收敛——一轮只 HIGH 阻断，修完由同一轮 reviewer 复核一次即收口，Medium / Low 残留记进本文件随后续 Task 顺手修，不派 fresh reviewer 开新一轮（依据：CLAUDE.md 开发测试规则「审查收敛」；Phase 1 复核无新 HIGH 后按此收口，N-1 ～ N-6 作残留顺手修；适用范围：本项目所有 Task 的 review → fix 闭环；取代：无）
+- 2026-11-06: 审查收敛——一轮只 HIGH 阻断，修完由同一轮 reviewer 复核一次即收口，Medium / Low 残留记进本文件随后续 Task 顺手修，不派 fresh reviewer 开新一轮（依据：CLAUDE.md 开发测试规则「审查收敛」；Phase 1 复核无新 HIGH 后按此收口，N-1 ～ N-6 作残留顺手修；Phase 2 复核 Low 两条同样只记不开轮；适用范围：本项目所有 Task 的 review → fix 闭环；取代：无）
+- 2026-11-06: 推送「静默」按最近一条能认出的位置消息算（重复投递的位置也算），报警转发、认不出的消息、空消息都不刷新位置静默；轮询兜底看 `silent_for()`，旧的「任何合法 JSON」口径只剩 /health 的 message_silent_sec 在用（依据：用户 2026-11-06 原话「按你的建议处理 2」，采纳审查反例 1——厂家只推报警或心跳时位置其实已经断了，旧口径永远不会切轮询；代价是设备长期静止时多耗轮询配额；适用范围：PushReceiver.silent_for 与 fallback_loop，Spec v1.2「推送静默切轮询」；取代：Spec v1.0 的「15 分钟没有任何消息」口径）
+- 2026-11-06: 带 alarmtype 字段的 GPS51 报警转发消息识别后只计 alarms、写一行日志、不入库，报警入库留给「以后」（依据：用户 2026-11-06 原话「按你的建议处理 3」，采纳审查反例 2——报警消息也带 deviceid / lat / lon / updatetime，与真实位置同 updatetime 且先到时会把真实位置挤掉；报警表结构等真实样例；适用范围：parsers/gps51.py parse_push_payload 与 PushReceiver._store；取代：无）
+- 2026-11-06: 位置转发消息里嵌套的非空 `devicealarm` 对象照常当位置入库、刷新位置静默、不计 alarms；要不要另计一次报警等第一条真实带 devicealarm 的推送再定（依据：Phase 2 复核提出厂家字段表「默认 null，单独的报警记录，可以不处理其他数据」；主 Agent 判断：消息带完整位置字段就是位置，照存没有争议，漏的只是 alarms 计数；AI 判断，已进 Spec 待定问题表，未问用户；适用范围：PushReceiver._store，到收到第一条真实推送为止；取代：无）
+- 2026-11-06: 只读看板进本版范围（SCOPE-11），取代 Spec OUT-1 里的「看盘」；一页四表（设备总览含 STALE、DC414 最新读数、GPS 最后位置、采集器状态），60 秒自刷新，四块内容为 AI 默认可删减（依据：用户坚持「还是做个简单的看板吧」「我也好维护」「做个管理页面 看板」「仅能搞个简单呈现，不能修改数据，只看」；AI 异议一次——地基阶段多一个 HTTP 暴露面、数据还没攒起来——用户坚持，异议记入 Spec 决策依据；适用范围：Spec v1.3 SCOPE-11 / SC-7，DEV-PLAN Task 2.4；取代：Spec v1.0 OUT-1 的「任何看盘」，图表 / 报表 / 分析仍在非目标）
+- 2026-11-06: 看板要登录，单管理员，账号 DASHBOARD_USER（默认 admin）、密码 DASHBOARD_PWD 都从环境变量读，代码里不写死；签名会话 cookie（HttpOnly、SameSite=Lax、按 HTTPS 置 Secure）12 小时，错 5 次锁 5 分钟（依据：用户原话「我也要有个登录界面，验证，admin 密码 123456」；AI 顶回写死密码——Spec 凭据铁律 + 页面要挂公网域名，用户本机可填 123456、上云前必须换强密码；锁定与 12 小时为 AI 默认；适用范围：lutetia/web/auth.py 与 dashboard.py；取代：无）
+- 2026-11-06: 先做单租户——一个管理员登录看板 + 一把 API key（API_KEY 环境变量，Bearer，常量时间比较）给用户自己的程序调四个只读 GET（devices / positions / telemetry / status）；多租户 SaaS（租户表、每租户厂家账号与用户、多把 key、数据隔离）进「以后」，等第二个客户立项先过架构设计与 DFX（依据：用户说「我这个就想当做了一个 SaaS 服务器」，AI 问两题，用户选「先单租户（推荐）」「自己的程序，只读查询（推荐）」；适用范围：Spec v1.3 SCOPE-12 / SC-8，DEV-PLAN Task 2.5；取代：无）
+- 2026-11-06: 云主机入口走 HTTPS + 域名，反向代理默认 Caddy（官方 caddy:2 镜像，域名解析到主机后自动签 Let's Encrypt 证书并续期，80 跳 443；`/gps51/push/<随机段>` 与 `/health` 转 8080，`/dashboard/` 与 `/api/` 转 8081），采集容器端口不再直接对公网发布；本机开发与 compose 本地验证不起 Caddy（依据：用户「放到云主机也要开 https，我要申请域名来绑定，后面通过域名来调用接口」；Caddy 零维护续证为 AI 建议，2026-11-06 WebSearch 核过 compose 用法与 basic_auth 写法，用户可换 nginx + certbot；适用范围：Phase 3 Task 3.1；取代：同日「Phase 3 默认不加 HTTPS 终结」那条）
+- 2026-11-06: 看板 / API 起不来（端口被占这类 OSError）只记一行 error、置 active=False、采集照常；配置错误（绑非回环地址却没设 DASHBOARD_PWD 与 API_KEY）仍 SystemExit 拒绝启动（依据：Phase 2 复核需求存疑——`service.run` 原本会把 OSError 抛到 finally 连 receiver 一起停；主 Agent 裁定唯一存档不能因看板挂了停采，已写进 Spec 规则与例外；适用范围：WebServer.start；取代：无）
+- 2026-11-06: 登录锁定按真实来源算——只有 DASHBOARD_TRUST_PROXY 为真且 `request.remote` 是回环 / 私网地址时才信 X-Forwarded-For，且只取受信代理追加的最后一个值；另有全局兜底：任何来源 5 分钟内合计失败 50 次就所有登录 429 共 60 秒；limiter 条目 15 分钟无新失败即淘汰、封顶 10000；残余风险 R1（握有十来个真实 IP 的攻击者每分钟失败一次就能持续把管理员挡在登录页外，已登录会话不受影响）接受并写进 Spec（依据：审查 H1 实测 200 个伪造 XFF 全部 401 无锁、换头后正确密码直接 302；Caddy 默认不信任来头并覆盖 X-Forwarded-For（2026-11-06 查 caddy.community 与 caddy#4507，未读官方文档原文）；R1 为单管理员内部系统接受，阈值以后按需做成环境变量；适用范围：lutetia/web/auth.py client_ip 与 LoginLimiter，compose 里 DASHBOARD_TRUST_PROXY=true；取代：无）
+- 2026-11-06: 会话签名密钥由 `sha256(SESSION_SECRET + "\x00" + DASHBOARD_PWD)` 派生，改密码后全部旧会话失效；logout 把该 token 记进进程内撤销集合（到 exp 清理）；token payload 带 iat 与随机 nonce，同一秒签发的两枚不相同、撤销一枚不连坐另一枚（依据：复核 M1——固定 SESSION_SECRET 时改密码旧 cookie 仍通过、logout 后重放仍 200；复核 N2——没有 iat 时同一秒的两枚 token 完全相同，退出会互相踢；适用范围：lutetia/web/auth.py SessionSigner、app.py build_app、dashboard.py logout；取代：无）
+- 2026-11-06: 看板两条最新值查询走主键索引——`latest_sensor_values` 以 device × unnest(keys) CROSS JOIN LATERAL 取每设备每 key 最新一行；`latest_gps_positions` 以 gps_position 里出现过的 device_id 为驱动（递归 CTE loose index scan）+ LEFT JOIN device（source='gps51' 取名字）+ LATERAL，未登记设备也显示、同一 device_id 在两个来源里只出一行（依据：复核 M3——DISTINCT ON 走 sensor_telemetry 全表扫描 138 ms，按日增外推约 3 个月超 1 秒，改后 Index Only Scan Backward 0.85 ms；复核 N1——以 device 表驱动时纯推送模式或后台新加的设备位置已入库但看板不显示，且去掉 source 过滤后同 id 两来源出两行；适用范围：lutetia/db.py 两个查询；取代：无）
+- 2026-11-06: 查询 API 的 since / until 解析前把空格还原成 `+`（ISO 8601 时间里不可能有空格），README 注明时区偏移建议用 Z 或把 `+` 编码成 %2B；`require_api_key` 的方案名不分大小写、key 两端 strip（依据：复核 A1——aiohttp 把查询串里未编码的 `+` 解成空格，`+00:00` 原样发会 400；两处 Low——RFC 规定方案名不区分大小写；适用范围：lutetia/web/api.py `_parse_time`、auth.require_api_key；取代：无）
 
 ## TODO（权威待办清单）
-- [P1][OPEN][#6] Phase 3 开工前用户回答待定 3（目标机 Python 版本）与待定 4（推送接收端 HTTPS / 鉴权）（Context：Product-Spec.md 待定问题表、DEV-PLAN.md 开工前置）
-- [P1][OPEN][#7] Phase 2 Task 2.1（tests/test_status.py 失联判定回归）与 Phase 3 Task 3.1（compose 健康检查 + stop_grace_period 40s + 部署文档随机路径）按 DEV-PLAN.md 顺序排在 Phase 1 之后（Context：DEV-PLAN.md Phase 2 / Phase 3）
-- [P0][OPEN][#8] Phase 1 收口：提交 F12 / F13 / N-3 / N-4 / N-6 修复与 Spec v1.1 / CHANGELOG / DEV-PLAN 改动，走四步走（Code Review → 测试完整性 → 编译验证 → 功能测试）并出收尾四态门结论（Context：工作树未提交改动 `git diff --stat` 8 个文件；DEV-PLAN.md Phase 1 验收标准）
-- [P1][OPEN][#9] Task 2.0 把 lutetia/sources/dingtek.py（现 306 行）拆成 dingtek/ 包（client / sync / ws），`__init__` re-export，拆完 Phase 2 长跑才落在最终布局上（Context：DEV-PLAN.md Phase 2 Task 2.0；复核 Stage 2 文件规模项）
-- [P1][OPEN][#10] 用户回答两条新待定问题：推送「静默」按任何合法 JSON 还是真入库的位置算（押到 Phase 2 本地长跑之前）；GPS51 报警转发消息（带 alarmtype）要不要当位置入库（押到 GPS51 后台配转发之前，建议识别后只计数不入库）（Context：Product-Spec.md v1.1 待定问题表末两行；审查反例 1、2）
-- [P1][OPEN][#11] M-8：tests/test_db.py 的 GPS 幂等与属性用例会改写本地真库的 device.extra（真设备 79702a70… 被写成 `{}`）与 sensor_attribute，Phase 2 长跑前改成独立库或唯一 id 并自清理（Context：审查 Task 1.1 报告 M-8；tests/test_db.py:31、:63-66）
-- [P2][OPEN][#12] N-3 / N-4 补用例：WS 握手 401 在新 token 120 秒内不 invalidate；回补单台返回非 JSON 时隔离继续（tester 未写，implementer 按规则不自写测）（Context：lutetia/sources/dingtek.py；tests/test_dingtek_ws.py、tests/test_dingtek_sync.py）
+- [P0][OPEN][#21] 提交 Phase 2 后半段：Task 2.4 看板 + 登录、Task 2.5 只读 API、审查修复 W1 ～ W9、Spec v1.3 / CHANGELOG / DEV-PLAN / progress 一并入库（工作树 131 passed、compileall rc=0，待 `git commit`）（Context：`git status --short` 11 个 M + lutetia/web/ + tests/test_web_auth.py / test_dashboard.py / test_api.py 未跟踪）
+- [P1][OPEN][#6] Phase 3 开工前用户回答待定 3（目标机 Python 版本）；待定 4 已答（HTTPS + 域名），剩两个子问题：域名叫什么、GPS51「数据转发」目标地址能不能填 https（Context：Product-Spec.md v1.3 待定问题表第 3、4 行）
+- [P1][OPEN][#7] Phase 3 Task 3.1 扩成：compose 健康检查 + depends_on condition + stop_grace_period 40s + Caddy 服务（caddy:2、Caddyfile、域名、80 / 443、collector 端口不对公网发布、/dashboard/ 与 /api/ 转 8081）+ 部署文档（PUSH_PATH 随机段、DASHBOARD_TRUST_PROXY 只在恰好一层受信代理时开）；等用户域名（Context：DEV-PLAN.md Phase 3；Spec v1.3 技术方向「HTTPS 入口（云主机）」）
+- [P1][OPEN][#22] 用户待答三件：Spec v1.3 复述签字（已发复述：登录看板、API key、https 域名推送地址、Caddy、多租户押后）；域名名字；要不要把本机出口 IP 77.136.66.231 加进 GPS51 白名单以在本机拿 SC-4「轮询落库」证据（不加就留到云主机）（Context：2026-11-06 对话；长跑日志 8904）
+- [P1][OPEN][#25] 长跑 22:48 收尾后：跑 scratchpad/longrun-check.sh、10 台在线设备 volt / temperature 与厂家 REST 对账、`kill -TERM` 验退出码 0 与 8080 释放、Phase 2 四步走与四态门；然后 compose 本机部署（用户先用 DBeaver 连库看，部署等长跑结束）并在真实进程里走查看板（登录、四表、两台 GPS STALE、退出拦回登录页）与 API（curl 401 / 200）（Context：DEV-PLAN.md Phase 2 验收标准；TODO #20）
+- [P2][OPEN][#23] GPS51 8904「IP 不在白名单」应像登录失败一样退避，否则上线后白名单没加好那段会白烧预算：长跑 21:03 ～ 21:13 每分钟一次 8904 失败、每次计配额，11 次就把本地预算 20 烧到顶（Context：lutetia/sources/gps51.py Gps51Client.call；scratchpad/longrun.log）
+- [P2][OPEN][#24] DingtekWs 的 ws_connect 没有显式连接超时（aiohttp 的 `timeout` 参数是 ws_close 语义，连接建立走 session 默认 5 分钟），厂家短暂无响应时一次握手可能挂住约 2 分钟才进退避（Context：长跑 21:16:19 断开 → 21:18:19 重连，期间无日志、退避已归零到 5 秒；lutetia/sources/dingtek/ws.py）
+- [P2][OPEN][#12] N-3 / N-4 补用例：WS 握手 401 在新 token 120 秒内不 invalidate；回补单台返回非 JSON 时隔离继续（tester 未写，implementer 按规则不自写测）（Context：lutetia/sources/dingtek/ws.py、sync.py；tests/test_dingtek_ws.py、tests/test_dingtek_sync.py）
 - [P2][OPEN][#13] tests/test_compat.py 的密码前缀扫描依赖 git，在无 git 环境（python:3.9-slim 容器）应明确 `pytest.skip` 并说明，而不是 FileNotFoundError（Context：tests/test_compat.py test_no_credential_prefixes_in_repo）
-- [P2][OPEN][#14] M-5：GPS51 与 Dingtek 的登录失败计数只在内存，CLI 重跑之间不退避，FLOW-1 失败路径「连续失败时间隔自动拉长」跨进程不成立（Context：审查 Task 1.1 报告 M-5；lutetia/sources/gps51.py、dingtek.py）
+- [P2][OPEN][#14] M-5：GPS51 与 Dingtek 的登录失败计数只在内存，CLI 重跑之间不退避，FLOW-1 失败路径「连续失败时间隔自动拉长」跨进程不成立（Context：审查 Task 1.1 报告 M-5；lutetia/sources/gps51.py、dingtek/client.py）
 - [P2][OPEN][#15] service.run 启动期先 await reconcile 再等 stop 事件，SIGTERM 要等 reconcile 跑完（本机实测约 20 秒）才响应，改成后台任务（Context：implementer A 的 Domain findings，scratchpad run-A.log；lutetia/service.py run）
 - [P2][OPEN][#16] L-2：`lutetia gps51 sync-devices` 只同步 GPS51 设备，Spec 设备同步条目写的是两源都同步（Context：审查 Task 1.1 报告 L-2；lutetia/cli.py cmd_gps51）
+- [P2][OPEN][#17] Phase 2 复核 LOW-1：报警消息缺 deviceid 时 push_items 把它按信封拆、计进 unrecognised 不计 alarms，与 Spec 字面「带 alarmtype 的只计 alarms」不一致；厂家字段表里报警必带 deviceid，实际碰不到，复核建议不修只记（Context：lutetia/parsers/gps51.py push_items；复核攻击表 D 行）
+- [P2][OPEN][#18] Phase 2 复核 LOW-2：接收端缺「同一次 POST 里既有位置又有报警」的端到端用例（parser 层有、_store 层没有；复核脚本实跑行为正确，只是测试缺口）（Context：tests/test_push_receiver.py；复核攻击表 A 行）
+- [P2][OPEN][#19] 位置消息里嵌套 devicealarm 要不要另计一次报警——押后到第一条真实带 devicealarm 的推送，与「推送 JSON 外层形态」待定一起看；押后期间按现状（当位置入库、不计 alarms）（Context：Product-Spec.md v1.3 待定问题表；docs/vendor/gps51/API/数据转发/forward message 转发消息.md devicealarm 字段）
+- [P1][DONE][#8] Phase 1 收口：F12 / F13 / N-3 / N-4 / N-6 修复与 Spec v1.1 / CHANGELOG / DEV-PLAN 一并提交，四步走 CONCERNS，用户 2026-11-06 确认完成（evidence：commit 5e8d5b5）
+- [P1][DONE][#9] Task 2.0 把 lutetia/sources/dingtek.py 拆成 dingtek/ 包（evidence：commit 732a570）
+- [P1][DONE][#10] 两条待定已由用户答：静默按能认出的位置算；报警识别后只计数不入库（evidence：Product-Spec.md v1.2、commit 732a570）
+- [P1][DONE][#11] M-8：tests/test_db.py 改用 `test-db-*` id 并自清理，不再碰真实设备行（evidence：commit 732a570）
 - [P1][DONE][#1] Task 1.1 首版对照 Spec 审查并修 HIGH 缺陷（evidence：commit 060fd04）
 - [P1][DONE][#2] Task 1.2 新建 tests/test_compat.py（evidence：commit 48f97bd）
 - [P1][DONE][#3] Task 1.3 PushReceiver 补 unrecognised 计数进 /health，SC-3 本机实测（evidence：commit 060fd04）
 - [P1][DONE][#4] `.serena/` 加进 .gitignore（evidence：commit 48f97bd）
-- [P1][DONE][#5] Spec SC-1 基线改实数并记 CHANGELOG——已随 v1.1 修订一并改，等用户复述签字（evidence：./Product-Spec.md 成功判据表、./Product-Spec-CHANGELOG.md v1.1）
+- [P1][DONE][#5] Spec SC-1 基线改实数并记 CHANGELOG——随 v1.1 修订一并改，用户 2026-11-06 复述未挑出错即签字（evidence：commit 5e8d5b5；./Product-Spec.md 成功判据表）
 
 ## In Progress
-- 无
+- [P0][DOING][#20] Phase 2 本机长跑 2 小时验 SC-2 / SC-4（本地变体）/ SC-5：2026-11-06 12:48 UTC（20:48 本地）起，pid 3568087，`GPS51_DAILY_BUDGET=20 lutetia run`，日志 scratchpad/longrun.log，检查脚本 scratchpad/longrun-check.sh，22:48 本地收尾。已拿到的节点：启动 reconcile 正常、WS 20:48:41 连上 12 台；21:03:16 准时「push silent for 15 min -> polling」；但本机出口 IP 77.136.66.231 不在 GPS51 白名单（openapi 8904），启动同步与每分钟轮询都失败且每次计配额，21:13:33「daily budget reached: 20/20; polling paused for 1h」（9 条昨天的记录 + 11 次 8904，FLOW-2 失败路径证据）；WS 21:16:19 断线、21:18:19 重连（退避已归零，差的 115 秒是 TCP 连接慢，见 #24）；Dingtek 登录 0。跑完要做：#25 列的收尾清单（Context：DEV-PLAN.md Phase 2 验收标准）
 
 ## Done（最近完成的放前面）
-- 2026-11-06: 复核新发现 N-1（毒行卡住轮询）与 N-2（3.9 下 asyncio.TimeoutError 不是 OSError）按 red-lock 修好——tester 先写 2 条红、主 Agent 亲见整批 DataError / 0x00 失败、implementer 在 db.py 加 `_insert_skipping_poison` 逐行回退并把瞬时集合与 `is_transient_db_error` 搬到 db.py；N-3 / N-4（dingtek.py）与 N-6（断言收紧）同时修完；全量 pytest 49 passed、compileall rc=0；待提交（evidence：工作树 `git diff --stat` db.py +55 / gps51.py 9 / dingtek.py 13 / tests 两文件）
-- 2026-11-06: Product-Spec 升 v1.1 + CHANGELOG v1.1 条目——SC-1 / SC-3 / SC-6 基线改实数，推送接收、回补、实时订阅、会话守护、健康端点五条功能条目按修复后行为改写，规则与例外第 3 行、FLOW-1 第 3 步、非功能「可靠」同步，决策依据加 3 行，待定问题表加 2 行；predev-lint 通过；等用户复述签字（evidence：./Product-Spec.md、./Product-Spec-CHANGELOG.md；`node .claude/scripts/predev-lint.mjs` 输出「通过（检查 1 份，warning 0）」）
-- 2026-11-06: DEV-PLAN.md 加 Phase 2 Task 2.0（拆 dingtek.py）与 Task 3.1 的 stop_grace_period 40s，待提交（evidence：./DEV-PLAN.md）
+- 2026-11-06: Task 2.4 / 2.5 审查修复按 red-lock 走完（待提交）——fresh code-reviewer 全三 Stage 报 2.4 HIGH 1（H1 伪造 X-Forwarded-For 绕过登录锁定、limiter 内存无界）/ Medium 3（M1 会话不绑密码与 logout 不撤销、M2 测试盖住 logout 行为并缺转义 / 开放重定向 / XFF 用例、M3 看板查询全表扫描）/ 需求存疑 1（端口占用拖垮采集）；2.5 Stage 0 + 1 报 Medium 2（A1 未编码 `+00:00` 返回 400、A2 测试没证明过滤生效）/ Low；tester 先写 33 条红 + 加固旧用例、主 Agent 亲见失败并 touch .red-verified、implementer 修绿（contract fix-spec-web.md W1 ～ W6）、原 reviewer 同轮复核全部已修；复核修出 N1（latest_gps_positions 以 device 表驱动，未登记设备不显示、同 id 两来源出两行）/ N2（token 无 iat）再补 4 条红修绿（W7 ～ W9）；全量 131 passed、compileall rc=0；latest_sensor_values EXPLAIN 走 Index Only Scan Backward 0.85 ms（修前 Seq Scan 138 ms）（evidence：工作树未提交；scratchpad rev/attack_auth.py、attack_db.py、attack_api.py、attack_fix.py、gps_orphan.py；`python -m pytest -q -p no:cacheprovider` 输出 131 passed）
+- 2026-11-06: Task 2.5 只读查询 API 完成——lutetia/web/api.py（110 行）四个 GET 全套 require_api_key，since / until 接受 ISO 8601 或毫秒、limit 默认 1000 上限 10000 越界 400、device_id 缺失 400、JSON 时间戳 ISO UTC 带 Z、位置带 speed_kmh 与 speed_raw、遥测带 value_si；db.py 加 list_devices / query_positions / query_telemetry（参数化 SELECT）；app.py 加一行 register_api；README 加「查询 API」一节；tester 写 tests/test_api.py 4 条（401 / 四接口 200 / 参数校验 / 无非 GET 路由）；复核实跑 SQL 注入串 200 零行、limit 10000 行 107 ms（evidence：工作树；复核 attack_api.py）
+- 2026-11-06: Task 2.4 看板 + 登录完成——新建 lutetia/web/{__init__,app,auth,dashboard}.py（WebServer 第二 aiohttp 监听 8081、绑非回环无凭据 SystemExit、签名会话 cookie、LoginLimiter、require_session / require_api_key、登录页 / 退出 / 四表 HTML 全部 html.escape、60 秒 meta refresh、safe_next 防开放重定向）；db.py 加 max_age_hours（cmd_status 改用它，tests/test_status.py 4 passed 不变）与 latest_sensor_values / latest_gps_positions；config.py 加 DASHBOARD_LISTEN_HOST / PORT / USER / PWD、API_KEY、SESSION_SECRET；service.py 在 receiver.start() 后启停 WebServer；docker-compose.yml collector 加 DASHBOARD_LISTEN_HOST=0.0.0.0、`${DASHBOARD_PWD:?}`、`${API_KEY:?}`、`127.0.0.1:8081:8081`（复核 `docker compose config` 实证缺变量拒绝）；.env.example 与 README 看板一节；tester 写 tests/test_web_auth.py 5 条 + tests/test_dashboard.py 8 条（evidence：工作树；首轮全量 77 passed）
+- 2026-11-06: Product-Spec 升 v1.3 + CHANGELOG v1.3——SCOPE-11 看板 + 登录、SCOPE-12 只读 API、SC-7 / SC-8；OUT-1 收窄（看盘 → 被取代进 SCOPE-11，图表 / 报表 / 带操作的后台仍非目标）；功能需求加「只读看板」「看板登录」「只读查询 API」「看板暴露面」，容器部署加 8081 与 Caddy；规则与例外加「看板与查询 API 只读」「鉴权凭据全部来自环境变量」「看板 / API 起不来不拖垮采集」「登录锁定按真实来源算 + R1 残余风险」「since / until 的 +」；FLOW-1 第 5 步改成 https 域名推送地址 + 手机打开看板；UI 与使用情境改为有一页看板，设计规范按下一步判定可跳过；技术方向加「HTTPS 入口（云主机）Caddy」行；非功能安全加看板 / API / 会话 / 全局锁；决策依据加 6 行；待定问题表第 4 行改成已答 + 两个子问题；「以后」加多租户 SaaS；澄清记录加 4 行；predev-lint 通过；复述已发给用户待签字（evidence：./Product-Spec.md、./Product-Spec-CHANGELOG.md；`node .claude/scripts/predev-lint.mjs` 输出「通过（检查 1 份，warning 0）」）
+- 2026-11-06: DEV-PLAN 更新——Phase 2 交付内容加看板 + 登录与只读 API、关键文件加 lutetia/web/** 与三个测试文件、Task 清单加 Task 2.4（HIGH）与 Task 2.5（MEDIUM）、验收标准加看板本机走查与 curl 401 / 200；Task 3.1 标题加停机宽限期；plan-lint 通过（10 个 Task）（evidence：./DEV-PLAN.md；`bash .claude/scripts/plan-lint.sh DEV-PLAN.md Product-Spec.md` 输出「plan-lint: 通过」）
+- 2026-11-06: 跨会话记忆落盘——`~/.claude/projects/-home-z00632348-code-lutetia/memory/lutetia-user-decisions.md`（数据只存自己库、「转发」= 厂家推送、HTTPS + 域名、只读看板、静默与报警口径）并登记进 MEMORY.md（evidence：该路径）
+- 2026-11-06: Phase 2 前半段提交 732a570——Task 2.0 / 2.1 / 2.2 / 2.3 + Spec v1.2 + CHANGELOG + DEV-PLAN；fresh code-reviewer Stage 0 + 1 复核无 HIGH / Medium、Low 两条记残留（#17、#18）、Task 2.0 经语法树比对确认纯搬运、Task 2.2 九种攻击输入与 fallback_loop 实跑符合 Spec；本机 60 passed、compileall rc=0、python:3.9-slim 47 passed（evidence：commit 732a570；复核脚本 scratchpad attack22.py / ast_cmp.py / freenames.py）
+- 2026-11-06: [#9] Task 2.0 完成——dingtek.py（306 行）拆成 dingtek/__init__（12 行，re-export 15 个公开名）/ client（158）/ sync（81）/ ws（94），主 Agent 行集合比对与复核 AST 比对都是零逻辑差异；PAGE_LIMIT 放 client.py 避免 sync → client 循环导入（契约写 sync.py，已接受偏离）；tests/test_dingtek_ws.py 只改第 51 行 asyncio patch 目标与第 84 行 logger 名过滤（evidence：commit 732a570）
+- 2026-11-06: Task 2.2 完成——parsers/gps51.py 新增 is_alarm_message / push_items、parse_push_payload 跳过报警项；PushReceiver 新增 last_position_at（写库前记，重复投递也算）、alarms 计数不入库、message_silent_for()，silent_for() 改位置口径，/health 加 alarms 与 message_silent_sec；README /health 字段清单同步；tester 加解析器 3 条 + 接收端 4 条用例全绿（evidence：commit 732a570）
+- 2026-11-06: Task 2.1 完成——tests/test_status.py 4 条（应在线无数据 STALE 退出码 1、非在线不告警、uploadInterval='2' 的 2 倍宽限、库连不上抛异常），真连 lutetia-pg 跑无 skip，`test-status-*` 行零残留（evidence：commit 732a570）
+- 2026-11-06: [#11] Task 2.3 完成——tests/test_db.py 两条用例改用 `test-db-*` id 与 finally 清理，`first == len(rows)` 断言比原来更严；并行跑旧版 test_db 的 implementer 曾再次把真设备 79702a70… 的 extra 写成 `{}`，主 Agent 用 `lutetia backfill dingtek --from 2026-11-06 --to 2026-11-06`（180 新行，0/12 失败）让设备同步恢复，12 台 extra 全部非空（evidence：commit 732a570；psql `count(*) filter (where extra = '{}')` 为 0）
+- 2026-11-06: [#10] Product-Spec 升 v1.2 + CHANGELOG v1.2——用户定静默口径与报警处理；功能需求「推送静默切轮询」「GPS51 推送接收」「健康端点」、规则与例外第 2 行、决策依据加 2 行、「以后」加报警转发入库、待定问题表移出已答 2 行、新增 devicealarm 嵌套报警 1 行；澄清记录加 3 行（含 v1.1 签字）；predev-lint 通过（evidence：commit 732a570）
+- 2026-11-06: DEV-PLAN 更新——Phase 1 标 ✅ 并写交付记录（三个提交、四态门 CONCERNS）、Phase 2 加 Task 2.2 / 2.3 与关键文件、验证的假设加静默口径一条、Task 3.1 加 stop_grace_period 40s；plan-lint 通过（evidence：commit 732a570）
+- 2026-11-06: [#8] Phase 1 收口——用户确认完成，四态门 CONCERNS；Spec v1.1 复述（库重启 20 秒内的推送退着重试、怪值只丢一行、停机给队列 30 秒）未挑出错即签字（evidence：commit 5e8d5b5；用户原话「Phase 1 完成，按你的建议处理 2 和 3，进 Phase 2」）
+- 2026-11-06: 复核新发现 N-1（毒行卡住轮询）与 N-2（3.9 下 asyncio.TimeoutError 不是 OSError）按 red-lock 修好——tester 先写 2 条红、主 Agent 亲见整批 DataError / 0x00 失败、implementer 在 db.py 加 `_insert_skipping_poison` 逐行回退并把瞬时集合与 `is_transient_db_error` 搬到 db.py；N-3 / N-4（dingtek.py）与 N-6（断言收紧）同时修完；全量 pytest 49 passed、compileall rc=0（evidence：commit 5e8d5b5）
+- 2026-11-06: Product-Spec 升 v1.1 + CHANGELOG v1.1 条目——SC-1 / SC-3 / SC-6 基线改实数，推送接收、回补、实时订阅、会话守护、健康端点五条功能条目按修复后行为改写，规则与例外第 3 行、FLOW-1 第 3 步、非功能「可靠」同步，决策依据加 3 行，待定问题表加 2 行；predev-lint 通过（evidence：commit 5e8d5b5；`node .claude/scripts/predev-lint.mjs` 输出「通过（检查 1 份，warning 0）」）
+- 2026-11-06: DEV-PLAN.md 加 Phase 2 Task 2.0（拆 dingtek.py）与 Task 3.1 的 stop_grace_period 40s（evidence：commit 5e8d5b5）
 - 2026-11-06: SC-1 幂等本机实测——`lutetia backfill dingtek --from 2026-08-21 --to 2026-11-05` 12 台全部 `0 new rows`、末行 `inserted rows: 0`、`0/12 devices failed`、日志无 error / login；24 小时内 Dingtek login 0（evidence：scratchpad backfill-sc1.log；api_call 表查询 timeseries 1944 / login 0）
 - 2026-11-06: [#1] Task 1.1 首版对照 Spec 审查并修 HIGH——code-reviewer 全三 Stage 报 HIGH 4（H-1 JWT 进日志、H-2 写库失败丢推送、H-3 停机丢队列、H-4 游标先推进）/ Medium 8 / Low 2 / 反例 3；按 red-lock 走：tester 先写 19 条红、主 Agent 亲见失败并 touch .red-verified、两名 implementer 并行修绿（A：gps51.py；B：dingtek.py / db.py / cli.py / sql/002）、F2b 重试集合收窄补 2 条红再修、原 reviewer 同轮复核 11 条全部已修且无新 HIGH；顺手修 M-1 / M-2 / M-3 / M-4 / M-6 / M-7 / L-1 / F11（evidence：commit 060fd04；pytest 46 passed）
 - 2026-11-06: [#3] Task 1.3 /health 加 unrecognised / failed，README 补字段清单；SC-3 本机四步实测：POST 位置 200 用时 10 ms、5 秒内落库且 raw 为 object、重复投递行数仍 1、`{not json` 与空体 400、`{"hello":"world"}` 200 且 unrecognised=1、/health received=3 stored=1 rejected=2 unrecognised=1 failed=0、SIGTERM 后 `shutdown requested` 退出 8080 释放（evidence：commit 060fd04；scratchpad run-A.log）
@@ -63,31 +99,55 @@ _Last updated: 2026-11-06_
 - Risk：毒行 warning 的异常文本来自 asyncpg，可能带出该行的值（Mitigation：gps_position 与 sensor_telemetry 现在没有密钥类字段；以后加字段要留意日志）
 - Risk：进程被 SIGKILL（Docker 宽限期不够、OOM）时队列里尚未写库的推送会丢（Mitigation：Task 3.1 给 collector 配 stop_grace_period 40s；Spec v1.1 非功能「可靠」已写成本版接受的残余风险）
 - Risk：`token_obtained_at` 从磁盘加载时为 0.0，宿主机刚开机 120 秒内 `time.monotonic()` 也小于 120，WS 被拒会被误判为「刚拿到 token」而少登一次（Mitigation：最多延迟到开机 2 分钟后的下一次重连，implementer B 判断极少发生）
+- Risk：并行派发的 Sub-Agent 各自跑全量 pytest 时，隔离前的 tests/test_db.py 会改写本地真库的真实设备行（2026-11-06 发生两次，真设备 79702a70… 的 extra 被写成 `{}`）（Mitigation：Task 2.3 已把用例改成 `test-db-*` id 自清理，用一天窗口回补恢复了 extra；此后不再发生）→ 2026-11-06 已修
+- Risk：静默按位置算之后，设备长期静止、厂家没有位置可推时会进入轮询并持续到预算线（Mitigation：用户 2026-11-06 接受这个配额代价；GPS51 静止设备按 reportmode 0x0A 仍会定时上报，真实影响等上线看）
+- Risk：R1——登录的全局兜底（5 分钟 50 次失败锁 60 秒）可被握有十来个真实 IP 的攻击者用来持续把管理员挡在登录页外（Mitigation：已登录会话 12 小时内不受影响；单管理员内部系统，主 Agent 裁定接受并写进 Spec 规则与例外，阈值以后按需做成环境变量）
+- Risk：看板与 API 挂在公网域名上，用户本机密码是 123456 这种弱口令（Mitigation：Spec 规则与例外要求上云前换强密码与随机 key，Phase 3 验收卡这一条；改密码后旧会话全部失效）
+- Risk：本机出口 IP 77.136.66.231 不在 GPS51 白名单，长跑拿不到 SC-4「轮询真落库」的本机证据，只拿到切换与预算暂停两段（Mitigation：已请用户决定要不要在后台加白名单；不加就留到云主机验）
+- Risk：8904 这类「IP 不在白名单」的失败每分钟一次、每次计配额，上线后白名单没加好那段会把日预算白烧掉（Mitigation：TODO #23 加退避；预算守护本身仍会在 1400 处停住）
 - Assumption：对本地已有的 2026-08-21 ～ 2026-11-05 数据复跑 `lutetia backfill dingtek --from 2026-08-21 --to 2026-11-05` 新增 0 行（Confidence：Med）→ 2026-11-06 实测成立
 - Assumption：python:3.9-slim 真跑需要拉镜像并装包，网络不通时按「3.9 真跑未知」记，不拿 AST 检查冒充（Confidence：Med）→ 2026-11-06 镜像已拉到、装包与用例在容器里跑通
 - Assumption：postgres:16-alpine 官方镜像自带 pg_isready，compose 健康检查可直接用（Confidence：High，未亲测）
+- Assumption：厂家报警转发消息总带 deviceid（Confidence：Med，依据厂家字段表，无真实样例；复核 LOW-1 的前提）
+- Assumption：Caddy 默认不信任来头并覆盖 X-Forwarded-For，所以受信代理后面取最后一个值就是真实客户端（Confidence：Med，来源 caddy.community 与 caddy#4507 的讨论，未读官方文档原文；W9 取最后一个值对「追加」与「覆盖」两种行为都成立）
+- Assumption：`latest_gps_positions` 的递归 CTE 在大表上走主键索引（Confidence：Med；本机 gps_position 只有 4 行，规划器默认选 Seq Scan，`SET enable_seqscan=off` 后三处都是 Index Only Scan 0.23 ms，大表默认计划未验）
+- Assumption：GPS51「数据转发」的目标地址可以填 https（Confidence：Low；厂家文档只说 API 支持 http/https，转发没写；Spec 默认先填 https，几分钟没收到再退回 http 直连）
+- Assumption：lutetia/web 的看板与 API 在真实 `lutetia run` 进程里行为与 aiohttp TestServer 一致（Confidence：Med；本轮 8080 被长跑占着，没起过第二个进程，真实走查在 #25）
 
 ## Notes（简要要点）
 - 2026-11-06: 实现与 Spec 已知差异两处——PushReceiver 对认不出的 payload 只打 warning 不计数（待定 5 默认要求计数，归 Task 1.3）；docker-compose 的 collector 只写 depends_on 不等库就绪，首次启动 migrate 可能靠 restart 重试才成功（归 Task 3.1）→ 前者 Task 1.3 已修
 - 2026-11-06: Spec 用的是 SC-n / SCOPE-n 编号，没用 `[REQ-模块-编号]`，plan-lint 的覆盖检查跳过；DEV-PLAN 在 Task 标题与验收里手工引用 SC / SCOPE
 - 2026-11-06: 本机 venv 是 Python 3.14，Spec 要求的 3.9 写法此前只靠自觉，Task 1.2 之后由测试守；3.14 上 `asyncio.TimeoutError` 就是 OSError 子类，F13 的区分度只有 3.9 容器真跑才有
 - 2026-11-06: Bash 的 secret-exfil-guard 会拦命令文本里含 `.env` 字样的命令（即便只是写文件内容），落 DEV-PLAN 改用 Write 工具
-- 2026-11-06: red-lock 实际走法——tester 把审查者的 attack1.py / attack2.py 改造成 pytest 红用例，主 Agent 亲跑看到失败后 `touch .claude/.red-verified`，再派 implementer；fix-spec-phase1.md（scratchpad）作 tester / implementer / reviewer 三方共用的修后行为契约
-- 2026-11-06: code-reviewer 与 tester 的最终回传有两次只送到了「补充证据类型」那一段，完整回执要用 SendMessage 让它重发一遍再验收
-- 2026-11-06: 审查三条反例的处理——反例 3（200 后写库失败即丢）已由重试 + 停机清队列解决；反例 1（静默按什么算）与反例 2（报警转发当位置）进 Spec 待定问题表，等用户答（TODO #10）
-- 2026-11-06: 复核 Stage 2 结论——安全 grep 零命中、SQL 全参数化；dingtek.py 303 行（修 N-3 / N-4 后 306）超 300 上限，拆分排 Task 2.0；Spec 漂移 5 处已在 v1.1 补齐
+- 2026-11-06: red-lock 实际走法——tester 把审查者的 attack1.py / attack2.py 改造成 pytest 红用例，主 Agent 亲跑看到失败后 `touch .claude/.red-verified`，再派 implementer；fix-spec-phase1.md（scratchpad）作 tester / implementer / reviewer 三方共用的修后行为契约；Phase 2 改用 phase2-contract.md、phase2-web-contract.md、fix-spec-web.md 固定 API 名，tester 与 implementer 并行开工
+- 2026-11-06: code-reviewer 与 tester 的最终回传截至 Task 2.4 / 2.5 复核已有 7 次只送到了「补充证据类型」那一段，完整回执要用 SendMessage 让它重发一遍再验收
+- 2026-11-06: 审查三条反例的处理——反例 3（200 后写库失败即丢）已由重试 + 停机清队列解决；反例 1（静默按什么算）与反例 2（报警转发当位置）用户 2026-11-06 按 AI 建议拍板，已进 Decisions 与 Spec v1.2
+- 2026-11-06: 复核 Stage 2 结论——安全 grep 零命中、SQL 全参数化；dingtek.py 303 行（修 N-3 / N-4 后 306）超 300 上限，拆分排 Task 2.0 → 已拆；Spec 漂移 5 处已在 v1.1 补齐
 - 2026-11-06: 容器里 `pip install .` 会在挂载的仓库目录留下 root 属主的 build/，要用容器 `rm -rf build` 清；3.9 真跑时 `| tail` 会吞掉 pytest 的退出码，看末行文本不看 exit
-- Needs-Confirmation：Spec v1.1 修订等用户复述签字；两条新待定（静默口径、报警转发）等用户答
+- 2026-11-06: plan-lint 把正文里的 `TODO` 字样当占位符，DEV-PLAN 交付记录里写「待办 #9 ～ #16」绕开；predev-lint 同样把澄清记录正文里的「待定」当占位符，改写成「文末问题表」
+- 2026-11-06: Phase 2 复核领域线索（查内部字段表，非实测）——GPS51 报警转发有两种形态：①单独推送、顶层带 alarmtype（1 普通 / 2 视频）；②位置消息里带非空 devicealarm 对象。①已按用户决定只计数；②进 Spec 待定（TODO #19）
+- 2026-11-06: 用户把「转发」误读成数据被转出去（「转发，不要转发，你要存在你自己的库里面」「你把更新的信息，要存在自己库里面」）——「数据转发」是途强物联平台的功能名，指厂家把位置推给我们的接收端，所有数据都落自己的 PostgreSQL；已向用户解释、写进 Spec 澄清记录并存入跨会话记忆，以后涉及 GPS51 推送通道用「厂家推送」措辞
+- 2026-11-06: 看板 / API 的真实进程走查（登录、四表、curl）本轮没做：8080 被长跑进程占着，不起第二个 `lutetia run`（会再做一次 Dingtek reconcile 与 WS 订阅）；本轮验证全靠 aiohttp TestServer + 真库 + 复核攻击脚本，真实走查并入长跑收尾后的 compose 本机部署（#25）
+- 2026-11-06: 长跑里 WS 21:16:19 断开到 21:18:19 重连整整 2 分钟，不是退避（整个长跑只连过一次 WS，28 分钟稳定会话后退避已归零到 5 秒），是 ws_connect 没有连接超时、TCP 在厂家短暂无响应时靠 SYN 重传才接上（#24）
+- 2026-11-06: 长跑的「budget reached: 20/20」是 api_call 表 24 小时窗口累计：昨天 20:19 ～ 20:24 UTC 的 9 条 GPS51 记录 + 今天 11 次 8904 失败；预算守护按记录数不按成功数，8904 失败也占额度
+- Needs-Confirmation：Spec v1.3 复述已发（登录看板、API key、https 域名推送地址、Caddy、多租户押后），用户尚未回「是不是这样」（TODO #22）；域名名字；要不要加 GPS51 白名单；位置消息里嵌套 devicealarm 要不要另计报警（TODO #19，等真实样例）；Phase 2 长跑结果未出（#20）
 
 ## Context Index（轻量索引）
-- 需求：./Product-Spec.md（v1.1，2026-11-06，v1.0 由 TASK.md 转写、TASK.md 已退役）；变更：./Product-Spec-CHANGELOG.md；计划：./DEV-PLAN.md（含 Task 2.0 与 Task 3.1 stop_grace_period，待提交）
-- 提交（main）：9d8cc7e 首版 → 48f97bd Task 1.2 + DEV-PLAN / progress 入库 → 060fd04 Task 1.1 / 1.3 修复与 24 条回归用例；工作树当前有 8 个文件未提交（TODO #8）
+- 需求：./Product-Spec.md（v1.3，2026-11-06；v1.0 由 TASK.md 转写、TASK.md 已退役；v1.1 审查修订已签字；v1.2 用户定静默口径与报警处理；v1.3 只读看板 + 登录、只读 API、HTTPS + 域名、Caddy，复述待签字）；变更：./Product-Spec-CHANGELOG.md；计划：./DEV-PLAN.md（Phase 1 ✅，Phase 2 含 Task 2.0 ～ 2.5，Phase 3 含 Task 3.1）
+- 提交（main）：9d8cc7e 首版 → 48f97bd Task 1.2 + DEV-PLAN / progress 入库 → 060fd04 Task 1.1 / 1.3 修复与 24 条回归用例 → 5e8d5b5 复核残留 + Spec v1.1 → 732a570 Phase 2 前半段 + Spec v1.2；工作树**未提交**：Task 2.4 / 2.5 + 审查修复 + Spec v1.3 / CHANGELOG / DEV-PLAN / progress（TODO #21）
 - git 身份：仓库本地 `user.name=zylimit`、`user.email=zylimitde@gmail.com`（2026-11-06 配）
-- 本机数据库：docker 容器 lutetia-pg，127.0.0.1:15433，库 lutetia；2026-11-06 查得 device 17 台 / sensor_telemetry 141,545 行（rest 2026-08-21 ～ 2026-11-05，12 台里 10 台有 rest 行，2 台离线机只有 ws 推下来的最后值）/ gps_position 4 行（poll，raw 已由 sql/002 转成 object）/ api_call 1,105 条——来自上一 session 2026-11-05 20:20 ～ 20:31 UTC 的 backfill 与短暂 `lutetia run`
-- 本机 Dingtek 调用量（2026-11-06 查 24 小时内）：timeseries 1944 / keys 72 / attributes 72 / devices 6 / refresh 2 / login 0
-- 本机环境：venv Python 3.14.4、aiohttp 3.14.5、asyncpg 0.32.0、pytest 9.2.0、pytest-asyncio 1.4.1；docker compose 2.40.3；本机已有 python:3.9-slim / 3.12-slim / 3.14-slim 镜像；8080 空闲（2026-11-06）
-- 测试基线：pytest 49 passed（2026-11-06 晚，首版 18 + 兼容闸 4 + 审查回归 27）；DB 用例连不上库自动 skip；python:3.9-slim 容器里解析器 + 兼容用例绿
-- 修复契约与派单包：scratchpad fix-spec-phase1.md、brief-*.md；审查者攻击脚本 attack1.py / attack2.py、复核脚本 recheck.py（会话级临时文件，不入库）
+- 代码布局：lutetia/sources/dingtek/ 包四文件 __init__ 12 / client 158 / sync 81 / ws 94 行；lutetia/sources/gps51.py 约 300 行；lutetia/db.py 282 行（含 `is_transient_db_error`、`_insert_skipping_poison`、`max_age_hours`、看板与 API 的只读查询）；lutetia/web/ 包 app 72 / auth 168 / dashboard 177 / api 110 行
+- 看板与 API（本机）：`lutetia run` 起来后 http://127.0.0.1:8081/ → 跳 /login，账号 DASHBOARD_USER（默认 admin）+ DASHBOARD_PWD；API `GET /api/v1/{devices,positions,telemetry,status}`，头 `Authorization: Bearer <API_KEY>`；环境变量 DASHBOARD_LISTEN_HOST（默认 127.0.0.1）/ DASHBOARD_LISTEN_PORT（8081）/ DASHBOARD_USER / DASHBOARD_PWD / API_KEY / SESSION_SECRET / DASHBOARD_TRUST_PROXY（默认假，只在前面恰好一层受信代理时开）；compose 里 8081 只发布到宿主机 127.0.0.1，缺 DASHBOARD_PWD 或 API_KEY 时 `docker compose config` 直接拒绝
+- 云主机入口（Phase 3 待做）：Caddy（caddy:2）按域名自动签证书；`https://<域名>/gps51/push/<随机段>`、`/health` → 8080；`/dashboard/`、`/api/` → 8081；域名由用户申请，未定
+- DBeaver 直连本机库：127.0.0.1:15433，库 / 用户 / 密码都是 lutetia（compose 默认值，非密钥）；换算视图 gps_position_v / sensor_telemetry_v
+- 本机数据库：docker 容器 lutetia-pg，127.0.0.1:15433；2026-11-06 查得 device 17 台（12 台 Dingtek extra 全部非空）/ sensor_telemetry 约 14.8 万行（rest 2026-08-21 起，12 台里 10 台有 rest 行，2 台离线机只有 ws 推下来的最后值）/ gps_position 4 行（poll，raw 已由 sql/002 转成 object）——来自上一 session 2026-11-05 20:20 ～ 20:31 UTC 的 backfill、短暂 `lutetia run` 与 2026-11-06 的复跑 / 回补 / 长跑
+- 本机出口 IP：77.136.66.231（GPS51 openapi 8904「ip not in white list」，2026-11-06 长跑日志）；GPS51 token 文件 2026-11-06 04:19 生成
+- 本机 Dingtek 调用量（2026-11-06 查 24 小时内）：timeseries 1944 / keys 72 / attributes 72 / devices 6 / refresh 2 / login 0（长跑前；一天窗口回补与长跑启动 reconcile 又各加约 40 次）
+- 本机环境：venv Python 3.14.4、aiohttp 3.14.5、asyncpg 0.32.0、pytest 9.2.0、pytest-asyncio 1.4.1；docker compose 2.40.3；本机已有 python:3.9-slim / 3.12-slim / 3.14-slim 镜像；8080 被长跑进程占用中（pid 3568087，22:48 本地收尾）
+- 测试基线：pytest 131 passed（2026-11-06 Task 2.4 / 2.5 修复后：首版 18 + 兼容闸 4 + 审查回归 27 + Phase 2 前半段 11 + web 71）；DB 用例连不上库自动 skip；python:3.9-slim 容器 47 passed（Phase 2 前半段时，跳过依赖 DB 与 git 的 13 条；web 用例未在 3.9 跑过）
+- 长跑：scratchpad/longrun.log（2026-11-06 12:48 UTC 起，`GPS51_DAILY_BUDGET=20`），检查脚本 scratchpad/longrun-check.sh
+- 修复契约与派单包：scratchpad fix-spec-phase1.md、phase2-contract.md、phase2-web-contract.md、fix-spec-web.md、brief-*.md；审查者攻击脚本 attack1.py / attack2.py / attack22.py、rev/attack_auth.py / attack_db.py / attack_api.py / attack_fix.py / gps_orphan.py，复核脚本 recheck.py / ast_cmp.py / freenames.py（会话级临时文件，不入库）
+- 跨会话记忆：~/.claude/projects/-home-z00632348-code-lutetia/memory/lutetia-user-decisions.md（用户硬要求与「转发」误读）
 - 厂商资料：docs/vendor/gps51/（README、API/、samples/）、docs/vendor/dingtek/（README、PDF、samples/）
 - state/：gps51_token.json、dingtek_token.json（2026-11-06 04:19 / 04:20 本地时间生成，已 gitignore）
 - Archive：无

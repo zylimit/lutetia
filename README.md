@@ -24,6 +24,45 @@ pytest
 | `lutetia gps51 sync-devices` / `poll-once` | 手工同步设备、单次轮询 |
 | `lutetia gps51 tracks --device ID --begin '2026-10-06 00:00:00' --end '2026-10-06 23:59:59'` | 单次历史轨迹，每设备每天限 5 次，只能手工 |
 
+## 看板与登录
+
+常驻服务里的第二个 HTTP 监听提供只读看板（服务端渲染，60 秒自动刷新，没有任何写入口）。本机打开 `http://127.0.0.1:8081/`，未登录会跳到登录页；账号 `DASHBOARD_USER`（默认 `admin`），密码 `DASHBOARD_PWD`，会话 cookie 12 小时有效，同一 IP 连续输错 5 次锁 5 分钟。
+
+| 环境变量 | 默认 | 说明 |
+|---|---|---|
+| `DASHBOARD_LISTEN_HOST` | `127.0.0.1` | 绑 `0.0.0.0` 必须同时设 `DASHBOARD_PWD` 与 `API_KEY`，否则启动报错退出 |
+| `DASHBOARD_LISTEN_PORT` | `8081` | 监听端口 |
+| `DASHBOARD_USER` | `admin` | 登录账号 |
+| `DASHBOARD_PWD` | 空 | 登录密码，只从环境变量读；空则任何人都登不进 |
+| `DASHBOARD_TRUST_PROXY` | `false` | 只在前面恰好一层受信反向代理（Caddy）时设 `true`（仅信任回环/私网来源，取 X-Forwarded-For 最后一个值，即该代理追加的那个）；**直接绑公网时不要开**，否则伪造该头可绕过登录锁定 |
+| `API_KEY` | 空 | 查询 API 的 Bearer key；空则所有 API 请求都返回 401 |
+| `SESSION_SECRET` | 空 | cookie 签名密钥；空则每次启动随机生成，重启后要重新登录 |
+
+本机可以把 `DASHBOARD_PWD` 填成简单密码，**上云主机前必须换成强密码、`API_KEY` 换成随机长串**。`docker compose` 下 `DASHBOARD_PWD` 与 `API_KEY` 缺一不能启动；端口只发布到宿主机 `127.0.0.1:8081`，云主机经 HTTPS 域名访问（Phase 3）。
+
+## 查询 API
+
+只读 JSON，四个 GET 接口，没有任何写入接口。每个请求都要带 `Authorization: Bearer <API_KEY>`；缺头、key 错或服务端没配 `API_KEY` 一律返回 `401`，并带 `WWW-Authenticate: Bearer`。`since` / `until` 的时区偏移请用 `Z` 或把 `+` 编码为 `%2B`。
+
+| 接口 | 参数 | 返回 |
+|------|------|------|
+| `GET /api/v1/devices` | 无 | `{"devices": [{source, device_id, name, device_type, expected_online, last_ts}]}` |
+| `GET /api/v1/positions` | `device_id`（必填）、`since`、`until`、`limit` | `{"device_id", "count", "positions": [...]}`，每条含 `speed_kmh` 与 `speed_raw`，按 `update_time` 倒序 |
+| `GET /api/v1/telemetry` | `device_id`（必填）、`key`、`since`、`until`、`limit` | `{"device_id", "count", "telemetry": [...]}`，每条含 `value_si`，按 `ts` 倒序 |
+| `GET /api/v1/status` | 无 | `{"started_at", "receiver": {...} 或 null, "api_calls_24h": [...]}` |
+
+- `since` / `until`：ISO 8601（`2026-11-01T00:00:00Z` 或 `+00:00`）或毫秒整数；解析失败返回 `400`。
+- `limit`：默认 1000，范围 1 ～ 10000，越界返回 `400`；缺 `device_id` 返回 `400`。
+- 时间字段统一输出 ISO 8601 UTC，带 `Z`。
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8081/api/v1/devices
+curl -H "Authorization: Bearer $API_KEY" \
+  "http://127.0.0.1:8081/api/v1/positions?device_id=4072400634&limit=10"
+curl -H "Authorization: Bearer $API_KEY" \
+  "http://127.0.0.1:8081/api/v1/telemetry?device_id=<uuid>&key=volt&since=2026-11-01T00:00:00Z"
+```
+
 ## 部署（固定公网 IP 的云主机）
 
 1. 把主机公网 IP 加进 GPS51 后台「白名单」，openapi 才放行。

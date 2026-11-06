@@ -9,7 +9,7 @@ import aiohttp
 
 from . import log as logsetup
 from .config import Config
-from .db import Database
+from .db import Database, max_age_hours
 from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
 from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
@@ -70,7 +70,7 @@ async def cmd_status(cfg: Config, args) -> int:
     for r in rows:
         last = r["last_ts"]
         # a sensor that uploads every N hours is only stale after 2N hours
-        max_age = max(args.max_age_hours, 2 * (r["upload_interval_h"] or 0))
+        max_age = max_age_hours(args.max_age_hours, r["upload_interval_h"])
         age_ok = last is not None and now - last <= timedelta(hours=max_age)
         if r["expected_online"] and not age_ok:
             stale.append(r)

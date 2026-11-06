@@ -35,6 +35,13 @@ class Config:
     dingtek_reconcile_hour_utc: int
     state_dir: Path
     log_level: str
+    dashboard_host: str = "127.0.0.1"
+    dashboard_port: int = 8081
+    dashboard_user: str = "admin"
+    dashboard_pwd: str = ""
+    api_key: str = ""
+    session_secret: str = ""
+    trust_proxy: bool = False
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -58,6 +65,13 @@ class Config:
             dingtek_reconcile_hour_utc=int(e("DINGTEK_RECONCILE_HOUR_UTC", "3")),
             state_dir=Path(e("STATE_DIR", "./state")),
             log_level=e("LOG_LEVEL", "INFO"),
+            dashboard_host=e("DASHBOARD_LISTEN_HOST", "127.0.0.1"),
+            dashboard_port=int(e("DASHBOARD_LISTEN_PORT", "8081")),
+            dashboard_user=e("DASHBOARD_USER", "admin"),
+            dashboard_pwd=e("DASHBOARD_PWD", ""),
+            api_key=e("API_KEY", ""),
+            session_secret=e("SESSION_SECRET", ""),
+            trust_proxy=e("DASHBOARD_TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes"),
         )
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
         return cfg

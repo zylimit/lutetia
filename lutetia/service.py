@@ -8,6 +8,7 @@ import aiohttp
 
 from .config import Config
 from .db import Database
+from .web import WebServer
 from .sources.dingtek import DingtekClient, DingtekSync, DingtekWs
 from .sources.gps51 import Gps51Client, Gps51Poller, PushReceiver, fallback_loop
 
@@ -32,6 +33,7 @@ async def dingtek_reconcile_loop(cfg: Config, sync: DingtekSync) -> None:
 
 
 async def run(cfg: Config) -> None:
+    started_at = datetime.now(timezone.utc)
     db = Database(cfg.database_url)
     await db.connect()
     stop = asyncio.Event()
@@ -47,9 +49,11 @@ async def run(cfg: Config) -> None:
         poller = Gps51Poller(Gps51Client(cfg, db, session), db)
         dclient = DingtekClient(cfg, db, session)
         dsync = DingtekSync(dclient, db)
+        web_server = WebServer(cfg, db, receiver, started_at)
         tasks = []
         try:
             await receiver.start()
+            await web_server.start()
             if cfg.gps51_user:
                 try:
                     await poller.sync_devices()
@@ -79,4 +83,5 @@ async def run(cfg: Config) -> None:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             await receiver.stop()
+            await web_server.stop()
             await db.close()
