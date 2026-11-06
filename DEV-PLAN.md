@@ -160,6 +160,8 @@
 
 ## Phase 3: 云主机上线——compose 加固、真推送与配额 24 小时实测
 
+交付记录（2026-11-06 23:27，部分完成）：Task 3.1（提交 77f043e）与 Task 3.2（bd82b4f、c7d8eac）完成；/release-builder 由用户亲敲，deployer 在 `ssh hub` 上跑 `deploy/host-deploy.sh`，主 Agent 独立核三件套：容器 23:27:32 创建、镜像 23:27:28 构建（晚于 23:11:49 的提交）、HEAD c7d8eac、0 次重启；`https://iot.digifiber.net/health` 200、Let's Encrypt 证书到 2027-02-04；http→https 301、/login 200、API 无 key 401 / 带 key 200（12 台）、登录后看板 200；FLOW-1 第 2 ～ 3 步全量回补 130,644 行 / 复跑 0。标签 v0.1.0。未完成：GPS51 在主机上 8904（等用户加白名单 129.226.4.226 并配转发地址），SC-2 / SC-4 / SC-5 的 24 小时生产版证据随后看。
+
 **交付内容**：
 - docker compose 首次启动顺序可靠：collector 等 PostgreSQL 健康后再 migrate，不靠 restart 重试（SCOPE-10）。
 - 固定公网 IP 云主机上 `docker compose up -d --build` 一条命令起全套，FLOW-1 第 2 ～ 4 步完成并留证据（SC-1 生产版）。
