@@ -2,7 +2,7 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY lutetia ./lutetia
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . && rm -rf /app/lutetia /app/build /app/lutetia.egg-info
 ENV STATE_DIR=/data/state
 VOLUME ["/data"]
 EXPOSE 8080
