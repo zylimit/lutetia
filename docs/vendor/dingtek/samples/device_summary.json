@@ -1,0 +1,1681 @@
+{
+ "625b8790-7f21-11f1-898a-012e63463e84": {
+  "name": "862288085127510",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "angle",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "detectInterval",
+    "value": 10
+   },
+   {
+    "lastUpdateTs": 1786956285529,
+    "key": "devEui",
+    "value": 1862288085127510
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "firmware",
+    "value": 4.3
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "uploadInterval",
+    "value": 24
+   },
+   {
+    "lastUpdateTs": 1786956285529,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1786955166154,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1787042741812,
+    "key": "active",
+    "value": false
+   },
+   {
+    "lastUpdateTs": 1787042741812,
+    "key": "inactivityAlarmTime",
+    "value": 1787042741809
+   },
+   {
+    "lastUpdateTs": 1786956285348,
+    "key": "lastActivityTime",
+    "value": 1786956285346
+   },
+   {
+    "lastUpdateTs": 1784103426258,
+    "key": "latitude",
+    "value": 48.857762
+   },
+   {
+    "lastUpdateTs": 1784103442903,
+    "key": "longitude",
+    "value": 2.298418
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1786956284896,
+     "value": "19"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1786956284896,
+     "value": "357"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1786956284896,
+     "value": "-670"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1786956284896,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1786956284896,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1786956284896,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1786956284896,
+     "value": "7"
+    }
+   ],
+   "angle": [
+    {
+     "ts": 1786954456584,
+     "value": "0"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1786956284896,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1786956284896,
+     "value": "normal_vibration"
+    }
+   ]
+  }
+ },
+ "32fb5850-7f20-11f1-898a-012e63463e84": {
+  "name": "862288085134995",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "angle",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "detectInterval",
+    "value": 2
+   },
+   {
+    "lastUpdateTs": 1786954264986,
+    "key": "devEui",
+    "value": 1862288085134995
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "fallThreshold",
+    "value": 20
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "firmware",
+    "value": 4.3
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "uploadInterval",
+    "value": 2
+   },
+   {
+    "lastUpdateTs": 1786954264986,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1786952314606,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1787040941811,
+    "key": "active",
+    "value": false
+   },
+   {
+    "lastUpdateTs": 1785413595011,
+    "key": "BatteryAlarmFlag",
+    "value": false
+   },
+   {
+    "lastUpdateTs": 1785413595011,
+    "key": "CounterAlarmFlag",
+    "value": false
+   },
+   {
+    "lastUpdateTs": 1787040941811,
+    "key": "inactivityAlarmTime",
+    "value": 1787040941809
+   },
+   {
+    "lastUpdateTs": 1786954264986,
+    "key": "lastActivityTime",
+    "value": 1786954264984
+   },
+   {
+    "lastUpdateTs": 1785413595011,
+    "key": "latitude",
+    "value": 48.832932
+   },
+   {
+    "lastUpdateTs": 1785413595011,
+    "key": "longitude",
+    "value": 2.25993
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1786954264324,
+     "value": "19"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1786954264324,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1786954264324,
+     "value": "-670"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1786954264324,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1786954264324,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1786954264324,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1786954264324,
+     "value": "9"
+    }
+   ],
+   "angle": [
+    {
+     "ts": 1786528104145,
+     "value": "0"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1786954264324,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1786954264324,
+     "value": "normal_vibration"
+    }
+   ]
+  }
+ },
+ "79702a70-9ba1-11f1-898a-012e63463e84": {
+  "name": "864317087586940",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895481711,
+    "key": "devEui",
+    "value": 1864317087586940
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895481711,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790840749896,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788487241810,
+    "key": "inactivityAlarmTime",
+    "value": 1788487241809
+   },
+   {
+    "lastUpdateTs": 1793895485712,
+    "key": "lastActivityTime",
+    "value": 1793895485710
+   },
+   {
+    "lastUpdateTs": 1790170073887,
+    "key": "latitude",
+    "value": 48.857762
+   },
+   {
+    "lastUpdateTs": 1790170109237,
+    "key": "longitude",
+    "value": 2.298118
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793895481151,
+     "value": "17"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793895481151,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793895481151,
+     "value": "-630"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793895481151,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793895481151,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793895481151,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793895481151,
+     "value": "1567"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793895481151,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793895481151,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "fa96a230-9b9e-11f1-898a-012e63463e84": {
+  "name": "864317087586981",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793894932636,
+    "key": "devEui",
+    "value": 1864317087586981
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793894932636,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790840304814,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788486041812,
+    "key": "inactivityAlarmTime",
+    "value": 1788486041809
+   },
+   {
+    "lastUpdateTs": 1793894936637,
+    "key": "lastActivityTime",
+    "value": 1793894936635
+   },
+   {
+    "lastUpdateTs": 1790170605938,
+    "key": "latitude",
+    "value": 48.855762
+   },
+   {
+    "lastUpdateTs": 1790170598743,
+    "key": "longitude",
+    "value": 2.298218
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793894931755,
+     "value": "9"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793894931755,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793894931755,
+     "value": "-750"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793894931755,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793894931755,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793894931755,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793894931755,
+     "value": "1568"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793894931755,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793894931755,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "0e35e8d0-9ba1-11f1-898a-012e63463e84": {
+  "name": "864317087587021",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896557842,
+    "key": "devEui",
+    "value": 1864317087587021
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896557842,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790788418642,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788486641812,
+    "key": "inactivityAlarmTime",
+    "value": 1788486641809
+   },
+   {
+    "lastUpdateTs": 1793896561844,
+    "key": "lastActivityTime",
+    "value": 1793896561842
+   },
+   {
+    "lastUpdateTs": 1790170127232,
+    "key": "latitude",
+    "value": 48.857762
+   },
+   {
+    "lastUpdateTs": 1790170147635,
+    "key": "longitude",
+    "value": 2.298218
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793896557087,
+     "value": "16"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793896557087,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793896557087,
+     "value": "-810"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793896557087,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793896557087,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793896557087,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793896557087,
+     "value": "615"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793896557087,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793896557087,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "38879130-9b9f-11f1-898a-012e63463e84": {
+  "name": "864317087587179",
+  "type": "DC414",
+  "keys": [
+   "temperature",
+   "volt",
+   "rsrp",
+   "level",
+   "alarmLevel",
+   "alarmBattery",
+   "frameCounter",
+   "alarmFall",
+   "FSM"
+  ],
+  "attrs": [
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793893699486,
+    "key": "devEui",
+    "value": 1864317087587179
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "uploadInterval",
+    "value": 24
+   },
+   {
+    "lastUpdateTs": 1793893699486,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793881736865,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1793599440774,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1793598041813,
+    "key": "inactivityAlarmTime",
+    "value": 1793598041809
+   },
+   {
+    "lastUpdateTs": 1793893699482,
+    "key": "lastActivityTime",
+    "value": 1793893699480
+   },
+   {
+    "lastUpdateTs": 1790170547785,
+    "key": "latitude",
+    "value": 48.857762
+   },
+   {
+    "lastUpdateTs": 1790170568503,
+    "key": "longitude",
+    "value": 2.298818
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793893699104,
+     "value": "9"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793893699104,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793893699104,
+     "value": "-870"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793893699104,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793893699104,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793893699104,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793893699104,
+     "value": "321"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793893699104,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793893699104,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "d80b98a0-9b9f-11f1-898a-012e63463e84": {
+  "name": "864317087587252",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "detectInterval",
+    "value": 2
+   },
+   {
+    "lastUpdateTs": 1793894320559,
+    "key": "devEui",
+    "value": 1864317087587252
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "uploadInterval",
+    "value": 2
+   },
+   {
+    "lastUpdateTs": 1793894320559,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793894325560,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790783151843,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788484541810,
+    "key": "inactivityAlarmTime",
+    "value": 1788484541809
+   },
+   {
+    "lastUpdateTs": 1793894325559,
+    "key": "lastActivityTime",
+    "value": 1793894325558
+   },
+   {
+    "lastUpdateTs": 1790170485086,
+    "key": "latitude",
+    "value": 48.857962
+   },
+   {
+    "lastUpdateTs": 1790170498402,
+    "key": "longitude",
+    "value": 2.298518
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793894320525,
+     "value": "8"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793894320525,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793894320525,
+     "value": "-790"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793894320525,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793894320525,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793894320525,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793894320525,
+     "value": "595"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793894320525,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793894320525,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "5c640f10-9ba0-11f1-898a-012e63463e84": {
+  "name": "864317087587401",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793870192256,
+    "key": "devEui",
+    "value": 1864317087587401
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "uploadInterval",
+    "value": 24
+   },
+   {
+    "lastUpdateTs": 1793870192256,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1793870027159,
+    "key": "command",
+    "value": "80029999090281"
+   },
+   {
+    "lastUpdateTs": 1793542829455,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1793541341810,
+    "key": "inactivityAlarmTime",
+    "value": 1793541341809
+   },
+   {
+    "lastUpdateTs": 1793870196257,
+    "key": "lastActivityTime",
+    "value": 1793870196255
+   },
+   {
+    "lastUpdateTs": 1790170200038,
+    "key": "latitude",
+    "value": 48.857762
+   },
+   {
+    "lastUpdateTs": 1790170400050,
+    "key": "longitude",
+    "value": 2.298318
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793870191427,
+     "value": "7"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793870191427,
+     "value": "352"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793870191427,
+     "value": "-510"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793870191427,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793870191427,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793870191427,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793870191427,
+     "value": "1"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793870191427,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793870191427,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "19c1e550-9ba6-11f1-898a-012e63463e84": {
+  "name": "864317087587567",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896315812,
+    "key": "devEui",
+    "value": 1864317087587567
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896315812,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793896320814,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790786217304,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788485741810,
+    "key": "inactivityAlarmTime",
+    "value": 1788485741809
+   },
+   {
+    "lastUpdateTs": 1793896320813,
+    "key": "lastActivityTime",
+    "value": 1793896320812
+   },
+   {
+    "lastUpdateTs": 1790170052285,
+    "key": "latitude",
+    "value": 48.857662
+   },
+   {
+    "lastUpdateTs": 1790170044118,
+    "key": "longitude",
+    "value": 2.298418
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793896315679,
+     "value": "8"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793896315679,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793896315679,
+     "value": "-770"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793896315679,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793896315679,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793896315679,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793896315679,
+     "value": "1211"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793896315679,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793896315679,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "19caf4c0-9ba0-11f1-898a-012e63463e84": {
+  "name": "864317087587625",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895622732,
+    "key": "devEui",
+    "value": 1864317087587625
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895622732,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790841554020,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788485441811,
+    "key": "inactivityAlarmTime",
+    "value": 1788485441809
+   },
+   {
+    "lastUpdateTs": 1793895626733,
+    "key": "lastActivityTime",
+    "value": 1793895626731
+   },
+   {
+    "lastUpdateTs": 1790170419463,
+    "key": "latitude",
+    "value": 48.857862
+   },
+   {
+    "lastUpdateTs": 1790170434526,
+    "key": "longitude",
+    "value": 2.298418
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793895622527,
+     "value": "7"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793895622527,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793895622527,
+     "value": "-690"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793895622527,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793895622527,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793895622527,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793895622527,
+     "value": "1430"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793895622527,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793895622527,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "9771a9b0-9b9f-11f1-898a-012e63463e84": {
+  "name": "864317087587781",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896868879,
+    "key": "devEui",
+    "value": 1864317087587781
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793896868879,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790842045111,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788483641811,
+    "key": "inactivityAlarmTime",
+    "value": 1788483641809
+   },
+   {
+    "lastUpdateTs": 1793896872880,
+    "key": "lastActivityTime",
+    "value": 1793896872878
+   },
+   {
+    "lastUpdateTs": 1790170519253,
+    "key": "latitude",
+    "value": 48.857662
+   },
+   {
+    "lastUpdateTs": 1790170532951,
+    "key": "longitude",
+    "value": 2.298718
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793896868494,
+     "value": "10"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793896868494,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793896868494,
+     "value": "-610"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793896868494,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793896868494,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793896868494,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793896868494,
+     "value": "1766"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793896868494,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793896868494,
+     "value": "none"
+    }
+   ]
+  }
+ },
+ "c4883710-9ba0-11f1-898a-012e63463e84": {
+  "name": "864317087587823",
+  "type": "DC414",
+  "attrs": [
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "detectInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895695740,
+    "key": "devEui",
+    "value": 1864317087587823
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "fallEnable",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "fallThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "firmware",
+    "value": 4.4
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "levelThreshold",
+    "value": 30
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "uploadInterval",
+    "value": 1
+   },
+   {
+    "lastUpdateTs": 1793895695740,
+    "key": "wireless",
+    "value": "4G"
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "workMode",
+    "value": 0
+   },
+   {
+    "lastUpdateTs": 1790785785239,
+    "key": "active",
+    "value": true
+   },
+   {
+    "lastUpdateTs": 1788484241810,
+    "key": "inactivityAlarmTime",
+    "value": 1788484241809
+   },
+   {
+    "lastUpdateTs": 1793895699741,
+    "key": "lastActivityTime",
+    "value": 1793895699739
+   },
+   {
+    "lastUpdateTs": 1790170168011,
+    "key": "latitude",
+    "value": 48.857562
+   },
+   {
+    "lastUpdateTs": 1790170181480,
+    "key": "longitude",
+    "value": 2.298418
+   }
+  ],
+  "latest": {
+   "temperature": [
+    {
+     "ts": 1793895695152,
+     "value": "13"
+    }
+   ],
+   "volt": [
+    {
+     "ts": 1793895695152,
+     "value": "360"
+    }
+   ],
+   "rsrp": [
+    {
+     "ts": 1793895695152,
+     "value": "-590"
+    }
+   ],
+   "level": [
+    {
+     "ts": 1793895695152,
+     "value": "0"
+    }
+   ],
+   "alarmLevel": [
+    {
+     "ts": 1793895695152,
+     "value": "1"
+    }
+   ],
+   "alarmBattery": [
+    {
+     "ts": 1793895695152,
+     "value": "0"
+    }
+   ],
+   "frameCounter": [
+    {
+     "ts": 1793895695152,
+     "value": "1983"
+    }
+   ],
+   "alarmFall": [
+    {
+     "ts": 1793895695152,
+     "value": "0"
+    }
+   ],
+   "FSM": [
+    {
+     "ts": 1793895695152,
+     "value": "none"
+    }
+   ]
+  }
+ }
+}

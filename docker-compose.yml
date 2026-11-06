@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lutetia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lutetia}
+      POSTGRES_DB: lutetia
+    volumes:
+      - lutetia-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  collector:
+    build: .
+    env_file: .env
+    environment:
+      # scan-secrets:ignore -- 密码来自环境变量 POSTGRES_PASSWORD，默认值 lutetia 只给本地开发；db 服务不对外发布端口
+      DATABASE_URL: postgresql://lutetia:${POSTGRES_PASSWORD:-lutetia}@db:5432/lutetia
+      STATE_DIR: /data/state
+    ports:
+      - "8080:8080"          # GPS51 push receiver; put behind an HTTPS reverse proxy on the fixed IP
+    volumes:
+      - lutetia-state:/data
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  lutetia-db:
+  lutetia-state:

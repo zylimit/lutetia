@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.env
+state/
+
+# SiteMaster / Claude Code 框架家底：本机迭代、不进产品仓（与姊妹下游仓一致；缺此条时 untracked .claude/ 会把档位误升 strict、误触 three-file-sync-gate）。
+.claude/

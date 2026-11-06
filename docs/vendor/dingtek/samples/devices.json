@@ -1,0 +1,391 @@
+{
+ "data": [
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "625b8790-7f21-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1783991678601,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01493"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "862288085127510",
+   "type": "DC414",
+   "label": "862288085127510",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "32fb5850-7f20-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1783991169621,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01493"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "862288085134995",
+   "type": "DC414",
+   "label": "862288085134995",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "79702a70-9ba1-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787125325463,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087586940",
+   "type": "DC414",
+   "label": "864317087586940",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "fa96a230-9b9e-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124253651,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087586981",
+   "type": "DC414",
+   "label": "864317087586981",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "0e35e8d0-9ba1-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787125145565,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587021",
+   "type": "DC414",
+   "label": "864317087587021",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "38879130-9b9f-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124357571,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587179",
+   "type": "DC414",
+   "label": "864317087587179",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "d80b98a0-9b9f-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124625194,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587252",
+   "type": "DC414",
+   "label": "864317087587252",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "5c640f10-9ba0-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124847233,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587401",
+   "type": "DC414",
+   "label": "864317087587401",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "19c1e550-9ba6-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787127312421,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587567",
+   "type": "DC414",
+   "label": "864317087587567",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "19caf4c0-9ba0-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124735500,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587625",
+   "type": "DC414",
+   "label": "864317087587625",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "9771a9b0-9b9f-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787124516811,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587781",
+   "type": "DC414",
+   "label": "864317087587781",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  },
+  {
+   "id": {
+    "entityType": "DEVICE",
+    "id": "c4883710-9ba0-11f1-898a-012e63463e84"
+   },
+   "createdTime": 1787125021953,
+   "additionalInfo": {
+    "gateway": false,
+    "overwriteActivityTime": false,
+    "description": "S01566"
+   },
+   "tenantId": {
+    "entityType": "TENANT",
+    "id": "b1b0d610-70e9-11ec-9dfa-37ac8cbc47db"
+   },
+   "customerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   },
+   "name": "864317087587823",
+   "type": "DC414",
+   "label": "864317087587823",
+   "deviceProfileId": null,
+   "deviceData": null,
+   "firmwareId": null,
+   "softwareId": null,
+   "externalId": null,
+   "ownerId": {
+    "entityType": "CUSTOMER",
+    "id": "54fa0c40-8023-11f1-898a-012e63463e84"
+   }
+  }
+ ],
+ "totalPages": 1,
+ "totalElements": 12,
+ "hasNext": false
+}
