@@ -43,6 +43,7 @@ class Config:
     session_secret: str = ""
     trust_proxy: bool = False
     low_volt: float = 3.4
+    login_lockout: bool = True
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -74,6 +75,7 @@ class Config:
             session_secret=e("SESSION_SECRET", ""),
             trust_proxy=e("DASHBOARD_TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes"),
             low_volt=float(e("DASHBOARD_LOW_VOLT", "3.4")),
+            login_lockout=e("DASHBOARD_LOGIN_LOCKOUT", "on").strip().lower() not in ("off", "0", "false", "no"),
         )
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
         return cfg

@@ -65,12 +65,14 @@ class SessionSigner:
 
 class LoginLimiter:
     """In-memory failure counter. Per IP: the max_failures-th failure locks it for lock_seconds.
-    Global: global_max_failures failures from any source within global_window_seconds lock all logins for 60 s."""
+    Global: global_max_failures failures from any source within global_window_seconds lock all logins for 60 s.
+    enabled=False (DASHBOARD_LOGIN_LOCKOUT=off, test phase only): failures are still counted but neither lock ever applies."""
 
     MAX_ENTRIES = 10000
 
     def __init__(self, max_failures: int = 5, lock_seconds: int = 300, window_seconds: int = 900,
-                 global_max_failures: int = 50, global_window_seconds: int = 300):
+                 global_max_failures: int = 50, global_window_seconds: int = 300, enabled: bool = True):
+        self.enabled = enabled
         self.max_failures, self.lock_seconds, self.window_seconds = max_failures, lock_seconds, window_seconds
         self.global_max_failures, self.global_window_seconds = global_max_failures, global_window_seconds
         self._failures: Dict[str, int] = {}
@@ -82,7 +84,7 @@ class LoginLimiter:
     def is_locked(self, ip: str, now: Optional[float] = None) -> bool:
         now = time.time() if now is None else now
         until = self._locked_until.get(ip)
-        if until is None:
+        if not self.enabled or until is None:
             return False
         if now >= until:
             self.reset(ip)
@@ -91,7 +93,7 @@ class LoginLimiter:
 
     def is_globally_locked(self, now: Optional[float] = None) -> bool:
         now = time.time() if now is None else now
-        return now < self._global_locked_until
+        return self.enabled and now < self._global_locked_until
 
     def _evict(self, now: float) -> None:
         for ip in [i for i, t in self._last_failure.items() if now - t > self.window_seconds]:
@@ -107,7 +109,8 @@ class LoginLimiter:
         self._evict(now)
         if self._failures[ip] >= self.max_failures:
             self._locked_until[ip] = now + self.lock_seconds
-        self._recent = [t for t in self._recent if now - t < self.global_window_seconds] + [now]
+        recent = [t for t in self._recent if now - t < self.global_window_seconds] + [now]
+        self._recent = recent[-self.global_max_failures:]  # bounded even when enabled=False
         if len(self._recent) >= self.global_max_failures:
             self._global_locked_until = now + 60
 

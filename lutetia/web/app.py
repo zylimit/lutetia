@@ -71,7 +71,7 @@ class WebServer:
         secret = hashlib.sha256(secret + b"\x00" + self.cfg.dashboard_pwd.encode("utf-8")).digest()
         app = web.Application(middlewares=[security_headers])
         app["ctx"] = WebContext(self.cfg, self.db, self.receiver, self.started_at,
-                                SessionSigner(secret), LoginLimiter())
+                                SessionSigner(secret), LoginLimiter(enabled=self.cfg.login_lockout))
         register_dashboard(app)
         register_api(app)
         register_data(app)

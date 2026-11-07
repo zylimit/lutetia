@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lutetia"
-version = "0.3.0"
+version = "0.3.1"
 description = "Lutetia - IoT data collector for the Paris project (GPS51 + Dingtek)"
 requires-python = ">=3.9"
 dependencies = ["aiohttp>=3.9", "asyncpg>=0.29"]
