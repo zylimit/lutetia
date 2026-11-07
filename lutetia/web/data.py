@@ -109,7 +109,8 @@ async def positions(request: web.Request) -> web.Response:
 
 
 MAP_TRACK_DAYS = 7
-MAP_TRACK_LIMIT = 500
+MAP_TRACK_BUCKET_SEC = 300
+MAP_TRACK_LIMIT = 2500
 
 
 async def _gps_entries(db: object, status: List[Dict], with_tracks: bool) -> List[Dict]:
@@ -120,7 +121,7 @@ async def _gps_entries(db: object, status: List[Dict], with_tracks: bool) -> Lis
         p = latest.get(dev)
         track: List = []
         if with_tracks and p is not None:
-            rows = await db.positions_recent(dev, MAP_TRACK_DAYS, MAP_TRACK_LIMIT)  # type: ignore[attr-defined]
+            rows = await db.positions_thinned(dev, MAP_TRACK_DAYS, MAP_TRACK_BUCKET_SEC, MAP_TRACK_LIMIT)  # type: ignore[attr-defined]
             track = [[r["lat"], r["lon"]] for r in reversed(rows)]  # newest first from db
         out.append({"device_id": dev, "name": names.get(dev) or (p or {}).get("name") or dev,
                     "lat": p["lat"] if p else None, "lon": p["lon"] if p else None,

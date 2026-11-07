@@ -360,6 +360,24 @@ class Database:
             )
         return [dict(r) for r in rows]
 
+    async def positions_thinned(self, device_id: str, days: int, bucket_sec: int, limit: int) -> List[Dict[str, Any]]:
+        """近 days 天轨迹按 bucket_sec 秒一格抽稀，每格留最新一点；倒序，limit 兜底取最新的格。"""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT ON (bucket) update_time, lat, lon, speed_kmh, moving, origin
+                FROM (
+                    SELECT update_time, lat, lon, speed_kmh, moving, origin,
+                           floor(extract(epoch FROM update_time) / $3::int) AS bucket
+                    FROM gps_position_v
+                    WHERE device_id = $1 AND update_time >= now() - make_interval(days => $2)
+                ) s
+                ORDER BY bucket DESC, update_time DESC LIMIT $4
+                """,
+                device_id, days, bucket_sec, limit,
+            )
+        return [dict(r) for r in rows]
+
     async def get_device(self, source: str, device_id: str) -> Optional[Dict[str, Any]]:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
