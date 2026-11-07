@@ -68,7 +68,7 @@ curl -H "Authorization: Bearer $API_KEY" \
 
 主机上已有 nginx 与 certbot；本项目并入一个 `iot.digifiber.net` 的 server block，容器端口只绑 127.0.0.1，公网只有 nginx 的 443。
 
-1. 把主机公网 IP（129.226.4.226）加进 GPS51 后台「白名单」，openapi 才放行。
+1. 把主机公网 IP（当前生产：法兰克福 43.165.4.9；主机必须在欧盟境内，见 Product-Spec 非功能表「合规」）加进 GPS51 后台「白名单」，openapi 才放行。
 2. 首次：在主机克隆仓库到 `~/lutetia`，并在本机把环境文件 scp 到 `hub:~/lutetia/` 下（文件名见 `.env.example` 同目录）。必须有非空的 DASHBOARD_PWD、API_KEY、PUSH_PATH；PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`；主机 8081 被占，加一行 `DASHBOARD_PUBLISH_PORT=18081`（nginx 配置指向它）。
 3. 在主机 `~/lutetia` 下运行 `bash deploy/host-deploy.sh`：git pull → 查必填键 → `docker compose up -d --build` → 装 nginx 配置 → `nginx -t` → reload → 无证书才 `certbot --nginx` → 打印冒烟结果。可重复运行。
 4. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `https://iot.digifiber.net/gps51/push/<随机段>`；看板在 `https://iot.digifiber.net/dashboard/`。
