@@ -16,6 +16,7 @@
 - `[默认]` 条目：换算视图的 volt ÷100、rsrp ÷10；api_call 表本版不清理。
 - Spec 缺口：没有自相矛盾。实现与 Spec 的已知差异两处：待定 5 的「计数」（Task 1.3）；docker-compose 里 collector 只写了 depends_on、没等数据库就绪，首次启动 migrate 可能抢在 PostgreSQL 前面、靠 restart 重试才成功（Task 3.1）。
 - 本地验证通用前置：本地环境文件里 DATABASE_URL 指向 lutetia-pg、DINGTEK_USER / DINGTEK_PWD 已填（2026-11-05 的成功调用记录证明过，不读文件核对）；state/ 里两家 token 文件存在，Dingtek 调试期只在 token 文件不存在时登录一次；GPS51 每次运行总调用 ≤ 20 次，本计划用 `GPS51_DAILY_BUDGET=20` 让代码自己兜住这条。
+- Phase 5（2026-11-07 迭代，Spec v1.8）：只切「POI 台账导入」；押后事项——Spec 待定「92 个工单没有电缆明细」「Cable List 参考重量表」「井盖真实位置」「GPS 与铜缆捆对应」都不阻塞本 Phase，按 Spec 表里「不答先按什么做」处理（导入时参考重量只收文件里已有的缓存值，#N/A 置空；无明细工单照存、不算吨数）。真实台账内容不进日志、回执与测试，只看 `--dry-run` 汇总数字。
 - REQ 覆盖：Spec 没用 `[REQ-模块-编号]`，用的是 SC-n / SCOPE-n，plan-lint 的覆盖检查会跳过；本计划在 Task 标题与验收里手工引用 SC / SCOPE 编号。
 
 ---
@@ -260,6 +261,58 @@
 
 ---
 
+## Phase 5: POI 台账导入——把 Excel 台账读进自己的库（SCOPE-16，SC-12）
+
+> 用户 2026-11-07 批准「导入先于整体架构」：只做建两张表和一条命令，不含看板页面、账号、手机版、井盖挪动事件；知道表结构先定、架构设计后可能要改。需求来源 Product-Spec.md v1.8（功能需求「POI 台账导入」、数据与权限 poi / poi_cable_segment 两行、规则与例外「台账导入按表头名取列」「只有有电缆明细的工单才有计划吨数」、FLOW-5）。
+
+**交付内容**：
+- 运维执行 `lutetia import poi <xlsx 路径> [--dry-run]` → 系统读第一个工作表，按表头名取列，清洗后在一个事务里写 `poi` 与 `poi_cable_segment`，打印读到几个工单几个电缆段（几个工单没有电缆明细）、新增 / 更新 / 未变 / 台账已无各几条、清洗了什么、可疑工单号；`--dry-run` 同样解析与计数但回滚，什么都不写。
+- 同一份文件再导一次，新增与更新都是 0；Excel 里没有、库里有的工单标 `in_ledger=false` 不删；任何一行出错整批回滚，库里还是上一版。
+- 只用 Python 标准库读 xlsx（zipfile + xml.etree），不引新依赖；docker-compose 给 collector 加一条只读挂载 `./data/poi:/ledger:ro`，生产上用 `docker compose exec collector lutetia import poi /ledger/<文件名>` 导入。
+
+**验证的假设**：
+- `[默认]` 按表头名取列在表头重名时可靠（真文件里 Category、Min Weight、Weight(T)、Maximum Weight、Executed Weight 各出现两次，另有拼写错误的 `Recieve date`、`Length9(km)`）——证明：测试 fixture 复刻这些表头；真文件只跑 `--dry-run` 且只看汇总数字，期望 117 个工单 / 99 个电缆段 / 92 个工单没有电缆明细，数字对上才成立。
+- `[默认]` 计划重量取第一个 `Weight(T)`、参考最小 / 平均 / 最大取第二组（含公式缓存值，#N/A 置空）——证明：fixture 里两列故意给不同值，断言取对；真文件 dry-run 汇总里的计划重量合计约 244 t（25 个有明细的工单）。
+- `[推断]` OCC 状态的周号与日期区间能从手写文本里解析出来（格式不统一，含「S48 - S49」「2026/11/23 - 12/01」「202611/25 - 12/04」缺斜杠的笔误、「OCC ?」「Completed」）——证明：解析用例逐种格式覆盖，解析不了的返回空而不是报错，原文照存；真文件 dry-run 汇总里报「OCC 解析失败 N 条」，数字给用户看。
+- `[默认]` 表结构先于整体架构定下，后面可能要改——证明：迁移只新增两张表、不碰现有五张表，改动面限于本 Phase。
+
+**关键文件**：
+- `lutetia/xlsx_min.py` — 新建：只读极简 xlsx 读取（共享字符串、数字、#N/A 类错误值、公式缓存值；单个 XML 成员解压后上限 50 MB、累计单元格数上限 `MAX_CELLS`（200 万）、含 `<!DOCTYPE` 的成员拒读、值为空的格不扩表；损坏文件统一抛 `XlsxError`，文件不存在仍抛 `FileNotFoundError`）（Task 5.1 唯一 owner）
+- `lutetia/poi_import.py` — 新建：表头映射、清洗、OCC 解析、内容哈希、`parse_ledger(path) -> LedgerParse`（Task 5.1 唯一 owner）
+- `lutetia/sql/003_poi.sql` — 新建：`poi`、`poi_cable_segment` 两表与索引，全部 IF NOT EXISTS（Task 5.2 唯一 owner）
+- `lutetia/poi_store.py` — 新建：`apply_ledger(pool, pois, dry_run) -> Dict[str, int]` 一个事务内按内容哈希判新增 / 更新 / 未变、替换电缆段、标台账已无（Task 5.2 唯一 owner）
+- `lutetia/cli.py` — 加 `import poi` 子命令与 `cmd_import_poi`（Task 5.3）
+- `docker-compose.yml` — collector 加一行只读挂载；`README.md` — 命令表加一行（Task 5.3）
+- `tests/xlsx_builder.py` — 新建：用 zipfile 拼合成 xlsx 的测试辅助（含重名表头、#N/A、日期序号、共享字符串）；`tests/test_xlsx_min.py`、`tests/test_poi_import.py`（Task 5.1 tester）；`tests/test_poi_store.py`、`tests/test_migrations.py` 的 EXPECTED 加 `003_poi.sql`（Task 5.2 tester）；`tests/test_cli_import.py`（Task 5.3 tester）
+
+**Task 清单**：
+- **Task 5.1：xlsx 极简读取器 + 台账映射与清洗（SCOPE-16 前半，SC-12）** — 新建 `lutetia/xlsx_min.py`：`read_first_sheet(path) -> List[List[Any]]`，用 zipfile 读 `xl/workbook.xml` 取第一个工作表、`xl/sharedStrings.xml` 还原共享字符串，按单元格 `t` 属性分 `s`（共享串）/ `str`（公式字符串）/ `e`（错误值，返回 `XlError` 字符串子类）/ `b` / 默认数字（int 或 float）；缺格补 None；超 50 MB 的 XML 成员抛 `XlsxError`；不是 zip 或没有工作表抛 `XlsxError`。新建 `lutetia/poi_import.py`：定义 `PoiRecord`、`SegmentRecord`、`LedgerParse`（`LedgerParse` 含 `pois`（PoiRecord 列表）、`rows_read`、`segment_count`、`pois_without_segments`、`cleaned`（字典：uci_normalised / trimmed_cells / na_to_empty / segment_no_cable_type / not_a_number）、`occ_unparsed`、`suspicious`（工单号列表））三个 dataclass；`PoiRecord` 带 `content_sha`（业务字段与有序段）与 `raw_sha`（工单与各段原始值）两个指纹——前者变化算「更新」，只有后者变化只刷新 raw 并计 `raw_refreshed`，不算更新（审查 M-5）（列表字段用 `field(default_factory=list)`）；`parse_ledger(path)` 读表头行，表头比较忽略大小写与多余空白，缺必需表头（UCI、POI、Subcon、Site Ville、Commun、Category、Status、Cable、type infrastructure、Length9(km)、Weight(T)、Recieve date、Planned Operation Date）抛 `LedgerError("missing column: <名>")`；重名表头按出现次序取（`Category` 第 1 个→ poi.category、第 2 个→ 电缆类别；`Weight(T)` 第 1 个→ weight_t，第 2 组 `Min Weight` / `Weight(T)` / `Maximum Weight`→ ref_min_t / ref_avg_t / ref_max_t）；POI 列非空的行开新工单，空的并入上一单，该行电缆型号、电缆类别、基础设施类型、长度、重量任一非空就产生一个电缆段（seq 从 1 起、按出现序；电缆型号为空的段 cable_type 置 None，计入 `cleaned['segment_no_cable_type']`，不丢计划重量）；UCI 转大写并去首尾空格、所有文本去首尾空格并压缩连续空白、`XlError` 与空串置 None（分别计入 cleaned）、日期序号转 `date`（1899-12-30 起算）、`Commun` 转字符串；`parse_occ(text) -> (week_from, week_to, date_from, date_to)` 解析 `S\d+` 的一到两个周号与一到两个日期（`yyyy/m/d`、缺斜杠的 `yyyymm/d`、第二个日期可省年份），解析不了的字段返回 None 且计入 `occ_unparsed`；POI 号不匹配 `^[A-Z]{3}\d{6}$` 的进 `suspicious`（不改写）；每个工单算 `content_sha`（对工单字段与有序电缆段做规范化 JSON 的 sha256，不含导入时间）；`raw` 存该工单首行与各段行按表头名收的原始值（字典，值转成 JSON 可存的类型）。验证：`python -m pytest tests/test_xlsx_min.py tests/test_poi_import.py -q -p no:cacheprovider`。
+  - Business Context：运维拿到手工维护的 POI 台账 Excel，要进自己的库而不是让人每次开 Excel 数；Spec v1.8「POI 台账导入」「台账导入按表头名取列」。区分对错的例子（合成数据）：fixture 有两行——第 1 行 POI=`RNT600001`、UCI=`AURA `（尾空格）、Cable=`88-224-4`、第一个 `Weight(T)`=2.064、第二组 `Weight(T)`=2.057；第 2 行 POI 空、Cable=`88-448-4`——解析出 1 个工单（uci=`AURA`）、2 个段（seq 1、2，`weight_t` 取 2.064 而不是 2.057，`ref_avg_t` 取 2.057），cleaned.uci_normalised=1；另一个只有 POI 号、没有电缆型号的工单解析出 0 个段、`pois_without_segments` 加 1。OCC 例子：`OCC S48 - S49 2026/11/25 - 12/02` → 周 48～49、日期 2026-11-25～2026-12-02；`OCC ?` → 全 None；`202611/25 - 12/04` → 2026-11-25～2026-12-04。
+  - 依赖类型：功能前置 无（纯函数，不碰数据库）；验证前置 无。共享写入：本 Task 唯一 owner 见关键文件。
+  - 证据产生者：MEDIUM 档（新增文件解析器，约 250 ～ 300 行）——tester 先独立写 tests/xlsx_builder.py 与两份测试（写测者与实现者不同实例），implementer（sonnet）按测试实现；code-reviewer Stage 0 + 1（重点：Python 3.9 写法、解压大小上限、`XlError` 不被当成数值、重名表头次序）；主 Agent 亲跑 pytest 与真文件 `--dry-run` 汇总。不得把真实台账内容打进日志、回执或测试 fixture。
+- **Task 5.2：迁移 003_poi.sql + 事务入库 `apply_ledger`（SCOPE-16 后半，SC-12）** — 新建 `lutetia/sql/003_poi.sql`：`poi(poi_no text PRIMARY KEY, uci text, subcon text, site_ville text, commune_code text, category text, status_raw text, occ_week_from int, occ_week_to int, occ_date_from date, occ_date_to date, received_date date, planned_op_date date, in_ledger boolean NOT NULL DEFAULT true, content_sha text NOT NULL, raw jsonb, first_imported_at timestamptz NOT NULL DEFAULT now(), imported_at timestamptz NOT NULL DEFAULT now())`；`poi_cable_segment(poi_no text NOT NULL REFERENCES poi(poi_no) ON DELETE CASCADE, seq int NOT NULL, cable_category text, cable_type text, infra text, length_km numeric, weight_t numeric, ref_min_t numeric, ref_avg_t numeric, ref_max_t numeric, raw jsonb, PRIMARY KEY (poi_no, seq))`；`CREATE INDEX IF NOT EXISTS` 建在 `poi(uci)`、`poi(subcon)`、`poi(occ_week_from)`；全部 IF NOT EXISTS，重复执行不报错，不碰现有五张表与两个视图。新建 `lutetia/poi_store.py`：`async def apply_ledger(pool, pois: Sequence[PoiRecord], dry_run: bool = False) -> Dict[str, int]`，在 `conn.transaction()` 里：读库里现有 `(poi_no, content_sha, in_ledger)`；对每个解析出的工单——库里没有→ `new`；`content_sha` 相同且 `in_ledger` 为真→ `unchanged`；否则→ `updated`（含「台账已无」又回来的）；new 与 updated 用 upsert 写 poi 行、删掉该工单旧电缆段后重插新段、`imported_at` 置 now()；库里有而本次文件没有的工单置 `in_ledger=false`（计入 `gone`）、不删行；`dry_run` 为真时算完计数后抛私有异常触发回滚、不写任何东西；任一语句出错整个事务回滚、异常向上抛；全部 SQL 参数化。同时把 `tests/test_migrations.py` 的 `EXPECTED` 加上 `003_poi.sql`（由 tester 改）。验证：`python -m pytest tests/test_poi_store.py tests/test_migrations.py -q -p no:cacheprovider`（用 lutetia-pg，连不上自动 skip）。
+  - Business Context：运维要的是「导进去、再导一次不变、坏文件不留半份」；Spec v1.8 数据与权限 poi / poi_cable_segment 两行、SC-12 反向指标「失败整批回滚」「消失的单标台账已无而不是删」。区分对错的例子：库空时导入 2 个工单（共 3 段）→ 返回 `{new: 2, updated: 0, unchanged: 0, gone: 0}`；原样再导 → `{0, 0, 2, 0}`；把其中一个工单的第 2 段重量改了再导 → `{0, 1, 1, 0}` 且该工单仍是 2 段；导入只含第 1 个工单的文件 → 第 2 个工单 `in_ledger=false`、`gone=1`、行与段都还在；故意给一个工单两个相同 seq 的段（主键冲突）→ 抛异常、两张表行数与导入前一致。
+  - 依赖类型：功能前置 Task 5.1（`PoiRecord` 等 dataclass）；验证前置 lutetia-pg 在线（127.0.0.1:15433）。共享写入：`003_poi.sql`、`poi_store.py` 本 Task 唯一 owner；`tests/test_migrations.py` 只改 EXPECTED 一处。
+  - 证据产生者：MEDIUM 档（碰迁移）——tester 先独立写 tests/test_poi_store.py，implementer（sonnet）实现；code-reviewer Stage 0 + 1（重点：事务边界、SQL 参数化、迁移不碰现有表、重复执行幂等）；主 Agent 亲跑 pytest。
+- **Task 5.3：命令 `lutetia import poi` + 报告 + compose 只读挂载 + README（SC-12）** — 改 `lutetia/cli.py`：`build_parser` 加 `import` 子命令组与 `poi` 子命令（位置参数 `file`、开关 `--dry-run`），`cmd_import_poi(cfg, args)`：调用 `parse_ledger`，`LedgerError` / `XlsxError` / 文件不存在 → 打印 `error: <原因>` 到标准错误、退出码 1、不连数据库；解析成功后 `Database.connect`、`apply_ledger`，打印四行（`--dry-run` 时先打印 `dry-run: nothing written`）：`read: N POI / M segments (K POI without cable detail)`、`result: A new, B updated, C unchanged, R raw refreshed, D gone from ledger`、`cleaned: uci_normalised=X trimmed_cells=Y na_to_empty=Z segment_no_cable_type=V; occ_unparsed=W`、`suspicious: <工单号逗号分隔，或 none>`；除可疑工单号外不打印任何行内容；退出码 0。改 `docker-compose.yml`：collector 的 `volumes` 加 `- ./data/poi:/ledger:ro`（不与现有 `lutetia-state:/data` 冲突）；`.dockerignore` 已排除 `docs/` 等，Dockerfile 只 COPY `lutetia/`，`data/` 不进镜像，本 Task 用 `docker compose config` 与 `docker build` 后 `docker run --rm <image> ls /app` 证明；改 `README.md` 命令表加 `lutetia import poi FILE [--dry-run]` 一行并写明生产用法与「文件不经 GitHub、不出欧洲」。验证：`python -m pytest tests/test_cli_import.py -q -p no:cacheprovider`；`docker compose config | grep -n ledger`。
+  - Business Context：FLOW-5 华为项目组的小雷把新版台账放到主机上，一条命令导入、看汇总数字就知道对不对。区分对错的例子：对合成 xlsx 跑 `--dry-run` → 输出含 `dry-run: nothing written`，`poi` 表行数不变；去掉 `POI` 表头的合成文件 → 标准错误出现 `error: missing column: POI`、退出码 1、库里行数不变；正常导入两次，第二次那行是 `0 new, 0 updated, 2 unchanged`。
+  - 依赖类型：功能前置 Task 5.1、5.2；验证前置 lutetia-pg 在线、本机 docker 可用。共享写入：`cli.py` 本 Task 独占。
+  - 证据产生者：MEDIUM 档——tester 先独立写 tests/test_cli_import.py（用合成 xlsx 与 lutetia-pg，调 `main(argv)` 或子进程），implementer（sonnet）实现；code-reviewer Stage 0 + 1（重点：错误路径不连库、输出不泄漏行内容、compose 挂载只读）；主 Agent 亲跑 pytest，并对真实台账只跑 `--dry-run`：命令输出里的汇总数字（工单 / 段 / 无明细工单数）与本文假设的 117 / 99 / 92 对照，打印的行内容只有那四行，真实内容不进回执。
+- **Task 5.4：生产导入（用户亲敲 /release-builder 之后）** — 不派 implementer。发版后由 deployer 在法兰克福生产检出 `~/lutetia`：确认 compose 已带 `./data/poi:/ledger:ro` 并重建 collector；把台账文件从开发检出 `~/code/lutetia/data/poi/` 拷到生产检出 `~/lutetia/data/poi/`（同机拷贝，不经 GitHub、不出欧洲）；先 `docker compose exec collector lutetia import poi "/ledger/POI info.xlsx" --dry-run`，汇总数字与 Task 5.3 验收对上，再去掉 `--dry-run` 正式导入；用户亲眼看汇总。
+  - Business Context：SC-12 的生产落地，SCOPE-16 完成的标志；真实台账只在 fra 的两个目录与生产库里，Agent 回执里只出汇总数字。区分对错的例子：正式导入后 `SELECT count(*) FROM poi` 为 117、`poi_cable_segment` 为 99，再跑一次导入输出 `0 new, 0 updated, 117 unchanged`。
+  - 依赖类型：功能前置 Task 5.1 ～ 5.3 已提交推送且用户敲了 /release-builder；验证前置 生产库在线、dry-run 数字对得上。
+  - 证据产生者：HIGH 档（远端写 + 生产数据）——deployer 执行，主 Agent 独立核查（生产库两表行数、二次导入 0 / 0、`curl` 看板 `/health` 仍 200、容器时间戳与镜像 tag），不以 deployer 自述为准；发版闸 release-gate 会拦。
+
+**验收标准**：
+- `python -m pytest -q -p no:cacheprovider` 全绿，含新增四个测试文件与 `test_migrations` 的 EXPECTED 更新；原有用例未破坏；新增源码文件各 < 300 行（测试文件不受此限）；Python 3.9 兼容检查（tests/test_compat.py）通过。
+- 对合成 xlsx 在 lutetia-pg 上：首次导入 `N new`，原样再导 `0 new, 0 updated`，改一段重导 `1 updated`，删一单重导该单 `in_ledger=false`，毒行整批回滚；`--dry-run` 后两表行数不变。
+- 对真实台账只跑 `--dry-run`：汇总为 117 POI / 99 segments / 92 POI without cable detail，计划重量合计约 244 t（25 个有明细的工单），OCC 解析失败条数如实报告；打印内容只有汇总四行。
+- 代码、测试与样例文件里没有真实台账内容（`git grep -nE '[A-Z]{3}6[0-9]{5}' -- lutetia tests | grep -vE '[A-Z]{3}6000[0-9]{2}'` 无输出，即测试里的工单号只用 6000xx 段的合成号；Spec 与 progress 里用户已批准带上去的摘录除外），`data/` 仍被 `.gitignore` 排除，镜像里没有 `data/`。
+- 生产导入（Task 5.4）完成后：生产库 `poi` 117 行、`poi_cable_segment` 99 行，二次导入 0 / 0 / 117；看板与采集不受影响（`/health` 200，`lutetia status` 退出码 0）。
+- 设计规范按下一步判定跳过（本 Phase 无界面）；架构设计与 DFX 仍待用户看过后做，表结构可能随架构调整。
+
+---
+
 ## 技术栈
 
 沿用首版，Python 侧不引新依赖、不升级；v1.4 起前端静态库随包自托管（见下表）。版本为 2026-11-06 本机 venv 实装与 Spec 技术方向表记录的 PyPI 核对结果。
@@ -274,11 +327,12 @@
 | 部署 | Docker Compose | v2（本机 2.40.3） | migrate → run；状态目录与数据各一卷 |
 | 包管理 | pip + venv | — | `pip install -e ".[dev]"`；内网侧装包加 `-i https://mirrors.aliyun.com/pypi/simple` |
 | 前端静态库（v1.4） | Chart.js / Leaflet | 4.6.1（MIT）/ 1.9.4（BSD-2-Clause） | 2026-11-06 向 npm 仓库核过版本与许可证；从 jsdelivr 按精确版本下载进 `lutetia/web/static/vendor/` 随包发布，不走 CDN；地图底图 OpenStreetMap 标准瓦片（浏览器直连，页面保留署名） |
+| xlsx 读取（Phase 5） | Python 标准库 zipfile + xml.etree.ElementTree | 随 Python | 不引 openpyxl：台账只要读单个工作表的值，标准库够用，镜像与依赖不变；解压上限 50 MB 防压缩炸弹 |
 | 反向代理 / 证书（v1.3） | nginx / certbot | 1.24（主机自带）/ 2.9 | 主机 nginx server block + Let's Encrypt，`deploy/host-deploy.sh` 幂等部署 |
 
 ## 数据库表
 
-五张表两个视图全部在首版 `sql/001_schema.sql` 建好，本计划不加表、不改列。
+五张表两个视图全部在首版 `sql/001_schema.sql` 建好；Phase 1 ～ 4 不加表、不改列，Phase 5 新增 `poi` 与 `poi_cable_segment` 两张表（`sql/003_poi.sql`），不碰现有表。
 
 | 表名 | 所属 Phase | 用途 |
 |------|-----------|------|
@@ -288,6 +342,8 @@
 | `sensor_attribute` | 首版（已建） | Dingtek 属性，整表覆盖，status 读 uploadInterval |
 | `api_call` | 首版（已建） | 每次外部调用一行，配额守护与 status 统计读它 |
 | `gps_position_v` / `sensor_telemetry_v` | 首版（已建） | 换算视图，volt ÷100、rsrp ÷10 为 `[默认]` |
+| `poi` | Phase 5 | POI 工单（台账一单一行），poi_no 主键，content_sha 判新增 / 更新 / 未变，in_ledger 标台账里还有没有 |
+| `poi_cable_segment` | Phase 5 | 工单下的电缆段，(poi_no, seq) 主键，计划重量与参考重量；没有电缆明细的工单没有段 |
 
 ## 开发规则
 
