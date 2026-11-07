@@ -568,3 +568,24 @@ async def test_batch_of_300_pois_counts_and_rows(store):
     assert await run(store, pois[:100]) == counts(unchanged=100, gone=200)
     assert await store.fetchval("SELECT count(*) FROM poi WHERE in_ledger") == 100
     assert await count_rows(store) == (300, 600), "gone 不删行不删段"
+
+
+# risk: high
+async def test_empty_ledger_is_rejected_and_nothing_is_marked_gone(store):
+    from lutetia.poi_store import apply_ledger
+    assert await run(store, [poi_a()]) == counts(new=1)
+    before = await snap(store)
+    with pytest.raises(ValueError):
+        await apply_ledger(store, [])
+    assert await snap(store) == before, "空台账被拒后两张表须与调用前逐行一致"
+    assert (await poi_row(store, "RNT600001"))["in_ledger"] is True
+
+
+# risk: medium
+async def test_duplicate_poi_no_in_one_batch_is_rejected_and_nothing_changes(store):
+    from lutetia.poi_store import apply_ledger
+    assert await run(store, [poi_b()]) == counts(new=1)
+    before = await snap(store)
+    with pytest.raises(ValueError):
+        await apply_ledger(store, [poi_a(), poi_a()])
+    assert await snap(store) == before

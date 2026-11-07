@@ -10,6 +10,7 @@ import aiohttp
 from . import log as logsetup
 from .config import Config
 from .db import Database, max_age_hours
+from .import_cmd import cmd_import_poi
 from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
 from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
@@ -129,6 +130,12 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--begin", required=True, help="'YYYY-MM-DD HH:MM:SS' in UTC+8")
     t.add_argument("--end", required=True)
     g.set_defaults(fn=cmd_gps51)
+    im = sub.add_parser("import", help="import files into the database")
+    ims = im.add_subparsers(dest="import_cmd", required=True)
+    ip = ims.add_parser("poi", help="import the POI ledger xlsx (reads before connecting; --dry-run writes nothing)")
+    ip.add_argument("file")
+    ip.add_argument("--dry-run", action="store_true", default=False)
+    ip.set_defaults(fn=cmd_import_poi)
     return p
 
 
@@ -136,7 +143,8 @@ def main(argv=None) -> None:
     args = build_parser().parse_args(argv)
     cfg = Config.from_env()
     logsetup.setup(cfg.log_level)
-    cfg.require("database_url")
+    if args.cmd != "import":  # import 自己在解析台账之后再查 DATABASE_URL，台账问题优先报
+        cfg.require("database_url")
     try:
         rc = asyncio.run(args.fn(cfg, args))
     except (Gps51Error, DingtekError) as e:

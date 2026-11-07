@@ -31,6 +31,7 @@ services:
       - "127.0.0.1:${DASHBOARD_PUBLISH_PORT:-8081}:8081"  # dashboard + query API, loopback only; host nginx fronts it
     volumes:
       - lutetia-state:/data
+      - ./data/poi:/ledger:ro
     depends_on:
       db:
         condition: service_healthy

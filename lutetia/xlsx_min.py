@@ -60,7 +60,7 @@ def _member(zf: zipfile.ZipFile, name: str) -> Optional[zipfile.ZipInfo]:
 
 
 def _load(zf: zipfile.ZipFile, name: str) -> Optional[bytes]:
-    """读出一个 XML 成员的字节（已按头里的 file_size 限过 50 MB）；不存在返回 None。
+    """读出一个 XML 成员的字节（读取量封顶 MAX_XML_BYTES + 1，头部谎报尺寸也撑不爆内存）；不存在返回 None。
 
     先在字节里找 <!DOCTYPE 再交给解析器：xlsx 不需要 DTD，有 DTD 就是实体膨胀之类攻击的入口，直接拒。
     """
@@ -69,9 +69,12 @@ def _load(zf: zipfile.ZipFile, name: str) -> Optional[bytes]:
         return None
     try:
         with zf.open(info) as fh:
-            data = fh.read()
+            data = fh.read(MAX_XML_BYTES + 1)
     except _READ_ERRORS as exc:
         raise XlsxError("cannot read %s: %s" % (name, exc)) from exc
+    if len(data) > MAX_XML_BYTES:
+        raise XlsxError("%s exceeds %d bytes after decompression, refused"
+                        % (name, MAX_XML_BYTES))
     if b"<!DOCTYPE" in data:
         raise XlsxError("%s contains a DOCTYPE declaration, refused" % name)
     return data

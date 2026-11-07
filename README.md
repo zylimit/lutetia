@@ -21,6 +21,7 @@ pytest
 | `lutetia backfill dingtek --from 2026-08-21` | REST 全量回补，可重复执行，第二次新增为 0 |
 | `lutetia run` | 常驻：GPS51 推送接收端 + 静默 15 分钟后轮询；Dingtek WebSocket 订阅 + 每日回补 |
 | `lutetia status` | 每台设备最后入库时间；在线设备超过 3 小时无数据则退出码 1 |
+| `lutetia import poi FILE [--dry-run]` | 导入 POI 台账 xlsx，打印汇总数字；`--dry-run` 只算不写；读出 0 个工单拒绝导入 |
 | `lutetia gps51 sync-devices` / `poll-once` | 手工同步设备、单次轮询 |
 | `lutetia gps51 tracks --device ID --begin '2026-10-06 00:00:00' --end '2026-10-06 23:59:59'` | 单次历史轨迹，每设备每天限 5 次，只能手工 |
 
@@ -73,7 +74,8 @@ curl -H "Authorization: Bearer $API_KEY" \
 3. 在主机 `~/lutetia` 下运行 `bash deploy/host-deploy.sh`：git pull → 查必填键 → `docker compose up -d --build` → 装 nginx 配置 → `nginx -t` → reload → 无证书才 `certbot --nginx` → 打印冒烟结果。可重复运行。
 4. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `https://iot.digifiber.net/gps51/push/<随机段>`；看板在 `https://iot.digifiber.net/dashboard/`。
 5. `docker compose exec collector lutetia backfill dingtek --from 2026-08-21` 做首次回补。
-6. 用 `GET /health` 和 `lutetia status` 做监控。
+6. 导入 POI 台账：先 `mkdir -p ~/lutetia/data/poi`（不先建的话 Docker 会自建成 root 属主），把 xlsx 放到主机 `~/lutetia/data/poi/`（只放在法兰克福主机，不经 GitHub、不出欧洲；compose 把它只读挂成容器内 `/ledger`），先 `docker compose exec collector lutetia import poi "/ledger/<文件>" --dry-run` 看汇总数字，对了再去掉 `--dry-run` 正式导入。
+7. 用 `GET /health` 和 `lutetia status` 做监控。
    `/health` 返回字段：
    - `received`：收到并入队的推送数
    - `stored`：已写库的新行数
