@@ -14,7 +14,7 @@ from lutetia.db import Database
 load_dotenv()
 DB_URL = os.environ.get("DATABASE_URL", "")
 
-EXPECTED = ["001_schema.sql", "002_raw_jsonb_fix.sql"]
+EXPECTED = ["001_schema.sql", "002_raw_jsonb_fix.sql", "003_poi.sql"]
 
 
 @pytest.fixture
