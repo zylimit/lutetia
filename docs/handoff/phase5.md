@@ -15,6 +15,7 @@
 
 1. `git fetch && git checkout phase5-wip`，先读 `docs/handoff/phase5/brief-5.2-tester.md` 里的接口约定（表结构、`apply_ledger` 返回键 `new / updated / unchanged / raw_refreshed / gone`、必须覆盖的 11 条用例），再按 `brief-5.2-implementer.md` 实现 `lutetia/sql/003_poi.sql` 与 `lutetia/poi_store.py`，让 5.2 的测试转绿，合回 main。
 2. 5.3：先按 `brief-5.3-tester.md` 写红用例，再实现 `cli.py` 的 `import poi` 子命令、`docker-compose.yml` 一行只读挂载 `./data/poi:/ledger:ro`、README 命令表。输出格式固定，见任务书。
+   5.2 实现注意：numeric 列写入前用 `Decimal(str(值))`，别把 float 直接传给 asyncpg；`apply_ledger` 返回五个键含 `raw_refreshed`；tests/test_poi_store.py 有本机主机守卫，只会连 127.0.0.1 的库。
 3. 先修 #77（`xlsx_min.py` 一次读全的回归，一行改动），再视情况处理 #78 的残留。
 4. 5.4 发版与生产导入由用户亲敲 `/release-builder`，不得代做。
 
