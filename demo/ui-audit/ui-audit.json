@@ -1,0 +1,53 @@
+{
+  "target": "/home/ubuntu/code/lutetia/demo",
+  "engine": "playwright-core:chromium",
+  "themes": [
+    "light"
+  ],
+  "widths": [
+    1440,
+    375
+  ],
+  "combos": [
+    {
+      "theme": "light",
+      "width": 1440,
+      "blank": false,
+      "overflows": [],
+      "wrapped": [],
+      "contrastFails": [],
+      "genericTells": {
+        "upperTinyLabels": 0,
+        "midDotTexts": 1,
+        "arrowEndings": 0,
+        "radiusValues": 2,
+        "uniformRadius": false
+      },
+      "elementCount": 67,
+      "textLength": 366
+    },
+    {
+      "theme": "light",
+      "width": 375,
+      "blank": false,
+      "overflows": [],
+      "wrapped": [],
+      "contrastFails": [],
+      "genericTells": {
+        "upperTinyLabels": 0,
+        "midDotTexts": 1,
+        "arrowEndings": 0,
+        "radiusValues": 2,
+        "uniformRadius": false
+      },
+      "elementCount": 67,
+      "textLength": 366
+    }
+  ],
+  "screenshots": [
+    "/home/ubuntu/code/lutetia/demo/ui-audit/light-1440.png",
+    "/home/ubuntu/code/lutetia/demo/ui-audit/light-375.png"
+  ],
+  "pass": true,
+  "at": "2026-11-07T14:54:58.766Z"
+}

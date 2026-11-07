@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ariane · Orange France (demo)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1726">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ariane">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230E1726'/%3E%3Cpath d='M16 5l9 20h-4l-5-12-5 12H7z' fill='%23D08A4E'/%3E%3C/svg%3E">
+<link rel="manifest" href='data:application/manifest+json,{"name":"Ariane Orange France","short_name":"Ariane","display":"standalone","start_url":".","background_color":"%230E1726","theme_color":"%230E1726","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 fill=%27%230E1726%27/%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<style>
+:root{
+  --base:#0E1726;--raised:#16223A;--line:#26344F;--text:#E8EDF5;--text2:#9AA8BF;
+  --copper:#D08A4E;--ok:#3FB6A8;--warn:#E8B04A;--alert:#EF5A5A;--focus:#7FB2FF;
+  --r-panel:6px;--r-tag:3px;--r-btn:6px;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--base);color:var(--text);font:14px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;overflow-x:hidden}
+h1,h2,h3,p,dl,dd,ol,ul{margin:0;padding:0}
+ol,ul{list-style:none}
+h1{font-size:20px;font-weight:600;line-height:1.25}
+h2{font-size:14px;font-weight:600}
+h3{font-size:13px;font-weight:600;color:var(--text2);margin:var(--s4) 0 var(--s2)}
+a{color:var(--text);text-decoration-color:var(--line);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--text)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-tag)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--text2)}
+.cu{color:var(--copper)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.skip{position:absolute;left:8px;top:-60px;background:var(--text);color:var(--base);padding:8px 12px;border-radius:var(--r-btn);z-index:100}
+.skip:focus{top:8px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:36px;padding:0 var(--s4);border:1px solid var(--line);background:transparent;border-radius:var(--r-btn);cursor:pointer;text-decoration:none;color:var(--text)}
+.btn:hover{border-color:var(--text2)}
+.btn.pri{background:var(--text);color:var(--base);border-color:var(--text);font-weight:600}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-btn);overflow:hidden}
+.seg button{min-height:32px;padding:0 var(--s3);background:transparent;border:0;border-right:1px solid var(--line);cursor:pointer;color:var(--text2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--text);color:var(--base);font-weight:600}
+.seg button:focus-visible{outline-offset:-2px}
+
+/* topbar */
+.topbar{display:flex;align-items:center;gap:var(--s4);min-height:56px;padding:0 var(--s4);border-bottom:1px solid var(--line);background:var(--base);position:relative;flex-wrap:wrap}
+.brand{font-weight:600;font-size:15px;white-space:nowrap}
+.brand .sub{font-weight:400;color:var(--text2)}
+.tabs{display:flex;gap:var(--s1);align-self:stretch;margin-left:var(--s4)}
+.tabs a{display:flex;align-items:center;padding:0 var(--s3);color:var(--text2);text-decoration:none;border-bottom:2px solid transparent;margin-top:2px}
+.tabs a:hover{color:var(--text)}
+.tabs a[aria-current=page]{color:var(--text);border-bottom-color:var(--text)}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:var(--s3)}
+.stamp{color:var(--text2);white-space:nowrap}
+.acct{min-height:36px;padding:0 var(--s3);border:1px solid var(--line);background:transparent;border-radius:var(--r-btn);cursor:pointer}
+.menu{position:absolute;right:var(--s4);top:52px;z-index:30;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-panel);padding:var(--s3);min-width:240px;display:grid;gap:var(--s2)}
+.menu[hidden]{display:none}
+
+/* layout */
+main{padding:var(--s4);max-width:1680px;margin:0 auto;padding-bottom:var(--s6)}
+.panel{background:var(--raised);border:1px solid var(--line);border-radius:var(--r-panel);padding:var(--s4);min-width:0}
+.panel>h2,.ph h2{margin-bottom:var(--s3)}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
+.ph h2{margin:0}
+.ph a{text-decoration:none;border-bottom:1px solid var(--line)}
+.page-h{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
+.stack{display:grid;gap:var(--s4)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)}
+.foot{padding:var(--s1) var(--s4) var(--s4);color:var(--text2);font-size:12px;max-width:1680px;margin:0 auto}
+
+/* overview */
+.ov{display:grid;grid-template-columns:300px minmax(0,1fr) 360px;gap:var(--s4);height:calc(100vh - 146px);min-height:640px}
+.ov .col{display:flex;flex-direction:column;gap:var(--s4);min-height:0}
+.ov .col>.panel{min-height:0}
+.ov .p-dem{flex:none}
+.ov .occp{flex:1;overflow:auto}
+.ov .mhp{flex:1;overflow:auto}
+.ov .gpp{flex:none}
+.ov .p-map{display:flex;flex-direction:column;flex:1}
+.kv{display:grid;gap:var(--s3)}
+.kv>div{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3)}
+.kv dt{color:var(--text2)}
+.kv dd{font-size:15px;font-weight:600;text-align:right}
+.kv dd.big{font-size:30px;line-height:1.1;font-weight:600}
+.kv a{text-decoration:none}
+.kv a:hover{text-decoration:underline}
+.mini{width:100%;border-collapse:collapse;font-size:13px}
+.mini th{font-weight:400;color:var(--text2);text-align:right;padding:0 0 var(--s1) var(--s2)}
+.mini th:first-child,.mini td:first-child{text-align:left;padding-left:0}
+.mini td{padding:var(--s1) 0 var(--s1) var(--s2);border-top:1px solid var(--line);text-align:right}
+.mini a{text-decoration:none}
+.hb{display:grid;grid-template-columns:104px minmax(0,1fr) 64px;gap:var(--s2);align-items:center;margin:var(--s2) 0;font-size:13px}
+.hb .tr{height:14px;background:var(--base);border-radius:var(--r-tag);overflow:hidden}
+.hb .fl{height:100%;background:var(--copper);border-radius:var(--r-tag)}
+.hb .v{text-align:right;color:var(--copper);font-weight:600}
+.hb .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mapwrap{flex:1;min-height:260px;background:var(--base);border:1px solid var(--line);border-radius:var(--r-tag);position:relative}
+.mapwrap svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legrow{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s4);align-items:center;margin-top:var(--s2);font-size:12px;color:var(--text2)}
+.legrow span{display:inline-flex;align-items:center;gap:6px}
+.legrow .note{margin-left:auto}
+.cap{min-height:20px;margin-top:var(--s2);color:var(--text2);font-size:13px}
+.map-focus g[role=button],.map-focus g[role=link]{cursor:pointer}
+.ring{fill:none;stroke:var(--alert);stroke-width:1.5;opacity:.6;transform-box:fill-box;transform-origin:center}
+@media (prefers-reduced-motion:no-preference){.ring.pulse{animation:pulse 2.6s ease-out infinite}}
+@keyframes pulse{0%{transform:scale(.7);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+
+.wkl{display:grid;gap:2px}
+.wkl a{display:grid;grid-template-columns:34px 104px minmax(0,1fr) 22px;gap:var(--s2);align-items:center;min-height:24px;text-decoration:none;border-bottom:1px solid var(--line)}
+.wkl a:hover{background:var(--base)}
+.wkl .w{font-weight:600}
+.wkl .d{color:var(--text2);font-size:12px;white-space:nowrap}
+.wkl .tk{height:6px;background:var(--base);border-radius:var(--r-tag);overflow:hidden}
+.wkl .tk i{display:block;height:100%;background:var(--text2)}
+.wkl b{text-align:right}
+.nx{margin-bottom:var(--s1)}
+.occp h3{margin-top:var(--s2)}
+.nx strong{font-size:13px}
+.nx ul{display:grid;gap:2px;margin-top:2px}
+.nx li a{display:flex;justify-content:space-between;gap:var(--s2);font-size:13px;text-decoration:none;min-height:22px;align-items:center}
+.nx li a:hover .nm2{text-decoration:underline}
+.nx .nm2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx .wk2{color:var(--text2);white-space:nowrap;font-size:12px}
+.gl{display:grid;gap:0;margin-top:var(--s3)}
+.gl li{display:grid;grid-template-columns:16px 62px minmax(0,1fr) 72px;gap:var(--s2);align-items:center;min-height:34px;border-top:1px solid var(--line);font-size:13px}
+.gl .t2{color:var(--text2);font-size:12px}
+
+.alertbox{border:1px solid var(--alert);border-left-width:4px;background:var(--base);border-radius:var(--r-tag);padding:var(--s3);display:flex;gap:var(--s3);align-items:flex-start}
+.okline{display:flex;align-items:center;gap:var(--s2)}
+.okline b{font-size:22px;font-weight:600}
+.pn-alert{border-color:var(--alert)}
+.evl{display:grid;gap:var(--s2);margin-top:var(--s2)}
+.ev{display:grid;grid-template-columns:20px 1fr;gap:var(--s2);padding-top:var(--s2);border-top:1px solid var(--line)}
+.ev:first-child{border-top:0;padding-top:0}
+.ev .id{font-weight:600;background:none;border:0;padding:0;cursor:pointer;text-align:left;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.ev dl{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s4);color:var(--text2);font-size:13px}
+.ev dd{color:var(--text)}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:var(--r-tag);padding:0 6px;font-size:12px;color:var(--text2);white-space:nowrap}
+.tag.al{border-color:var(--alert);color:var(--text)}
+.tag.wn{border-color:var(--warn);color:var(--text)}
+
+/* filters */
+.fbar{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;margin-bottom:var(--s3)}
+.chip{display:inline-flex;align-items:center;gap:var(--s1);border:1px solid var(--line);border-radius:var(--r-tag);padding:0 0 0 var(--s2);min-height:28px;background:var(--raised)}
+.chip button{border:0;background:transparent;cursor:pointer;min-width:28px;min-height:28px;color:var(--text2)}
+.fgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3);margin-bottom:var(--s3)}
+.fgrid label{display:grid;gap:var(--s1);color:var(--text2);font-size:13px}
+select,input[type=text],input[type=password]{min-height:36px;background:var(--base);border:1px solid var(--line);border-radius:var(--r-btn);padding:0 var(--s2);width:100%}
+.sum{display:flex;gap:var(--s5);flex-wrap:wrap;align-items:baseline;margin-bottom:var(--s4)}
+.sum b{font-size:18px}
+
+/* timeline */
+.scroller{overflow-x:auto}
+.tl{min-width:640px}
+.tl-h,.tl-l{display:grid;grid-template-columns:96px 1fr}
+.tl-wk{display:grid;grid-template-columns:repeat(6,1fr);font-size:12px;color:var(--text2);border-bottom:1px solid var(--line)}
+.tl-wk span{padding:0 var(--s1) var(--s1)}
+.tl-l{margin-top:var(--s2)}
+.tl-l>div:first-child{font-weight:600;font-size:13px;padding-top:2px}
+.tl-r{position:relative;background:linear-gradient(to right,var(--line) 1px,transparent 1px) 0 0/calc(100%/6) 100%}
+.bar-poi{position:absolute;height:20px;background:var(--text2);color:var(--base);border:0;border-radius:var(--r-tag);font-size:11px;font-weight:600;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;text-align:left}
+.bar-poi:hover{background:var(--text)}
+
+/* tables */
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{text-align:left;font-weight:600;color:var(--text2);padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);white-space:nowrap}
+.t td{padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);vertical-align:middle}
+.t th.num,.t td.num{text-align:right}
+.t tr.sel td{background:var(--base)}
+.t tr.segrow>td{background:var(--base);padding:var(--s2) var(--s4)}
+.t.in td,.t.in th{padding:var(--s1) var(--s3)}
+.xbtn{display:inline-flex;align-items:center;gap:var(--s2);background:none;border:0;cursor:pointer;padding:var(--s1) 0;min-height:32px;font-weight:600}
+.xbtn svg{transition:none}
+.xbtn[aria-expanded=true] svg{transform:rotate(90deg)}
+.st{display:inline-flex;align-items:center;gap:var(--s2)}
+
+/* SLA */
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s3);counter-reset:n;margin-top:var(--s3)}
+.flow li{position:relative;border:1px solid var(--line);border-radius:var(--r-tag);padding:var(--s2) var(--s3);background:var(--base);min-height:64px}
+.flow li::after{content:"";position:absolute;top:50%;right:calc(-1 * var(--s3));width:var(--s3);border-top:1px solid var(--text2)}
+.flow li:nth-child(5n)::after,.flow li:last-child::after{display:none}
+.flow .no{color:var(--text2);font-size:12px}
+.flow .nm{font-weight:600;font-size:13px}
+.flow .pt{display:flex;align-items:center;gap:var(--s1);color:var(--text2);font-size:12px;margin-top:2px}
+.flow li.x{border-style:dashed}
+.lg{display:flex;gap:var(--s4);flex-wrap:wrap;color:var(--text2);font-size:13px;margin-top:var(--s2)}
+.lg span{display:inline-flex;align-items:center;gap:var(--s1)}
+
+/* manhole / copper */
+.mh2{display:grid;grid-template-columns:360px minmax(0,1fr);gap:var(--s4);align-items:start}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.duo .mapwrap{height:400px;flex:none}
+.duo-h{font-weight:600;font-size:13px;margin-bottom:var(--s1)}
+.sw{display:inline-flex;align-items:center;gap:var(--s2);background:none;border:0;cursor:pointer;min-height:36px}
+.sw i{width:36px;height:20px;border:1px solid var(--text2);border-radius:10px;position:relative;display:inline-block}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--text2)}
+.sw[aria-checked=true] i{background:var(--ok);border-color:var(--ok)}
+.sw[aria-checked=true] i::after{left:19px;background:var(--base)}
+
+/* banners, state */
+.banner{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;border:1px solid var(--warn);border-left-width:4px;background:var(--raised);border-radius:var(--r-tag);padding:var(--s2) var(--s3);margin-bottom:var(--s4)}
+.banner .grow{flex:1;min-width:200px}
+.empty{padding:var(--s6) var(--s4);display:grid;gap:var(--s3);justify-items:start;max-width:560px}
+.empty h2{font-size:18px}
+.sk{background:var(--line);border-radius:var(--r-tag);margin:var(--s2) 0}
+.dlg{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:var(--s4)}
+.dlg::before{content:"";position:absolute;inset:0;background:var(--base);opacity:.85}
+.dlg .box{position:relative;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-panel);padding:var(--s5);max-width:420px;display:grid;gap:var(--s3)}
+
+/* login */
+.login{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:var(--s5);padding:var(--s5);max-width:1200px;margin:0 auto;align-items:center}
+.lg-art h1{font-size:28px;margin-bottom:var(--s3)}
+.lg-art p{color:var(--text2);max-width:420px}
+.lg-art svg{width:100%;max-width:380px;height:auto;margin-top:var(--s4)}
+.lg-form{display:grid;gap:var(--s4)}
+.lg-form fieldset{border:0;margin:0;padding:0;display:grid;gap:var(--s3)}
+.lg-form legend{font-weight:600;margin-bottom:var(--s2);padding:0}
+.lg-form label.f{display:grid;gap:var(--s1);color:var(--text2);font-size:13px}
+.radios{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.radios label{border:1px solid var(--line);border-radius:var(--r-btn);padding:var(--s2) var(--s3);cursor:pointer;display:grid;gap:2px;min-height:44px}
+.radios input{position:absolute;opacity:0;pointer-events:none}
+.radios label:has(input:checked){background:var(--base);border-color:var(--text)}
+.radios label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.radios small{color:var(--text2)}
+.chk{display:flex;align-items:center;gap:var(--s2);min-height:36px}
+.chk input{width:18px;height:18px;accent-color:var(--text2)}
+.err{color:var(--text);border-left:3px solid var(--alert);padding-left:var(--s2)}
+
+/* demo states */
+.demo{position:fixed;top:60px;right:12px;z-index:50}
+.demo .dp{background:var(--raised);border:1px solid var(--line);border-radius:var(--r-panel);padding:var(--s3);width:272px;display:grid;gap:var(--s2)}
+.demo .dp[hidden]{display:none}
+.demo .g{display:grid;grid-template-columns:1fr 1fr;gap:var(--s1)}
+.demo .g button,.demo .rs{min-height:36px;border:1px solid var(--line);background:transparent;border-radius:var(--r-btn);cursor:pointer}
+.demo .g button[aria-pressed=true]{background:var(--text);color:var(--base);font-weight:600}
+.demo small{color:var(--text2);font-size:12px}
+.sm{display:none}
+.lg-top{position:absolute;top:12px;right:12px;z-index:5}
+
+.tabbar{display:none}
+svg text{font-family:inherit}
+
+@media (max-width:1279px){
+  .ov{grid-template-columns:260px minmax(0,1fr) 300px}
+  .fgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .flow{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .flow li:nth-child(5n)::after{display:block}
+  .flow li:nth-child(4n){}
+  .flow li:nth-child(4n)::after{display:none}
+}
+@media (max-width:1023px){
+  .ov{display:flex;flex-direction:column;height:auto;min-height:0}
+  .ov .c2{order:-1}
+  .ov .mapwrap{height:380px;flex:none}
+  .ov .p-dem,.ov .occp{overflow:visible}
+  .mh2{grid-template-columns:1fr}
+  .duo{grid-template-columns:1fr}
+  .duo .mapwrap{height:340px}
+  .two{grid-template-columns:1fr}
+  .tabs{order:3;width:100%;margin:0;overflow-x:auto}
+  .topbar{padding-bottom:0}
+  .flow{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .flow li::after{display:block!important}
+  .flow li:nth-child(3n)::after{display:none!important}
+  .login{grid-template-columns:1fr;padding-top:64px}
+}
+@media (max-width:600px){
+  body{font-size:15px}
+  main{padding:var(--s3);padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+  .topbar{min-height:52px;padding:0 var(--s3);flex-wrap:nowrap;gap:var(--s2)}
+  .tabs{display:none}
+  .brand .sub{display:none}
+  .stamp{font-size:13px}
+  .lbl{display:none}
+  .sm{display:inline}
+  .btn,.acct,.seg button,.sw{min-height:44px}
+  .acct,.topbar .btn.ico{min-width:44px;padding:0 var(--s3)}
+  .menu{right:var(--s3);top:50px}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--raised);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;font-size:12px;color:var(--text2);text-decoration:none}
+  .tabbar a[aria-current=page]{color:var(--text);box-shadow:inset 0 2px 0 var(--text)}
+  .tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
+  .ov .mapwrap{height:320px}
+  .duo{grid-template-columns:1fr}
+  .duo .mapwrap{height:300px}
+  .fgrid{grid-template-columns:1fr}
+  .flow{grid-template-columns:1fr;gap:var(--s2)}
+  .flow li::after{display:block!important;top:100%;right:auto;left:20px;width:0;height:var(--s2);border-top:0;border-left:1px solid var(--text2)}
+  .flow li:last-child::after{display:none!important}
+  .hb{grid-template-columns:84px minmax(0,1fr) 56px}
+  .chip button{min-width:44px;min-height:44px}
+  .chip{min-height:44px}
+  .xbtn{min-height:44px}
+  .radios{grid-template-columns:1fr}
+  .login{padding:var(--s4);padding-top:64px}
+  .ev .id{min-height:44px}
+  .demo{top:56px;right:8px}
+  .demo .dp{width:min(272px,calc(100vw - 16px))}
+  .demo .g button,.demo .rs{min-height:44px}
+  .dlg .box{padding:var(--s4)}
+  /* tables become cards */
+  .t thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .t,.t tbody,.t tr,.t td{display:block;width:100%}
+  .t tr.main,.t tr.segrow .in tr{border:1px solid var(--line);border-radius:var(--r-panel);margin-bottom:var(--s3);padding:var(--s2) var(--s3);background:var(--raised)}
+  .t td{border:0;padding:var(--s1) 0;display:flex;justify-content:space-between;gap:var(--s3);text-align:right}
+  .t td[data-label]::before{content:attr(data-label);color:var(--text2);text-align:left;flex:none}
+  .t td.first{text-align:left;font-size:15px;border-bottom:1px solid var(--line);padding-bottom:var(--s2);margin-bottom:var(--s1)}
+  .t tr.segrow{padding:0}
+  .t tr.segrow>td{padding:0 0 var(--s3);background:transparent;display:block}
+  .t.in tr{background:var(--base)!important}
+  .t tr.sel{outline:1px solid var(--text2)}
+  .t tr.sel td{background:transparent}
+  .tw{overflow:visible}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-ov" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="5"/><rect x="13" y="10" width="8" height="11"/><rect x="3" y="13" width="8" height="8"/></symbol>
+    <symbol id="i-dem" viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l6-5 6 5v11M10 20v-6h4v6"/></symbol>
+    <symbol id="i-mh" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v5M12 16v.5"/></symbol>
+    <symbol id="i-cu" viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.500-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  </defs>
+</svg>
+<div id="app"></div>
+<div id="dlg"></div>
+<noscript><p style="padding:24px">Ariane demo needs JavaScript. It runs fully offline with synthetic data.</p></noscript>
+
+<div class="demo" id="demo">
+  <div class="dp" id="demo-panel" hidden role="group" aria-label="Demo states">
+    <strong>Demo state</strong>
+    <div class="g" id="demo-g"></div>
+    <button class="rs" type="button" data-act="reset">Reset demo</button>
+    <small>Synthetic data, no backend. Reloading the page resets everything.</small>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============ synthetic data ============ */
+var DAY = 864e5;
+var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var p2 = function (n) { return String(n).padStart(2, "0"); };
+function wkStart(n) { return Date.UTC(2026, 10, 2) + (n - 45) * 7 * DAY; }
+function ymd(ms) { var d = new Date(ms); return d.getUTCFullYear() + "-" + p2(d.getUTCMonth() + 1) + "-" + p2(d.getUTCDate()); }
+function sl(ms) { return ymd(ms).replace(/-/g, "/"); }
+function md(ms) { var d = new Date(ms); return p2(d.getUTCMonth() + 1) + "/" + p2(d.getUTCDate()); }
+function mon(ms) { var d = new Date(ms); return MON[d.getUTCMonth()] + " " + d.getUTCDate(); }
+
+var UCI = { "Carquefou": "OUEST", "Guérande": "OUEST", "Le Pouliguen": "OUEST", "Miribel": "AURA", "Meximieux": "AURA", "Villefranche-sur-Saône": "AURA", "Anse": "AURA", "Oyonnax": "AURA", "Lentilly": "AURA" };
+var COORD = { "Carquefou": [-1.49, 47.30], "Guérande": [-2.43, 47.33], "Le Pouliguen": [-2.43, 47.285], "Miribel": [4.95, 45.82], "Meximieux": [5.19, 45.90], "Villefranche-sur-Saône": [4.72, 45.99], "Anse": [4.73, 45.94], "Oyonnax": [5.65, 46.26], "Lentilly": [4.67, 45.82] };
+var FACTOR = { "88-448-4": 1.9, "88-224-4": 1.0, "88-112-4": 0.5, "99-56-8": 0.3 };
+var S = "sousterrain", A = "aerien";
+
+var POIS = [];
+function mk(no, commune, subcon, cat, occ, segs) {
+  var i = POIS.length;
+  var s = segs.map(function (g, k) {
+    return { seq: k + 1, cat: "DECS2", type: g[0], infra: g[1] === "s" ? S : A, km: g[2], t: Math.max(0.1, Math.round(g[2] * FACTOR[g[0]] * 10) / 10) };
+  });
+  var opDate = null, occTxt = "";
+  if (occ) {
+    var a = occ[0], b = occ[1], st = wkStart(a), en = a === b ? st + 4 * DAY : wkStart(b) + DAY;
+    occTxt = a === b ? "OCC S" + a + " " + sl(st) + " - " + md(en) : "OCC S" + a + " - S" + b + " " + sl(st) + " - " + md(en);
+    opDate = ymd(en + (3 + (i % 6)) * DAY);
+  }
+  POIS.push({ no: no, commune: commune, uci: UCI[commune], subcon: subcon, cat: cat, occ: occ, occTxt: occTxt, segs: s, received: "2026-11-" + p2(2 + (i % 5)), op: opDate });
+}
+/* T = Transport, D = Distribution */
+mk("RNT61031", "Carquefou", "Hovia", "Transport", [46, 47], [["88-448-4", "s", 1.1], ["88-224-4", "s", 0.8]]);
+mk("RNT61032", "Carquefou", "Hovia", "Distribution", [47, 47], [["88-112-4", "s", 0.9], ["99-56-8", "a", 0.6], ["99-56-8", "a", 0.4]]);
+mk("RNT61047", "Carquefou", "Hovia", "Distribution", [48, 49], [["88-224-4", "s", 1.5]]);
+mk("RNT61058", "Carquefou", "AB RSX", "Transport", [49, 49], [["88-448-4", "s", 1.4], ["88-448-4", "a", 0.5], ["88-224-4", "s", 0.7]]);
+mk("RNT61063", "Guérande", "Hovia", "Distribution", [46, 46], [["88-112-4", "a", 1.3], ["99-56-8", "a", 0.8]]);
+mk("RNT61071", "Guérande", "Hovia", "Transport", [48, 48], [["88-224-4", "s", 2.2], ["88-448-4", "s", 0.9]]);
+mk("RNT61088", "Guérande", "RC", "Distribution", [50, 50], [["99-56-8", "s", 0.5]]);
+mk("RNT61094", "Le Pouliguen", "Hovia", "Distribution", [47, 48], [["88-112-4", "s", 1.0], ["88-112-4", "a", 0.7]]);
+mk("RNT61102", "Le Pouliguen", "AB RSX", "Distribution", [49, 50], [["99-56-8", "a", 1.2], ["88-112-4", "s", 0.6]]);
+mk("RNT61115", "Le Pouliguen", "Hovia", "Transport", null, [["88-224-4", "s", 1.7]]);
+mk("RNT61126", "Carquefou", "RC", "Distribution", [46, 46], [["88-112-4", "s", 0.4]]);
+mk("BRG61204", "Miribel", "AB RSX", "Transport", [46, 47], [["88-448-4", "s", 1.6], ["88-224-4", "s", 1.2]]);
+mk("BRG61211", "Miribel", "RC", "Distribution", [48, 48], [["88-112-4", "a", 0.9], ["99-56-8", "a", 1.1]]);
+mk("BRG61219", "Miribel", "AB RSX", "Distribution", [49, 49], [["88-224-4", "s", 0.7], ["88-112-4", "s", 0.5]]);
+mk("BRG61233", "Meximieux", "RC", "Transport", [47, 48], [["88-448-4", "a", 1.0], ["88-224-4", "a", 1.3]]);
+mk("BRG61240", "Meximieux", "RC", "Distribution", [50, 50], [["99-56-8", "s", 0.7]]);
+mk("BRG61256", "Meximieux", "AB RSX", "Distribution", null, [["88-112-4", "s", 1.1]]);
+mk("BRG61262", "Lentilly", "Hovia", "Distribution", [46, 46], [["88-112-4", "s", 0.6], ["99-56-8", "a", 0.5]]);
+mk("BRG61275", "Lentilly", "AB RSX", "Transport", [48, 49], [["88-448-4", "s", 0.9], ["88-224-4", "s", 0.6]]);
+mk("BRG61281", "Anse", "RC", "Distribution", [48, 48], [["88-112-4", "a", 0.8], ["99-56-8", "a", 0.5]]);
+mk("BRG61297", "Anse", "AB RSX", "Distribution", [49, 49], [["88-224-4", "a", 0.6]]);
+mk("VFC61308", "Villefranche-sur-Saône", "AB RSX", "Transport", [47, 47], [["88-448-4", "s", 1.5], ["88-448-4", "s", 1.0], ["88-224-4", "s", 0.9]]);
+mk("VFC61314", "Villefranche-sur-Saône", "Hovia", "Distribution", [48, 49], [["88-112-4", "s", 1.2], ["99-56-8", "s", 0.8]]);
+mk("VFC61322", "Villefranche-sur-Saône", "RC", "Distribution", [50, 50], [["88-112-4", "a", 0.7]]);
+mk("VFC61337", "Villefranche-sur-Saône", "AB RSX", "Transport", [48, 48], [["88-224-4", "s", 1.8]]);
+mk("VFC61345", "Oyonnax", "RC", "Transport", [46, 47], [["88-448-4", "a", 1.3], ["88-224-4", "a", 0.9]]);
+mk("VFC61353", "Oyonnax", "RC", "Distribution", [48, 48], [["99-56-8", "a", 0.9], ["88-112-4", "a", 0.4]]);
+mk("VFC61366", "Oyonnax", "Hovia", "Distribution", [49, 50], [["88-112-4", "s", 0.8]]);
+mk("BRG61372", "Anse", "AB RSX", "Transport", [50, 50], [["88-448-4", "s", 1.1]]);
+mk("BRG61389", "Lentilly", "Hovia", "Distribution", null, [["99-56-8", "s", 0.4]]);
+mk("VFC61298", "Oyonnax", "AB RSX", "Distribution", [47, 47], [["88-112-4", "a", 0.5]]);
+
+var NOW = "Sun 2026-11-08";
+var EV = [
+  { imei: "864317087587567", start: "2026-11-08 02:14", dur: "6 min", flips: 9, recent: true },
+  { imei: "864317087587252", start: "2026-11-05 21:40", dur: "11 min", flips: 14, recent: false },
+  { imei: "864317087586981", start: "2026-11-03 14:05", dur: "27 min", flips: 22, recent: false }
+];
+var MH = [
+  { imei: "864317087586940", commune: "Carquefou", d: [-0.04, 0.02], v: 3.62, csq: 21, last: "08:38" },
+  { imei: "864317087586981", commune: "Carquefou", d: [0.03, 0.03], v: 3.58, csq: 19, last: "08:40" },
+  { imei: "864317087587021", commune: "Carquefou", d: [0.04, -0.03], v: 3.60, csq: 17, last: "08:36" },
+  { imei: "864317087587179", commune: "Guérande", d: [0.0, 0.04], v: 3.55, csq: 22, last: "08:41" },
+  { imei: "864317087587252", commune: "Le Pouliguen", d: [0.03, -0.01], v: 3.49, csq: 15, last: "08:39" },
+  { imei: "864317087587401", commune: "Miribel", d: [-0.03, 0.02], v: 3.63, csq: 20, last: "08:37" },
+  { imei: "864317087587567", commune: "Carquefou", d: [-0.01, -0.03], v: 3.58, csq: 17, last: "08:41" },
+  { imei: "864317087587625", commune: "Meximieux", d: [0.02, 0.0], v: 3.52, csq: 18, last: "08:35" },
+  { imei: "864317087587781", commune: "Lentilly", d: [0.02, 0.02], v: 3.21, csq: 8, last: "08:30" },
+  { imei: "864317087587823", commune: "Villefranche-sur-Saône", d: [0.0, 0.02], v: 3.57, csq: 24, last: "08:40" },
+  { imei: "862288085127510", commune: "Anse", d: [0.02, -0.02], v: 3.44, csq: 11, last: "Nov 06 19:12", off: true },
+  { imei: "862288085134995", commune: "Oyonnax", d: [0.03, 0.02], v: 3.39, csq: 9, last: "Nov 04 03:48", off: true }
+];
+MH.forEach(function (m) {
+  m.pos = [COORD[m.commune][0] + m.d[0] * 1.5, COORD[m.commune][1] + m.d[1] * 1.5];
+  m.events = EV.filter(function (e) { return e.imei === m.imei; });
+  m.moved = m.events.some(function (e) { return e.recent; });
+  m.low = m.v < 3.3;
+  m.weak = m.csq < 10;
+  m.state = m.off ? "offline" : (m.moved ? "moved" : "online");
+});
+var GPS = [
+  { id: "GT-3301", on: true, exp: true, near: "Carquefou", last: "08:35", trail: [[-2.43, 47.33], [-2.30, 47.36], [-2.10, 47.40], [-1.90, 47.38], [-1.75, 47.33], [-1.62, 47.31], [-1.49, 47.30]] },
+  { id: "GT-3302", on: true, exp: true, near: "Miribel", last: "08:31", trail: [[4.72, 45.99], [4.80, 45.95], [4.95, 45.92], [5.05, 45.88], [5.00, 45.84], [4.95, 45.82]] },
+  { id: "GT-3303", on: false, exp: false, near: "Guérande", last: "Oct 29 17:20", trail: [], pos: [-2.43, 47.33] },
+  { id: "GT-3304", on: false, exp: false, near: "Lentilly", last: "Oct 27 09:05", trail: [], pos: [4.67, 45.82] },
+  { id: "GT-3305", on: false, exp: false, near: "Oyonnax", last: "Oct 30 14:48", trail: [], pos: [5.65, 46.26] }
+];
+GPS.forEach(function (g) { if (g.trail.length) { g.pos = g.trail[g.trail.length - 1]; } });
+
+/* ============ helpers ============ */
+var sum = function (a, f) { return a.reduce(function (s, x) { return s + f(x); }, 0); };
+var f1 = function (n) { return n.toFixed(1); };
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); }
+function uniq(a) { return a.filter(function (v, i) { return a.indexOf(v) === i; }).sort(); }
+function totals(list) {
+  var segs = sum(list, function (p) { return p.segs.length; });
+  return { n: list.length, segs: segs, km: sum(list, function (p) { return sum(p.segs, function (s) { return s.km; }); }), t: sum(list, function (p) { return sum(p.segs, function (s) { return s.t; }); }) };
+}
+function withTotals(p) { p.km = sum(p.segs, function (s) { return s.km; }); p.t = sum(p.segs, function (s) { return s.t; }); return p; }
+var ALL = POIS.map(function (p) { return withTotals({ no: p.no, commune: p.commune, uci: p.uci, subcon: p.subcon, cat: p.cat, occ: p.occ, occTxt: p.occTxt, segs: p.segs, received: p.received, op: p.op }); });
+
+/* ============ state ============ */
+var st = {
+  view: "login", mode: "normal", who: null, keep: true, loginWho: "Orange", loginErr: "", flash: "",
+  F: { uci: "", subcon: "", commune: "", category: "", infra: "", cable: "", week: "" },
+  filtOpen: false, open: {}, sla: "Transportation",
+  focus: { overview: "france", manhole: "france", copper: "france" }, trail: false, sel: null,
+  min: 42, menu: false, demoOpen: false
+};
+var MODES = [["normal", "Normal"], ["loading", "Loading"], ["empty", "Empty"], ["error", "Error"], ["offline", "Offline"], ["expired", "Session expired"]];
+var PAGES = [["overview", "Overview", "i-ov"], ["demolition", "Demolition plan", "i-dem"], ["manhole", "Manhole security", "i-mh"], ["copper", "Copper bundles", "i-cu"]];
+var FLABEL = { uci: "UCI", subcon: "Subcontractor", commune: "Commune", category: "Category", infra: "Infrastructure", cable: "Cable type", week: "OCC week" };
+function stamp() { return "08:" + p2(st.min); }
+
+function filtered() {
+  var F = st.F;
+  return ALL.map(function (p) {
+    var segs = p.segs.filter(function (s) { return (!F.infra || s.infra === F.infra) && (!F.cable || s.type === F.cable); });
+    return withTotals({ no: p.no, commune: p.commune, uci: p.uci, subcon: p.subcon, cat: p.cat, occ: p.occ, occTxt: p.occTxt, segs: segs, received: p.received, op: p.op });
+  }).filter(function (p) {
+    return p.segs.length && (!F.uci || p.uci === F.uci) && (!F.subcon || p.subcon === F.subcon) && (!F.commune || p.commune === F.commune) &&
+      (!F.category || p.cat === F.category) && (!F.week || (p.occ && p.occ[0] <= +F.week && +F.week <= p.occ[1]));
+  });
+}
+function groupT(list, key) {
+  var m = {};
+  list.forEach(function (p) { p.segs.forEach(function (s) { var k = key(p, s); m[k] = (m[k] || 0) + s.t; }); });
+  return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+}
+function weekCount(w) { return ALL.filter(function (p) { return p.occ && p.occ[0] <= w && w <= p.occ[1]; }).length; }
+
+/* ============ map ============ */
+var K0 = 60, KX = 0.695;
+function XY(lon, lat) { return [(lon + 5.2) * K0 * KX, (51.6 - lat) * K0]; }
+var OUTLINE = [[2.55, 51.08], [1.85, 50.95], [1.6, 50.73], [1.55, 50.2], [1.08, 49.93], [0.35, 49.75], [0.1, 49.5], [-0.4, 49.3], [-1.15, 49.4], [-1.3, 49.7], [-1.6, 49.65], [-1.6, 48.9], [-1.55, 48.65], [-2.0, 48.65], [-3.0, 48.85], [-3.5, 48.8], [-4.55, 48.7], [-4.8, 48.45], [-4.4, 48.3], [-4.7, 48.0], [-4.2, 47.8], [-3.4, 47.75], [-3.1, 47.5], [-2.7, 47.4], [-2.5, 47.25], [-2.36, 47.22], [-2.2, 47.15], [-2.15, 46.95], [-1.8, 46.5], [-1.15, 46.15], [-1.1, 45.55], [-1.25, 44.65], [-1.55, 43.5], [-1.8, 43.38], [-0.7, 43.05], [0.7, 42.8], [1.45, 42.6], [2.0, 42.4], [3.15, 42.43], [3.0, 42.9], [3.2, 43.1], [3.9, 43.45], [4.6, 43.4], [5.35, 43.3], [6.0, 43.1], [6.7, 43.15], [7.2, 43.65], [7.5, 43.78], [6.9, 44.1], [7.1, 44.4], [6.75, 45.0], [7.05, 45.5], [6.8, 45.8], [6.9, 46.0], [6.1, 46.25], [6.45, 46.45], [6.1, 46.6], [6.95, 47.2], [7.0, 47.5], [7.55, 47.6], [7.6, 48.0], [8.2, 48.95], [7.1, 49.15], [6.35, 49.45], [5.9, 49.5], [5.5, 49.5], [4.85, 50.1], [4.2, 50.25], [3.6, 50.4], [3.1, 50.75]];
+var TS = window.innerWidth <= 600 ? 1.4 : 1;
+var VB = { france: null, aura: null, ouest: null };
+function bbox(l0, l1, a0, a1) { var p = XY(l0, a1), q = XY(l1, a0); return [p[0], p[1], q[0] - p[0], q[1] - p[1]]; }
+VB.france = bbox(-5.0, 8.4, 42.2, 51.2);
+VB.aura = bbox(4.3, 5.85, 45.55, 46.4);
+VB.ouest = bbox(-2.65, -1.35, 46.95, 47.65);
+var SHAPE_ALT = { online: "online", offline: "offline", moved: "moved in last 24 h" };
+
+function outlinePath() { return "M" + OUTLINE.map(function (p) { return XY(p[0], p[1]).map(function (v) { return v.toFixed(1); }).join(" "); }).join("L") + "Z"; }
+function graticule(vb, k) {
+  var step = vb === VB.france ? 2 : 0.25, d = "";
+  for (var lo = -16; lo <= 18; lo += step) { var a = XY(lo, 56), b = XY(lo, 38); d += "M" + a[0].toFixed(1) + " " + a[1].toFixed(1) + "L" + b[0].toFixed(1) + " " + b[1].toFixed(1); }
+  for (var la = 38; la <= 56; la += step) { var c = XY(-16, la), e = XY(18, la); d += "M" + c[0].toFixed(1) + " " + c[1].toFixed(1) + "L" + e[0].toFixed(1) + " " + e[1].toFixed(1); }
+  return "<path d=\"" + d + "\" fill=\"none\" stroke=\"var(--line)\" stroke-width=\"" + (0.6 * k).toFixed(3) + "\" opacity=\".6\"/>";
+}
+function inVB(vb, p) { var q = XY(p[0], p[1]); return q[0] >= vb[0] && q[0] <= vb[0] + vb[2] && q[1] >= vb[1] && q[1] <= vb[1] + vb[3]; }
+function marker(m, k, sel) {
+  var p = XY(m.pos[0], m.pos[1]), s = 11 * k, g = "", sw = 2 * k;
+  var aria = m.imei + ", " + SHAPE_ALT[m.state] + ", location unverified";
+  if (m.state === "moved") {
+    g += "<circle class=\"ring pulse\" r=\"" + (s * 2.2) + "\"/><circle class=\"ring\" r=\"" + (s * 1.6) + "\" style=\"opacity:.5\"/>";
+    g += "<polygon points=\"0," + (-s * 1.3) + " " + (s * 1.2) + "," + (s * 0.9) + " " + (-s * 1.2) + "," + (s * 0.9) + "\" fill=\"var(--alert)\" stroke=\"var(--base)\" stroke-width=\"" + sw + "\"/>";
+  } else if (m.state === "offline") {
+    g += "<circle r=\"" + s + "\" fill=\"var(--base)\" stroke=\"var(--warn)\" stroke-width=\"" + (sw * 1.5) + "\"/>";
+  } else {
+    g += "<circle r=\"" + s + "\" fill=\"var(--ok)\" stroke=\"var(--base)\" stroke-width=\"" + sw + "\"/>";
+  }
+  if (sel) { g += "<circle r=\"" + (s * 2) + "\" fill=\"none\" stroke=\"var(--focus)\" stroke-width=\"" + (1.8 * k) + "\"/>"; }
+  return "<g transform=\"translate(" + p[0].toFixed(1) + " " + p[1].toFixed(1) + ")\" tabindex=\"0\" role=\"button\" aria-label=\"" + esc(aria) + "\" data-act=\"sel\" data-id=\"" + m.imei + "\" data-k=\"mk-" + m.imei + "\"><title>" + esc(aria) + "</title>" + g + "</g>";
+}
+var LAB = { "Carquefou": "r", "Guérande": "r", "Le Pouliguen": "b", "Miribel": "b", "Meximieux": "r", "Villefranche-sur-Saône": "t", "Anse": "l", "Oyonnax": "r", "Lentilly": "b" };
+function communeLabel(c, k, force) {
+  var xy = XY(COORD[c][0], COORD[c][1]), m = force || LAB[c], fs = 13 * k, x = xy[0], y = xy[1], anchor = "middle";
+  if (m === "b") { y += 40 * k + fs; } else if (m === "t") { y -= 36 * k; } else if (m === "r") { x += 46 * k; anchor = "start"; y += fs * 0.35; } else { x -= 40 * k; anchor = "end"; y += fs * 0.35; }
+  return "<text x=\"" + x.toFixed(1) + "\" y=\"" + y.toFixed(1) + "\" text-anchor=\"" + anchor + "\" fill=\"var(--text)\" font-size=\"" + fs.toFixed(2) + "\">" + esc(c) + "</text>";
+}
+function regionBubbles(k) {
+  /* k already includes the phone text scale */
+  var o = "";
+  ["OUEST", "AURA"].forEach(function (r) {
+    var list = ALL.filter(function (p) { return p.uci === r; }), t = sum(list, function (p) { return p.t; }), cx = 0, cy = 0;
+    list.forEach(function (p) { cx += COORD[p.commune][0] * p.t; cy += COORD[p.commune][1] * p.t; });
+    var xy = XY(cx / t, cy / t), rad = (14 + Math.sqrt(t) * 5.5) * k, sens = MH.filter(function (m) { return UCI[m.commune] === r; });
+    var n = { online: 0, moved: 0, offline: 0 }; sens.forEach(function (m) { n[m.state]++; });
+    var cap = r + ": " + f1(t) + " t planned in " + list.length + " POI; " + sens.length + " manhole sensors (" + n.online + " online, " + n.moved + " moved in last 24 h, " + n.offline + " offline). Select to zoom in.";
+    o += "<g tabindex=\"0\" role=\"button\" aria-label=\"" + esc(cap) + "\" data-act=\"focus\" data-page=\"overview\" data-v=\"" + r.toLowerCase() + "\" data-cap=\"" + esc(cap) + "\" data-k=\"rg-" + r + "\"><title>" + esc(cap) + "</title>";
+    o += "<circle cx=\"" + xy[0].toFixed(1) + "\" cy=\"" + xy[1].toFixed(1) + "\" r=\"" + rad.toFixed(1) + "\" fill=\"var(--copper)\" fill-opacity=\".5\" stroke=\"var(--copper)\" stroke-width=\"" + (2 * k) + "\"/>";
+    o += "<text x=\"" + xy[0].toFixed(1) + "\" y=\"" + (xy[1] - 2 * k).toFixed(1) + "\" text-anchor=\"middle\" fill=\"var(--text)\" font-size=\"" + (15 * k) + "\" font-weight=\"700\">" + r + "</text>";
+    o += "<text x=\"" + xy[0].toFixed(1) + "\" y=\"" + (xy[1] + 15 * k).toFixed(1) + "\" text-anchor=\"middle\" fill=\"var(--text)\" font-size=\"" + (14 * k) + "\" font-weight=\"600\">" + f1(t) + " t</text>";
+    var rows = [["online", n.online, "online"], ["moved", n.moved, "moved"], ["offline", n.offline, "offline"]].filter(function (x) { return x[1]; });
+    var side = r === "AURA" ? -1 : 1, bx = xy[0] + side * (rad + 14 * k), by = xy[1] - (rows.length - 1) * 11 * k;
+    rows.forEach(function (x, i) {
+      var yy = by + i * 22 * k, sz = 7 * k;
+      if (x[0] === "moved") { o += "<circle class=\"ring pulse\" cx=\"" + bx + "\" cy=\"" + yy + "\" r=\"" + (sz * 2) + "\"/><polygon points=\"" + bx + "," + (yy - sz * 1.3) + " " + (bx + sz * 1.2) + "," + (yy + sz * 0.9) + " " + (bx - sz * 1.2) + "," + (yy + sz * 0.9) + "\" fill=\"var(--alert)\"/>"; }
+      else if (x[0] === "offline") { o += "<circle cx=\"" + bx + "\" cy=\"" + yy + "\" r=\"" + sz + "\" fill=\"var(--base)\" stroke=\"var(--warn)\" stroke-width=\"" + (2.4 * k) + "\"/>"; }
+      else { o += "<circle cx=\"" + bx + "\" cy=\"" + yy + "\" r=\"" + sz + "\" fill=\"var(--ok)\"/>"; }
+      o += "<text x=\"" + (bx + side * 18 * k).toFixed(1) + "\" y=\"" + (yy + 4.5 * k).toFixed(1) + "\" text-anchor=\"" + (side < 0 ? "end" : "start") + "\" fill=\"var(--text)\" font-size=\"" + (13 * k) + "\">" + x[1] + " " + x[2] + "</text>";
+    });
+    o += "</g>";
+  });
+  return o;
+}
+function mapSVG(fk, layers) {
+  var vb = VB[fk], k = vb[2] / 567 * TS, o = "", zoom = fk !== "france", has = function (l) { return layers.indexOf(l) >= 0; };
+  o += "<svg viewBox=\"" + vb.join(" ") + "\" preserveAspectRatio=\"xMidYMid meet\" role=\"group\" aria-label=\"Schematic map, " + (zoom ? fk.toUpperCase() + " region" : "France") + "\">";
+  o += "<path d=\"" + outlinePath() + "\" fill=\"var(--raised)\" stroke=\"var(--text2)\" stroke-width=\"" + (1.2 * k).toFixed(3) + "\" stroke-linejoin=\"round\"/>";
+  o += graticule(vb, k);
+  if (!zoom && has("tons")) { o += regionBubbles(k); }
+  else {
+    var inCommunes = Object.keys(COORD).filter(function (c) { return inVB(vb, COORD[c]); });
+    if (has("tons")) {
+      var cm = {};
+      ALL.forEach(function (p) { var c = cm[p.commune] = cm[p.commune] || { n: 0, t: 0 }; c.n++; c.t += p.t; });
+      inCommunes.forEach(function (c) {
+        var xy = XY(COORD[c][0], COORD[c][1]), r = (6 + Math.sqrt(cm[c].t) * 3.2) * k;
+        var cap = c + " (" + UCI[c] + "): " + cm[c].n + " POI, " + f1(cm[c].t) + " t planned. Open in Demolition plan.";
+        o += "<g transform=\"translate(" + xy[0].toFixed(1) + " " + xy[1].toFixed(1) + ")\" tabindex=\"0\" role=\"link\" aria-label=\"" + esc(cap) + "\" data-act=\"gocommune\" data-commune=\"" + esc(c) + "\" data-cap=\"" + esc(cap) + "\" data-k=\"cm-" + esc(c) + "\"><title>" + esc(cap) + "</title>";
+        o += "<circle r=\"" + r.toFixed(2) + "\" fill=\"var(--copper)\" fill-opacity=\".5\" stroke=\"var(--copper)\" stroke-width=\"" + (1.6 * k).toFixed(3) + "\"/></g>";
+      });
+    }
+    inCommunes.forEach(function (c) { o += communeLabel(c, k, has("gps") ? "b" : ""); });
+    if (has("manhole")) { MH.forEach(function (m) { if (inVB(vb, m.pos)) { o += marker(m, k, st.sel === m.imei); } }); }
+    if (has("gps")) {
+      GPS.forEach(function (g) {
+        var s = 8 * k;
+        if (st.trail && g.trail.length && inVB(vb, g.pos)) {
+          o += "<polyline points=\"" + g.trail.map(function (q) { return XY(q[0], q[1]).map(function (v) { return v.toFixed(1); }).join(","); }).join(" ") + "\" fill=\"none\" stroke=\"var(--ok)\" stroke-width=\"" + (2.4 * k).toFixed(3) + "\" stroke-dasharray=\"" + (6 * k) + " " + (4 * k) + "\" stroke-linecap=\"round\"/>";
+          g.trail.slice(0, -1).forEach(function (q) { var z = XY(q[0], q[1]); o += "<circle cx=\"" + z[0].toFixed(1) + "\" cy=\"" + z[1].toFixed(1) + "\" r=\"" + (3 * k).toFixed(2) + "\" fill=\"var(--ok)\"/>"; });
+        }
+        if (!inVB(vb, g.pos)) { return; }
+        var xy = XY(g.pos[0], g.pos[1]);
+        var cap = g.id + ", " + (g.on ? "online" : "standby, not expected online") + ", near " + g.near + ", last position " + g.last;
+        o += "<g transform=\"translate(" + xy[0].toFixed(1) + " " + xy[1].toFixed(1) + ")\" tabindex=\"0\" role=\"img\" aria-label=\"" + esc(cap) + "\" data-cap=\"" + esc(cap) + "\" data-k=\"gp-" + g.id + "\"><title>" + esc(cap) + "</title>";
+        o += "<rect x=\"" + (-s) + "\" y=\"" + (-s) + "\" width=\"" + (2 * s) + "\" height=\"" + (2 * s) + "\" rx=\"" + (s * 0.3) + "\" fill=\"" + (g.on ? "var(--ok)" : "var(--base)") + "\" stroke=\"" + (g.on ? "var(--base)" : "var(--text2)") + "\" stroke-width=\"" + (2 * k) + "\" transform=\"rotate(45)\"/>";
+        o += "<text x=\"0\" y=\"" + (-s * 1.8) + "\" text-anchor=\"middle\" fill=\"var(--text)\" font-size=\"" + (12 * k) + "\" font-weight=\"600\">" + g.id + "</text></g>";
+      });
+    }
+  }
+  return o + "</svg>";
+}
+function mapHTML(page, layers) { return "<div class=\"mapwrap map-focus\">" + mapSVG(st.focus[page], layers) + "</div>"; }
+function dualHTML(layers) {
+  return "<div class=\"duo\">" + ["ouest", "aura"].map(function (fk) { return "<div><div class=\"duo-h\">" + fk.toUpperCase() + "</div><div class=\"mapwrap map-focus\">" + mapSVG(fk, layers) + "</div></div>"; }).join("") + "</div>";
+}
+function legendHTML(layers) {
+  var lg = "", has = function (l) { return layers.indexOf(l) >= 0; };
+  if (has("tons")) { lg += "<span><svg width=\"14\" height=\"14\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"6\" fill=\"var(--copper)\" fill-opacity=\".5\" stroke=\"var(--copper)\"/></svg>Planned tons</span>"; }
+  if (has("manhole")) { lg += "<span>" + shape("online") + "Manhole online</span><span>" + shape("offline") + "Offline</span><span>" + shape("moved") + "Moved in last 24 h</span>"; }
+  if (has("gps")) { lg += "<span>" + gpsShape(true) + "GPS online</span><span>" + gpsShape(false) + "GPS standby</span>"; if (st.trail) { lg += "<span><svg width=\"14\" height=\"14\" aria-hidden=\"true\"><path d=\"M1 10L13 4\" stroke=\"var(--ok)\" stroke-width=\"2\" stroke-dasharray=\"3 2\"/></svg>7-day trail</span>"; } }
+  return "<div class=\"legrow\">" + lg + "<span class=\"note\">Schematic map — production uses OpenStreetMap</span></div>";
+}
+function shape(s) {
+  if (s === "moved") { return "<svg width=\"14\" height=\"14\" aria-hidden=\"true\"><polygon points=\"7,1 13,12 1,12\" fill=\"var(--alert)\"/></svg>"; }
+  if (s === "offline") { return "<svg width=\"14\" height=\"14\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"5\" fill=\"none\" stroke=\"var(--warn)\" stroke-width=\"2\"/></svg>"; }
+  return "<svg width=\"14\" height=\"14\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"5.5\" fill=\"var(--ok)\"/></svg>";
+}
+function gpsShape(on) { return "<svg width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"8\" height=\"8\" transform=\"rotate(45 7 7)\" fill=\"" + (on ? "var(--ok)" : "none") + "\" stroke=\"" + (on ? "var(--ok)" : "var(--text2)") + "\" stroke-width=\"1.6\"/></svg>"; }
+function focusSeg(page) {
+  return "<div class=\"seg\" role=\"group\" aria-label=\"Map focus\">" + [["france", "France"], ["aura", "AURA"], ["ouest", "OUEST"]].map(function (x) {
+    return "<button type=\"button\" data-act=\"focus\" data-page=\"" + page + "\" data-v=\"" + x[0] + "\" data-k=\"fc-" + x[0] + "\" aria-pressed=\"" + (st.focus[page] === x[0]) + "\">" + x[1] + "</button>";
+  }).join("") + "</div>";
+}
+
+/* ============ pages ============ */
+function bars(rows, max) {
+  return rows.map(function (r) {
+    return "<div class=\"hb\"><span class=\"n\" title=\"" + esc(r[0]) + "\">" + esc(r[0]) + "</span><span class=\"tr\" aria-hidden=\"true\"><span class=\"fl\" style=\"display:block;width:" + (r[1] / max * 100).toFixed(1) + "%\"></span></span><span class=\"v\">" + f1(r[1]) + " t</span></div>";
+  }).join("");
+}
+function weekRange(p) { return p.occ[0] === p.occ[1] ? "W" + p.occ[0] : "W" + p.occ[0] + "-" + p.occ[1]; }
+function spark(g) {
+  if (!g.trail.length) { return "<span class=\"t2\">No trail</span>"; }
+  var xs = g.trail.map(function (q) { return q[0]; }), ys = g.trail.map(function (q) { return q[1]; });
+  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  var pts = g.trail.map(function (q) { return (3 + (q[0] - x0) / ((x1 - x0) || 1) * 62).toFixed(1) + "," + (19 - (q[1] - y0) / ((y1 - y0) || 1) * 16).toFixed(1); });
+  var last = pts[pts.length - 1].split(",");
+  return "<svg width=\"70\" height=\"22\" viewBox=\"0 0 70 22\" role=\"img\" aria-label=\"7-day trail, " + g.trail.length + " points\"><polyline points=\"" + pts.join(" ") + "\" fill=\"none\" stroke=\"var(--ok)\" stroke-width=\"1.5\" stroke-dasharray=\"4 2\"/><circle cx=\"" + last[0] + "\" cy=\"" + last[1] + "\" r=\"3\" fill=\"var(--ok)\"/></svg>";
+}
+function overviewHTML() {
+  var T = totals(ALL), au = totals(ALL.filter(function (p) { return p.uci === "AURA"; })), ou = totals(ALL.filter(function (p) { return p.uci === "OUEST"; }));
+  var rows = [["AURA", au], ["OUEST", ou]].map(function (r) { return "<tr><td><a href=\"#/demolition?uci=" + r[0] + "\">" + r[0] + "</a></td><td>" + r[1].n + "</td><td>" + r[1].segs + "</td><td>" + f1(r[1].km) + "</td><td class=\"cu\">" + f1(r[1].t) + "</td></tr>"; }).join("");
+  var left = "<section class=\"panel p-dem\" aria-labelledby=\"h-dem\"><div class=\"ph\"><h2 id=\"h-dem\"><a href=\"#/demolition\">Demolition plan</a></h2></div>" +
+    "<dl class=\"kv\"><div><dt>POI work orders</dt><dd><a href=\"#/demolition\">" + T.n + "</a></dd></div>" +
+    "<div><dt>Planned copper</dt><dd class=\"big cu\"><a href=\"#/demolition\" class=\"cu\">" + f1(T.t) + " t</a></dd></div>" +
+    "<div><dt>Cable segments</dt><dd>" + T.segs + "</dd></div><div><dt>Cable length</dt><dd>" + f1(T.km) + " km</dd></div></dl>" +
+    "<h3>By region (UCI)</h3><table class=\"mini\"><thead><tr><th scope=\"col\">Region</th><th scope=\"col\">POI</th><th scope=\"col\">Seg.</th><th scope=\"col\">km</th><th scope=\"col\">t</th></tr></thead><tbody>" + rows + "</tbody></table></section>";
+  var mid = "<section class=\"panel p-map\" aria-labelledby=\"h-map\"><div class=\"ph\"><h2 id=\"h-map\">Project map</h2>" + focusSeg("overview") + "</div>" +
+    mapHTML("overview", ["tons", "manhole"]) + legendHTML(["tons", "manhole"]) +
+    "<p class=\"cap\" id=\"mapcap\" aria-live=\"polite\">" + (st.focus.overview === "france" ? "Select AURA or OUEST on the map to zoom in; at region level, select a copper dot to open the plan for that commune." : "Select a copper dot to open the plan for that commune, or a sensor for its details below the table on the Manhole page.") + "</p></section>";
+  var weeks = [46, 47, 48, 49], cnt = weeks.map(weekCount), mx = Math.max.apply(null, cnt);
+  var nextBy = uniq(ALL.map(function (p) { return p.subcon; })).map(function (sc) {
+    var it = ALL.filter(function (p) { return p.subcon === sc && p.occ; }).sort(function (a, b) { return a.occ[0] - b.occ[0] || (a.no < b.no ? -1 : 1); }).slice(0, 2);
+    return "<div class=\"nx\"><strong>" + esc(sc) + "</strong><ul>" + it.map(function (p) { return "<li><a href=\"#/demolition?subcon=" + encodeURIComponent(sc) + "&commune=" + encodeURIComponent(p.commune) + "\"><span class=\"nm2\">" + p.no + " " + esc(p.commune) + "</span><span class=\"wk2\">" + weekRange(p) + "</span></a></li>"; }).join("") + "</ul></div>";
+  }).join("");
+  var occ = "<section class=\"panel occp\" aria-labelledby=\"h-occ\"><div class=\"ph\"><h2 id=\"h-occ\"><a href=\"#/demolition\">OCC site audits, next 4 weeks</a></h2></div><div class=\"wkl\">" +
+    weeks.map(function (w, i) { return "<a href=\"#/demolition?week=" + w + "\" aria-label=\"W" + w + ", " + cnt[i] + " POI\"><span class=\"w\">W" + w + "</span><span class=\"d\">" + mon(wkStart(w)) + " to " + mon(wkStart(w) + 6 * DAY) + "</span><span class=\"tk\"><i style=\"width:" + (cnt[i] / mx * 100).toFixed(0) + "%\"></i></span><b>" + cnt[i] + "</b></a>"; }).join("") + "</div>" +
+    "<h3>Next audits by subcontractor</h3>" + nextBy + "</section>";
+  var moved = MH.filter(function (m) { return m.moved; }).length, onl = MH.filter(function (m) { return m.state !== "offline"; }).length, low = MH.filter(function (m) { return m.low; }).length;
+  var evs = EV.map(evItem).join("");
+  var mh = "<section class=\"panel mhp" + (moved ? " pn-alert" : "") + "\" aria-labelledby=\"h-mh\"><div class=\"ph\"><h2 id=\"h-mh\"><a href=\"#/manhole\">Manhole security</a></h2></div>" +
+    "<div class=\"okline\">" + shape("online") + "<b>" + onl + " / " + MH.length + "</b><span class=\"muted\">sensors online</span></div>" +
+    (moved ? "<div class=\"alertbox\" style=\"margin-top:12px\" role=\"status\">" + shape("moved") + "<div><strong>" + moved + " movement in last 24 h</strong><br><span class=\"muted\">" + low + " low voltage sensor, " + (MH.length - onl) + " offline</span></div></div>" : "") +
+    "<h3>Movement events</h3><ol class=\"evl\">" + evs + "</ol></section>";
+  var gp = "<section class=\"panel gpp\" aria-labelledby=\"h-gp\"><div class=\"ph\"><h2 id=\"h-gp\"><a href=\"#/copper\">Copper bundles</a></h2></div>" +
+    "<div class=\"okline\">" + gpsShape(true) + "<b>" + GPS.filter(function (g) { return g.on; }).length + " / " + GPS.length + "</b><span class=\"muted\">GPS online, " + GPS.filter(function (g) { return g.exp; }).length + " expected</span></div>" +
+    "<ul class=\"gl\">" + GPS.map(function (g) { return "<li><span>" + gpsShape(g.on) + "</span><strong>" + g.id + "</strong><span class=\"t2\">" + (g.on ? "Online " + g.last : "Standby " + g.last) + "</span>" + spark(g) + "</li>"; }).join("") + "</ul></section>";
+  return "<div class=\"ov\"><div class=\"col\">" + left + occ + "</div><div class=\"col c2\">" + mid + "</div><div class=\"col\">" + mh + gp + "</div></div>";
+}
+function evItem(e) {
+  return "<li class=\"ev\"><span>" + (e.recent ? shape("moved") : "<svg width=\"14\" height=\"14\" aria-hidden=\"true\"><polygon points=\"7,1 13,12 1,12\" fill=\"none\" stroke=\"var(--text2)\" stroke-width=\"1.6\"/></svg>") + "</span><div><button class=\"id\" type=\"button\" data-act=\"selgo\" data-id=\"" + e.imei + "\" data-k=\"ev-" + e.imei + "\">" + e.imei + "</button> " + (e.recent ? "<span class=\"tag al\">Last 24 h</span>" : "") +
+    "<dl><div><dt class=\"muted\" style=\"display:inline\">Started </dt><dd style=\"display:inline\">" + e.start + "</dd></div><div><dt class=\"muted\" style=\"display:inline\">Duration </dt><dd style=\"display:inline\">" + e.dur + "</dd></div><div><dt class=\"muted\" style=\"display:inline\">Flips </dt><dd style=\"display:inline\">" + e.flips + "</dd></div></dl></div></li>";
+}
+
+function demolitionHTML() {
+  var list = filtered(), T = totals(list), F = st.F, n = Object.keys(F).filter(function (k) { return F[k]; }).length;
+  function sel(key, opts, labelOf) {
+    return "<label>" + FLABEL[key] + "<select data-f=\"" + key + "\" data-k=\"f-" + key + "\"><option value=\"\">All</option>" + opts.map(function (o) { return "<option value=\"" + esc(o) + "\"" + (F[key] === String(o) ? " selected" : "") + ">" + esc(labelOf ? labelOf(o) : o) + "</option>"; }).join("") + "</select></label>";
+  }
+  var chips = Object.keys(F).filter(function (k) { return F[k]; }).map(function (k) {
+    return "<span class=\"chip\">" + FLABEL[k] + ": " + esc(k === "week" ? "W" + F[k] : F[k]) + "<button type=\"button\" data-act=\"rmf\" data-f=\"" + k + "\" data-k=\"rm-" + k + "\" aria-label=\"Remove filter " + FLABEL[k] + "\">&times;</button></span>";
+  }).join("");
+  var fbar = "<div class=\"fbar\"><button class=\"btn\" type=\"button\" data-act=\"filt\" data-k=\"filt\" aria-expanded=\"" + st.filtOpen + "\" aria-controls=\"fpanel\">Filters (" + n + ")</button>" + chips + (n ? "<button class=\"btn\" type=\"button\" data-act=\"clear\" data-k=\"clear\">Clear filters</button>" : "") + "</div>" +
+    (st.filtOpen ? "<div class=\"fgrid panel\" id=\"fpanel\">" + sel("uci", ["AURA", "OUEST"]) + sel("subcon", uniq(ALL.map(function (p) { return p.subcon; }))) + sel("commune", uniq(ALL.map(function (p) { return p.commune; }))) + sel("category", ["Distribution", "Transport"]) +
+      sel("infra", [S, A]) + sel("cable", Object.keys(FACTOR).sort()) + sel("week", [46, 47, 48, 49, 50, 51], function (w) { return "W" + w + " (" + mon(wkStart(w)) + ")"; }) + "</div>" : "");
+  var page = "<div class=\"page-h\"><h1 id=\"h1\" tabindex=\"-1\">Demolition plan</h1><button class=\"btn pri\" type=\"button\" data-act=\"csv\" data-k=\"csv\"" + (list.length ? "" : " disabled") + ">Export CSV</button></div>" + fbar;
+  if (!list.length) {
+    return page + "<div class=\"panel empty\"><h2>No POI matches these filters</h2><p class=\"muted\">Nothing in the plan has " + esc(Object.keys(F).filter(function (k) { return F[k]; }).map(function (k) { return FLABEL[k] + " " + (k === "week" ? "W" + F[k] : F[k]); }).join(" and ")) + ". Remove a filter to see work orders again.</p><button class=\"btn pri\" type=\"button\" data-act=\"clear\" data-k=\"clear2\">Clear filters</button></div>" + slaHTML();
+  }
+  var bs = groupT(list, function (p) { return p.subcon; }), bc = groupT(list, function (p, s) { return s.type; });
+  var charts = "<div class=\"two\"><section class=\"panel\" aria-labelledby=\"c1\"><h2 id=\"c1\">Planned tons by subcontractor</h2>" + bars(bs, bs[0][1]) + "</section><section class=\"panel\" aria-labelledby=\"c2\"><h2 id=\"c2\">Planned tons by cable type</h2>" + bars(bc, bc[0][1]) + "</section></div>";
+  var sumline = "<p class=\"sum\"><span><b>" + T.n + "</b> POI</span><span><b class=\"cu\">" + f1(T.t) + " t</b> planned</span><span><b>" + f1(T.km) + " km</b> cable</span><span><b>" + T.segs + "</b> segments</span></p>";
+  return page + sumline + "<div class=\"stack\">" + charts + timelineHTML(list) + tableHTML(list) + slaHTML() + "</div>";
+}
+function timelineHTML(list) {
+  var sched = list.filter(function (p) { return p.occ; }), un = list.length - sched.length;
+  var subs = uniq(sched.map(function (p) { return p.subcon; })), lanes = "";
+  subs.forEach(function (sc) {
+    var items = sched.filter(function (p) { return p.subcon === sc; }).sort(function (a, b) { return a.occ[0] - b.occ[0] || a.occ[1] - b.occ[1]; }), rowsEnd = [], bars = "";
+    items.forEach(function (p) {
+      var r = 0; while (rowsEnd[r] !== undefined && rowsEnd[r] >= p.occ[0]) { r++; } rowsEnd[r] = p.occ[1];
+      bars += "<button class=\"bar-poi\" type=\"button\" data-act=\"jump\" data-id=\"" + p.no + "\" data-k=\"bar-" + p.no + "\" style=\"left:" + ((p.occ[0] - 46) / 6 * 100).toFixed(2) + "%;width:calc(" + ((p.occ[1] - p.occ[0] + 1) / 6 * 100).toFixed(2) + "% - 3px);top:" + (r * 24) + "px\" title=\"" + esc(p.no + ", " + p.commune + ", " + p.occTxt) + "\">" + p.no + "</button>";
+    });
+    lanes += "<div class=\"tl-l\"><div>" + esc(sc) + "</div><div class=\"tl-r\" style=\"height:" + (rowsEnd.length * 24) + "px\">" + bars + "</div></div>";
+  });
+  var head = [46, 47, 48, 49, 50, 51].map(function (w) { return "<span>W" + w + " " + mon(wkStart(w)) + "</span>"; }).join("");
+  return "<section class=\"panel\" aria-labelledby=\"c3\"><div class=\"ph\"><h2 id=\"c3\">OCC site audit timeline</h2><span class=\"muted\">Each bar is one POI; select it to open its row" + (un ? ". " + un + " POI without an OCC slot are not shown" : "") + "</span></div><div class=\"scroller\" tabindex=\"0\" role=\"region\" aria-label=\"OCC timeline, scrolls sideways on small screens\"><div class=\"tl\"><div class=\"tl-h\"><div></div><div class=\"tl-wk\">" + head + "</div></div>" + lanes + "</div></div></section>";
+}
+function tableHTML(list) {
+  var rows = list.map(function (p) {
+    var open = !!st.open[p.no];
+    var r = "<tr class=\"main\" id=\"row-" + p.no + "\"><td class=\"first\"><button class=\"xbtn\" type=\"button\" data-act=\"toggle\" data-id=\"" + p.no + "\" data-k=\"x-" + p.no + "\" aria-expanded=\"" + open + "\" aria-controls=\"seg-" + p.no + "\" aria-label=\"" + p.no + ", " + (open ? "hide" : "show") + " cable segments\"><svg width=\"12\" height=\"12\" aria-hidden=\"true\"><use href=\"#i-chev\"/></svg>" + p.no + "</button></td>" +
+      "<td data-label=\"UCI\">" + p.uci + "</td><td data-label=\"Subcontractor\">" + esc(p.subcon) + "</td><td data-label=\"Commune\">" + esc(p.commune) + "</td><td data-label=\"Category\">" + p.cat + "</td><td class=\"num\" data-label=\"Segments\">" + p.segs.length + "</td><td class=\"num\" data-label=\"Length (km)\">" + f1(p.km) + "</td><td class=\"num cu\" data-label=\"Planned (t)\">" + f1(p.t) + "</td><td data-label=\"Received\">" + p.received + "</td><td data-label=\"Planned op date\">" + (p.op || "Not scheduled") + "</td><td data-label=\"OCC\">" + (p.occTxt || "Not scheduled") + "</td></tr>";
+    if (open) {
+      r += "<tr class=\"segrow\" id=\"seg-" + p.no + "\"><td colspan=\"11\"><table class=\"t in\"><thead><tr><th>Seg.</th><th>Cable category</th><th>Cable type</th><th>Infrastructure</th><th class=\"num\">Length (km)</th><th class=\"num\">Planned (t)</th></tr></thead><tbody>" +
+        p.segs.map(function (s) { return "<tr><td data-label=\"Segment\">" + s.seq + "</td><td data-label=\"Cable category\">" + s.cat + "</td><td data-label=\"Cable type\">" + s.type + "</td><td data-label=\"Infrastructure\">" + s.infra + "</td><td class=\"num\" data-label=\"Length (km)\">" + f1(s.km) + "</td><td class=\"num cu\" data-label=\"Planned (t)\">" + f1(s.t) + "</td></tr>"; }).join("") + "</tbody></table></td></tr>";
+    }
+    return r;
+  }).join("");
+  return "<section class=\"panel\" aria-labelledby=\"c4\"><div class=\"ph\"><h2 id=\"c4\">POI work orders</h2><span class=\"muted\">Select a POI to see its cable segments</span></div><div class=\"tw\"><table class=\"t\"><thead><tr><th scope=\"col\">POI</th><th scope=\"col\">UCI</th><th scope=\"col\">Subcontractor</th><th scope=\"col\">Commune</th><th scope=\"col\">Category</th><th class=\"num\" scope=\"col\">Segments</th><th class=\"num\" scope=\"col\">Length (km)</th><th class=\"num\" scope=\"col\">Planned (t)</th><th scope=\"col\">Received</th><th scope=\"col\">Planned op date</th><th scope=\"col\">OCC</th></tr></thead><tbody>" + rows + "</tbody></table></div></section>";
+}
+var BASE_NODES = [["POI issuing", "C"], ["Subcon Allocation", "H"], ["POI Analysis", "P"], ["Subcon Planning Feedback", "P"], ["POI plan alignment", "H"], ["Update Plan in Praxedo", "H"], ["Road Permission", "P"], ["Tools and Materials and Access", "P"], ["Site Audit(OCC)", "C"], ["Dismantling", "P"], ["Delivery Summary", "P"], ["DOE Submission", "P"], ["DOE Validation", "C"], ["Monthly PPD Submission", "H"], ["Invoice", "H"]];
+function slaNodes(kind) {
+  var n = BASE_NODES.map(function (x) { return x.concat([false]); });
+  if (kind !== "MASSIVE") { return n; }
+  n.splice(9, 0, ["Retassage-SR", "P", true], ["Service Monitor", "H", true]); /* after Site Audit(OCC), done first so the later index stays valid */
+  n.splice(7, 0, ["TP SWAN", "P", true], ["Materials Request", "P", true]); /* after Road Permission */
+  return n;
+}
+var PARTY = { C: ["Customer", "<svg width=\"12\" height=\"12\" aria-hidden=\"true\"><polygon points=\"6,0.5 11.5,6 6,11.5 0.5,6\" fill=\"var(--text2)\"/></svg>"], H: ["Huawei", "<svg width=\"12\" height=\"12\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.5\" fill=\"var(--text2)\"/></svg>"], P: ["Partner", "<svg width=\"12\" height=\"12\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"10\" height=\"10\" fill=\"var(--text2)\"/></svg>"] };
+function slaHTML() {
+  var nodes = slaNodes(st.sla);
+  return "<section class=\"panel\" aria-labelledby=\"c5\"><div class=\"ph\"><h2 id=\"c5\">SLA reference flow</h2><div class=\"seg\" role=\"group\" aria-label=\"Flow template\">" + ["Transportation", "Distribution", "MASSIVE"].map(function (k) { return "<button type=\"button\" data-act=\"sla\" data-v=\"" + k + "\" data-k=\"sla-" + k + "\" aria-pressed=\"" + (st.sla === k) + "\">" + k + "</button>"; }).join("") + "</div></div>" +
+    "<p class=\"muted\">" + nodes.length + " steps. Reference only: no work order is timed against it. Responsible parties shown are placeholders for the demo." + (st.sla === "MASSIVE" ? " Dashed steps exist only in MASSIVE." : "") + "</p>" +
+    "<ol class=\"flow\">" + nodes.map(function (x, i) { return "<li" + (x[2] ? " class=\"x\"" : "") + "><div class=\"no\">Step " + (i + 1) + "</div><div class=\"nm\">" + esc(x[0]) + "</div><div class=\"pt\">" + PARTY[x[1]][1] + PARTY[x[1]][0] + "</div></li>"; }).join("") + "</ol>" +
+    "<div class=\"lg\"><span>" + PARTY.C[1] + "Customer</span><span>" + PARTY.H[1] + "Huawei</span><span>" + PARTY.P[1] + "Partner</span></div></section>";
+}
+
+function stateText(m) {
+  if (m.state === "offline") { return "Offline since " + m.last; }
+  return m.moved ? "Moved in last 24 h" : "Online";
+}
+function manholeHTML() {
+  var rows = MH.map(function (m) {
+    return "<tr class=\"main" + (st.sel === m.imei ? " sel" : "") + "\" id=\"mh-" + m.imei + "\"><td class=\"first\"><button class=\"xbtn\" type=\"button\" data-act=\"sel\" data-id=\"" + m.imei + "\" data-k=\"r-" + m.imei + "\" aria-pressed=\"" + (st.sel === m.imei) + "\">" + m.imei + "</button></td><td data-label=\"Status\"><span class=\"st\">" + shape(m.state) + stateText(m) + "</span></td><td data-label=\"Location\">" + esc(m.commune) + " <span class=\"tag wn\">location unverified</span></td><td class=\"num\" data-label=\"Voltage\">" + m.v.toFixed(2) + " V" + (m.low ? " <span class=\"tag wn\">Low</span>" : "") + "</td><td class=\"num\" data-label=\"Signal (CSQ)\">" + m.csq + (m.weak ? " <span class=\"tag wn\">Weak</span>" : "") + "</td><td data-label=\"Last report\">" + (m.off ? m.last : "Today " + m.last) + "</td><td class=\"num\" data-label=\"Events, 7 d\">" + m.events.length + "</td></tr>";
+  }).join("");
+  var m = MH.filter(function (x) { return x.imei === st.sel; })[0];
+  var cap = m ? m.imei + ": " + m.commune + " (location unverified), " + stateText(m) + ", " + m.v.toFixed(2) + " V, signal " + m.csq + ", last report " + (m.off ? m.last : "today " + m.last) + "." : "Select a marker or an event to see the sensor.";
+  return "<div class=\"page-h\"><h1 id=\"h1\" tabindex=\"-1\">Manhole security</h1></div><div class=\"stack\"><section class=\"panel\" aria-labelledby=\"m1\"><div class=\"ph\"><h2 id=\"m1\">Sensor map</h2><span class=\"muted\">Marker positions are spread around each commune so they stay legible</span></div>" +
+    dualHTML(["manhole"]) + legendHTML(["manhole"]) + "<p class=\"cap\" aria-live=\"polite\">" + esc(cap) + "</p></section>" +
+    "<div class=\"mh2\"><section class=\"panel\" aria-labelledby=\"m2\"><div class=\"ph\"><h2 id=\"m2\">Movement events</h2></div><ol class=\"evl\">" + EV.map(evItem).join("") + "</ol><p class=\"muted\" style=\"margin-top:16px\">A movement event merges every alarmFall flip within 30 minutes into one entry, with start time, duration and flip count.</p></section>" +
+    "<section class=\"panel\" aria-labelledby=\"m3\"><div class=\"ph\"><h2 id=\"m3\">All sensors</h2><span class=\"muted\">12 DC414 sensors, positions not yet confirmed</span></div><div class=\"tw\"><table class=\"t\"><thead><tr><th scope=\"col\">IMEI</th><th scope=\"col\">Status</th><th scope=\"col\">Location</th><th class=\"num\" scope=\"col\">Voltage</th><th class=\"num\" scope=\"col\">Signal (CSQ)</th><th scope=\"col\">Last report</th><th class=\"num\" scope=\"col\">Events, 7 d</th></tr></thead><tbody>" + rows + "</tbody></table></div></section></div></div>";
+}
+function copperHTML() {
+  var rows = GPS.map(function (g) {
+    return "<tr class=\"main\"><td class=\"first\"><strong>" + g.id + "</strong></td><td data-label=\"Status\"><span class=\"st\">" + gpsShape(g.on) + (g.on ? "Online" : "Standby") + "</span></td><td data-label=\"Expected online\">" + (g.exp ? "Yes" : "No") + "</td><td data-label=\"Last position near\">" + esc(g.near) + "</td><td data-label=\"Last position time\">" + (g.on ? "Today " + g.last : g.last) + "</td><td class=\"num\" data-label=\"Trail points, 7 d\">" + (g.trail.length || "None") + "</td></tr>";
+  }).join("");
+  return "<div class=\"page-h\"><h1 id=\"h1\" tabindex=\"-1\">Copper bundles</h1></div><div class=\"stack\"><section class=\"panel\" aria-labelledby=\"g1\"><div class=\"ph\"><h2 id=\"g1\">GPS map</h2><button class=\"sw\" type=\"button\" role=\"switch\" aria-checked=\"" + st.trail + "\" data-act=\"trail\" data-k=\"trail\"><i></i>7-day trail</button></div>" +
+    dualHTML(["gps"]) + legendHTML(["gps"]) + "<p class=\"cap\" id=\"mapcap\" aria-live=\"polite\">Point at or focus a device for its last position.</p></section>" +
+    "<section class=\"panel\" aria-labelledby=\"g2\"><div class=\"ph\"><h2 id=\"g2\">GPS devices</h2><span class=\"muted\">2 of 5 devices are expected online; the other 3 are in standby</span></div><div class=\"tw\"><table class=\"t\"><thead><tr><th scope=\"col\">Device</th><th scope=\"col\">Status</th><th scope=\"col\">Expected online</th><th scope=\"col\">Last position near</th><th scope=\"col\">Last position time</th><th class=\"num\" scope=\"col\">Trail points, 7 d</th></tr></thead><tbody>" + rows + "</tbody></table></div><p class=\"muted\" style=\"margin-top:12px\">Devices are shown by tracker; they are not yet linked to a specific copper bundle.</p></section></div>";
+}
+
+/* ============ state gates ============ */
+function skel(page) {
+  var blocks = page === "overview"
+    ? "<div class=\"ov\"><div class=\"panel p-dem\">" + sk(18, "50%") + sk(34, "70%") + sk(14, "90%") + sk(14, "80%") + sk(90, "100%") + "</div><div class=\"panel p-map\">" + sk(18, "30%") + "<div class=\"mapwrap\"></div></div><div class=\"panel\">" + sk(18, "40%") + sk(40, "100%") + "</div><div class=\"panel\">" + sk(18, "40%") + sk(26, "60%") + sk(60, "100%") + "</div><div class=\"panel\">" + sk(18, "40%") + sk(26, "60%") + "</div></div>"
+    : "<div class=\"stack\"><div class=\"panel\">" + sk(18, "30%") + sk(120, "100%") + "</div><div class=\"panel\">" + sk(18, "30%") + sk(200, "100%") + "</div></div>";
+  return "<div aria-busy=\"true\"><p class=\"muted\" role=\"status\" style=\"margin-bottom:12px\">Loading latest figures…  Nothing to do, this page fills in by itself.</p>" + blocks + "</div>";
+}
+function sk(h, w) { return "<div class=\"sk\" style=\"height:" + h + "px;width:" + w + "\"></div>"; }
+var EMPTY = {
+  overview: ["No project data yet", "The POI ledger has not been imported, so there is nothing to total. Ask the Huawei operations team to import the latest POI ledger; figures appear here within a minute of the import."],
+  demolition: ["No POI in the ledger", "The plan is empty because no POI ledger has been imported. Ask the Huawei operations team to import it, then refresh."],
+  manhole: ["No manhole sensors reported", "A sensor shows up after its first report. If you expected sensors here, ask Operations to check the device list."],
+  copper: ["No GPS devices registered", "GPS trackers appear once Operations registers them. Ask Operations to confirm the device list, then refresh."]
+};
+function pageBody(page) {
+  if (st.mode === "loading") { return skel(page); }
+  if (st.mode === "empty") {
+    var e = EMPTY[page];
+    return "<div class=\"page-h\"><h1 id=\"h1\" tabindex=\"-1\">" + PAGES.filter(function (p) { return p[0] === page; })[0][1] + "</h1></div><div class=\"panel empty\"><h2>" + e[0] + "</h2><p class=\"muted\">" + e[1] + "</p><button class=\"btn pri\" type=\"button\" data-act=\"refresh\" data-k=\"empty-refresh\">Refresh</button></div>";
+  }
+  var h = page === "overview" ? overviewHTML() : page === "demolition" ? demolitionHTML() : page === "manhole" ? manholeHTML() : copperHTML();
+  if (page === "overview") { h = "<h1 class=\"sr\" id=\"h1\" tabindex=\"-1\">Overview</h1>" + h; }
+  return h;
+}
+function bannerHTML() {
+  if (st.mode === "error") { return "<div class=\"banner\" role=\"alert\"><svg width=\"14\" height=\"14\" aria-hidden=\"true\"><polygon points=\"7,1 13,12 1,12\" fill=\"var(--warn)\"/></svg><span class=\"grow\"><strong>Couldn't refresh.</strong> The data service did not answer within 10 s. Showing the last data from " + stamp() + ".</span><button class=\"btn\" type=\"button\" data-act=\"retry\" data-k=\"retry\">Retry</button></div>"; }
+  if (st.mode === "offline") { return "<div class=\"banner\" role=\"status\"><svg width=\"14\" height=\"14\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"5\" fill=\"none\" stroke=\"var(--warn)\" stroke-width=\"2\"/></svg><span class=\"grow\"><strong>Offline · data as of " + stamp() + "</strong><br><span class=\"muted\">Figures refresh by themselves when the connection is back.</span></span></div>"; }
+  return "";
+}
+function shell(page) {
+  var acct = st.who === "Operations" ? "Operations" : st.who;
+  var top = "<header class=\"topbar\"><div class=\"brand\">Ariane<span class=\"sub\"> · Orange France</span></div>" +
+    "<nav class=\"tabs\" aria-label=\"Primary\">" + PAGES.map(function (p) { return "<a href=\"#/" + p[0] + "\"" + (p[0] === page ? " aria-current=\"page\"" : "") + ">" + p[1] + "</a>"; }).join("") + "</nav>" +
+    "<div class=\"top-r\"><span class=\"stamp\" role=\"status\">" + (st.mode === "loading" ? "Refreshing…" : st.mode === "offline" ? "Offline · " + stamp() : "<span class=\"lbl\">Refreshed </span>" + stamp()) + "</span>" +
+    "<button class=\"btn\" type=\"button\" data-act=\"demo-toggle\" data-k=\"demo\" aria-expanded=\"" + st.demoOpen + "\" aria-controls=\"demo-panel\"><span class=\"lbl\">Demo states</span><span class=\"sm\">Demo</span></button>" +
+    "<button class=\"btn ico\" type=\"button\" data-act=\"refresh\" data-k=\"refresh\"" + (st.mode === "offline" ? " disabled" : "") + " aria-label=\"Refresh data\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M13.500 8a5.500 5.500 0 1 1-1.700-4M13 2v3h-3\"/></svg><span class=\"lbl\">Refresh</span></button>" +
+    "<button class=\"acct\" type=\"button\" data-act=\"menu\" data-k=\"acct\" aria-expanded=\"" + st.menu + "\" aria-haspopup=\"true\" aria-label=\"Account: " + esc(acct) + "\">" + esc(acct) + "</button></div>" +
+    "<div class=\"menu\" " + (st.menu ? "" : "hidden") + " role=\"group\" aria-label=\"Account\"><div><strong>" + esc(acct) + "</strong><br><span class=\"muted\">" + (st.who === "Operations" ? "Operations admin" : "Read-only account") + ", session " + (st.keep ? "30 days" : "12 hours") + "</span></div><button class=\"btn\" type=\"button\" data-act=\"signout\" data-k=\"signout\">Sign out</button></div></header>";
+  var tb = "<nav class=\"tabbar\" aria-label=\"Primary, mobile\">" + [["overview", "Overview", "i-ov"], ["demolition", "Demolition", "i-dem"], ["manhole", "Manholes", "i-mh"], ["copper", "Copper", "i-cu"]].map(function (p) { return "<a href=\"#/" + p[0] + "\"" + (p[0] === page ? " aria-current=\"page\"" : "") + "><svg aria-hidden=\"true\"><use href=\"#" + p[2] + "\"/></svg>" + p[1] + "</a>"; }).join("") + "</nav>";
+  return top + "<main id=\"main\">" + bannerHTML() + pageBody(page) + "</main><footer class=\"foot\">Demo with synthetic data, no backend, nothing is saved: reloading resets it. Schematic map — production uses OpenStreetMap.</footer>" + tb;
+}
+function loginHTML() {
+  var W = [["Orange", "orange", "Read-only"], ["Huawei", "huawei", "Read-only"], ["Operations", "admin", "Admin"]];
+  var dis = st.mode === "loading" ? " disabled" : "";
+  var note = "";
+  if (st.flash === "expired" || st.mode === "expired") { note = "<p class=\"err\" role=\"alert\">Your session expired. Sign in again to continue.</p>"; }
+  else if (st.mode === "error") { note = "<p class=\"err\" role=\"alert\">Can't reach the sign-in service. Wait a moment, then press Sign in again.</p>"; }
+  else if (st.mode === "offline") { note = "<div class=\"banner\" role=\"status\" style=\"margin:0\"><span class=\"grow\">You're offline, so a new sign-in is not possible. If you stayed signed in, open the last data.</span><button class=\"btn\" type=\"button\" data-act=\"offline-open\" data-k=\"oo\">Open last data</button></div>"; }
+  else if (st.mode === "loading") { note = "<p class=\"muted\" role=\"status\">Checking your session…</p>"; }
+  else if (st.mode === "empty") { note = "<p class=\"muted\">Nothing to show here: the empty state applies to data pages after you sign in.</p>"; }
+  var cur = W.filter(function (w) { return w[0] === st.loginWho; })[0];
+  return "<div class=\"lg-top\"><button class=\"btn\" type=\"button\" data-act=\"demo-toggle\" data-k=\"demo\" aria-expanded=\"" + st.demoOpen + "\" aria-controls=\"demo-panel\"><span class=\"lbl\">Demo states</span><span class=\"sm\">Demo</span></button></div><div class=\"login\"><div class=\"lg-art\"><h1>Ariane project board</h1><p>Orange France copper recovery: demolition plan, manhole security and copper bundle positions, for the Orange and Huawei project teams.</p>" +
+    "<svg viewBox=\"0 0 567 564\" aria-hidden=\"true\"><path d=\"" + outlinePath() + "\" fill=\"var(--raised)\" stroke=\"var(--text2)\" stroke-width=\"2\" stroke-linejoin=\"round\"/></svg></div>" +
+    "<form class=\"panel lg-form\" id=\"lf\" novalidate><h2 style=\"font-size:18px\">Sign in</h2>" + note + "<fieldset" + dis + (st.mode === "offline" ? " disabled" : "") + "><legend>Account</legend><div class=\"radios\">" + W.map(function (w) { return "<label><input type=\"radio\" name=\"who\" value=\"" + w[0] + "\" data-act=\"who\"" + (w[0] === st.loginWho ? " checked" : "") + "><span>" + w[0] + "</span><small>" + w[2] + "</small></label>"; }).join("") + "</div>" +
+    "<label class=\"f\">Username<input type=\"text\" id=\"lu\" value=\"" + cur[1] + "\" autocomplete=\"username\"></label>" +
+    "<label class=\"f\">Password<input type=\"password\" id=\"lp\" autocomplete=\"current-password\" aria-describedby=\"lpe\"></label><p class=\"err\" id=\"lpe\" role=\"alert\"" + (st.loginErr ? "" : " hidden") + ">" + esc(st.loginErr) + "</p>" +
+    "<label class=\"chk\"><input type=\"checkbox\" id=\"lk\" checked> Keep me signed in for 30 days</label>" +
+    "<button class=\"btn pri\" type=\"submit\" style=\"min-height:44px\">Sign in</button><small class=\"muted\">Demo: any password is accepted. Nothing is sent anywhere.</small></fieldset></form></div>";
+}
+
+/* ============ render & events ============ */
+var app = document.getElementById("app");
+function render(opts) {
+  opts = opts || {};
+  var a = document.activeElement, key = a && a.getAttribute && a.getAttribute("data-k"), y = window.scrollY, sx = null;
+  var sc = app.querySelector(".scroller"); if (sc) { sx = sc.scrollLeft; }
+  if (st.view === "login") { app.innerHTML = loginHTML(); }
+  else { app.innerHTML = shell(st.view); }
+  document.title = (st.view === "login" ? "Sign in" : PAGES.filter(function (p) { return p[0] === st.view; })[0][1]) + " · Ariane demo";
+  var s2 = app.querySelector(".scroller"); if (s2 && sx !== null) { s2.scrollLeft = sx; }
+  if (opts.focusH1) { var h = document.getElementById("h1"); if (h) { h.focus({ preventScroll: true }); } window.scrollTo(0, 0); }
+  else { window.scrollTo(0, y); if (key) { var el = app.querySelector("[data-k=\"" + key + "\"]"); if (el) { el.focus({ preventScroll: true }); } } }
+  renderDlg(); renderDemo();
+}
+function renderDlg() {
+  var d = document.getElementById("dlg"), on = st.mode === "expired" && st.view !== "login";
+  app.inert = on;
+  if (on && !d.firstChild) {
+    d.innerHTML = "<div class=\"dlg\"><div class=\"box\" role=\"alertdialog\" aria-modal=\"true\" aria-labelledby=\"ed\" aria-describedby=\"ep\"><h2 id=\"ed\" style=\"font-size:18px\">Your session expired</h2><p id=\"ep\" class=\"muted\">For security you were signed out. Sign in again to see the latest figures; your filters are not kept.</p><button class=\"btn pri\" type=\"button\" id=\"ebtn\" data-act=\"expired-ok\">Sign in again</button></div></div>";
+    document.getElementById("ebtn").focus();
+  } else if (!on) { d.innerHTML = ""; }
+}
+function renderDemo() {
+  var g = document.getElementById("demo-g");
+  g.innerHTML = MODES.map(function (m) { return "<button type=\"button\" data-act=\"mode\" data-v=\"" + m[0] + "\" aria-pressed=\"" + (st.mode === m[0]) + "\">" + m[1] + "</button>"; }).join("");
+  document.getElementById("demo-panel").hidden = !st.demoOpen;
+}
+function go(hash) { if (location.hash === hash) { route(); } else { location.hash = hash; } }
+function route() {
+  var h = location.hash.replace(/^#\/?/, ""), parts = h.split("?"), v = parts[0] || "overview";
+  var valid = ["login", "overview", "demolition", "manhole", "copper"];
+  if (valid.indexOf(v) < 0) { v = "overview"; }
+  if (!st.who && v !== "login") { st.view = "login"; if (location.hash !== "#/login") { history.replaceState(null, "", "#/login"); } render({ focusH1: false }); return; }
+  if (st.who && v === "login") { v = "overview"; }
+  if (v === "demolition" && parts[1]) {
+    var q = {}; parts[1].split("&").forEach(function (kv) { var p = kv.split("="); q[p[0]] = decodeURIComponent(p[1] || ""); });
+    Object.keys(st.F).forEach(function (k) { st.F[k] = ""; });
+    Object.keys(q).forEach(function (k) { if (k in st.F) { st.F[k] = q[k]; } });
+    st.filtOpen = false; history.replaceState(null, "", "#/demolition");
+  }
+  var changed = st.view !== v; st.view = v; st.menu = false; render({ focusH1: changed });
+}
+function resetDemo() {
+  st.mode = "normal"; st.who = null; st.flash = ""; st.loginErr = ""; st.F = { uci: "", subcon: "", commune: "", category: "", infra: "", cable: "", week: "" };
+  st.filtOpen = false; st.open = {}; st.sla = "Transportation"; st.focus = { overview: "france", manhole: "france", copper: "france" }; st.trail = false; st.sel = null; st.min = 42; st.menu = false; st.loginWho = "Orange";
+  go("#/login"); render({ focusH1: true });
+}
+function csv() {
+  var list = filtered(), esq = function (v) { v = String(v); return /[",\n]/.test(v) ? "\"" + v.replace(/"/g, "\"\"") + "\"" : v; };
+  var rows = [["POI", "UCI", "Subcontractor", "Commune", "Category", "Segments", "Length (km)", "Planned (t)", "Received", "Planned op date", "OCC"]].concat(list.map(function (p) {
+    return [p.no, p.uci, p.subcon, p.commune, p.cat, p.segs.length, f1(p.km), f1(p.t), p.received, p.op || "", p.occTxt];
+  }));
+  var blob = new Blob(["﻿" + rows.map(function (r) { return r.map(esq).join(","); }).join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+  var u = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = u; a.download = "ariane-poi-synthetic-demo.csv"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
+}
+function refresh() { st.min = Math.min(59, st.min + 1); st.mode = "normal"; render(); }
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("[data-act]"); if (!t) { if (st.menu && !e.target.closest(".menu")) { st.menu = false; render(); } return; }
+  var a = t.dataset.act;
+  if (a === "who") { st.loginWho = t.value; render(); }
+  else if (a === "toggle") { st.open[t.dataset.id] = !st.open[t.dataset.id]; render(); }
+  else if (a === "filt") { st.filtOpen = !st.filtOpen; render(); }
+  else if (a === "clear") { Object.keys(st.F).forEach(function (k) { st.F[k] = ""; }); render(); }
+  else if (a === "rmf") { st.F[t.dataset.f] = ""; render(); }
+  else if (a === "csv") { csv(); }
+  else if (a === "sla") { st.sla = t.dataset.v; render(); }
+  else if (a === "focus") { st.focus[t.dataset.page] = t.dataset.v; render(); }
+  else if (a === "trail") { st.trail = !st.trail; render(); }
+  else if (a === "sel") { st.sel = t.dataset.id; render(); var r = document.getElementById("mh-" + t.dataset.id); if (r && st.view === "manhole" && t.tagName === "g") { r.scrollIntoView({ block: "nearest" }); } }
+  else if (a === "selgo") { st.sel = t.dataset.id; if (st.view !== "manhole") { st.focus.manhole = "france"; go("#/manhole"); } else { render(); } }
+  else if (a === "gocommune") { go("#/demolition?commune=" + encodeURIComponent(t.dataset.commune)); }
+  else if (a === "jump") { st.open[t.dataset.id] = true; render(); var r2 = document.getElementById("row-" + t.dataset.id); if (r2) { r2.scrollIntoView({ block: "center" }); var b = r2.querySelector("button"); if (b) { b.focus({ preventScroll: true }); } } }
+  else if (a === "refresh") { refresh(); }
+  else if (a === "retry") { refresh(); }
+  else if (a === "menu") { st.menu = !st.menu; render(); }
+  else if (a === "signout") { st.who = null; st.menu = false; st.flash = ""; go("#/login"); }
+  else if (a === "expired-ok") { st.mode = "normal"; st.who = null; st.flash = "expired"; go("#/login"); }
+  else if (a === "offline-open") { st.who = st.loginWho; st.keep = true; go("#/overview"); }
+  else if (a === "mode") { st.mode = t.dataset.v; if (st.mode === "expired") { st.flash = ""; } render(); }
+  else if (a === "demo-toggle") { st.demoOpen = !st.demoOpen; render(); }
+  else if (a === "reset") { resetDemo(); }
+});
+document.addEventListener("change", function (e) {
+  var t = e.target; if (t.dataset && t.dataset.f) { st.F[t.dataset.f] = t.value; render(); }
+});
+document.addEventListener("submit", function (e) {
+  if (e.target.id !== "lf") { return; }
+  e.preventDefault();
+  if (st.mode === "loading" || st.mode === "offline") { return; }
+  var pw = document.getElementById("lp").value, u = document.getElementById("lu").value.trim();
+  if (!u || !pw) { st.loginErr = !u ? "Enter your username." : "Enter your password (the demo accepts any)."; render(); document.getElementById(!u ? "lu" : "lp").focus(); return; }
+  if (st.mode === "error") { st.mode = "normal"; }
+  st.loginErr = ""; st.flash = ""; st.who = st.loginWho; st.keep = document.getElementById("lk").checked; st.mode = st.mode === "expired" ? "normal" : st.mode;
+  go("#/overview");
+});
+document.addEventListener("keydown", function (e) {
+  var t = e.target;
+  if ((e.key === "Enter" || e.key === " ") && t.tagName === "g" && t.getAttribute("role") && t.dataset.act) { e.preventDefault(); t.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  if (e.key === "Escape" && st.demoOpen) { st.demoOpen = false; render(); var d = document.querySelector("[data-act=demo-toggle]"); if (d) { d.focus(); } return; }
+  if (e.key === "Escape" && st.menu) { st.menu = false; render(); var b = app.querySelector("[data-act=menu]"); if (b) { b.focus(); } }
+});
+function cap(e) {
+  var t = e.target.closest ? e.target.closest("[data-cap]") : null, el = document.getElementById("mapcap");
+  if (t && el) { el.textContent = t.dataset.cap; }
+}
+document.addEventListener("mouseover", cap);
+document.addEventListener("focusin", cap);
+window.addEventListener("hashchange", route);
+window.addEventListener("resize", function () { var n = window.innerWidth <= 600 ? 1.4 : 1; if (n !== TS) { TS = n; render(); } });
+(function init() {
+  var h = document.getElementById("demo"); h.hidden = false;
+  if (location.hash !== "#/login") { history.replaceState(null, "", "#/login"); }
+  route();
+})();
+</script>
+</body>
+</html>
