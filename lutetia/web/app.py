@@ -54,15 +54,14 @@ async def security_headers(request: web.Request, handler: Any) -> web.StreamResp
 class WebContext:
     cfg: Config
     db: Database
-    receiver: Optional[Any]
     started_at: datetime
     signer: SessionSigner
     limiter: LoginLimiter
 
 
 class WebServer:
-    def __init__(self, cfg: Config, db: Database, receiver: Optional[Any], started_at: datetime):
-        self.cfg, self.db, self.receiver, self.started_at = cfg, db, receiver, started_at
+    def __init__(self, cfg: Config, db: Database, started_at: datetime):
+        self.cfg, self.db, self.started_at = cfg, db, started_at
         self._runner: Optional[web.AppRunner] = None
         self.active = False
 
@@ -70,7 +69,7 @@ class WebServer:
         secret = self.cfg.session_secret.encode("utf-8") if self.cfg.session_secret else secrets.token_bytes(32)
         secret = hashlib.sha256(secret + b"\x00" + self.cfg.dashboard_pwd.encode("utf-8")).digest()
         app = web.Application(middlewares=[security_headers])
-        app["ctx"] = WebContext(self.cfg, self.db, self.receiver, self.started_at,
+        app["ctx"] = WebContext(self.cfg, self.db, self.started_at,
                                 SessionSigner(secret), LoginLimiter(enabled=self.cfg.login_lockout))
         register_dashboard(app)
         register_api(app)
@@ -91,7 +90,7 @@ class WebServer:
         try:
             await web.TCPSite(runner, cfg.dashboard_host, cfg.dashboard_port).start()
         except OSError as e:
-            log.error("web ui failed to start on %s:%d: %s; collector continues without dashboard",
+            log.error("web ui failed to start on %s:%d: %s; the process continues without dashboard unless role=web",
                       cfg.dashboard_host, cfg.dashboard_port, e)
             self.active = False
             await runner.cleanup()

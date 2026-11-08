@@ -183,7 +183,7 @@ sequenceDiagram
 | 环境（本地 / 测试 / 生产） | 决定 | 本地：mac-ts 与 WSL，合成测试库容器 lutetia-pg（127.0.0.1:15433，只放合成数据）；生产：法兰克福 fra，目前处于测试阶段（密码 123456、关登录锁定、Google 瓦片三项豁免，给 Orange 看之前收回，TODO #88） |
 | 部署拓扑（单机 / 容器 / 多实例） | 决定 | 单机 docker compose：db、collector、web 三个服务（ADR-1），同一镜像，web 用只读库角色；宿主机 nginx 按路径分流：`/gps51/push`、`/health` → collector，其余 → web；同机的 Ariane 现为 systemd、将来容器化，两个系统之间只走 HTTPS 域名，不共享 docker 网络、数据库与文件 |
 | 基础设施与供应商（云 / 内网 / 数据库托管） | 决定 | 腾讯云轻量服务器法兰克福（数据不出欧洲，Pinned）；自建 PostgreSQL 容器；Let's Encrypt 证书；GitHub 只放代码；构建时从 npm 与 PyPI 拉依赖，运行时不连任何 CDN |
-| 运维（日志 / 监控 / 备份 / 发布与回滚） | 未定（备份）；其余决定 | 日志：docker logs，按调用方名字可查；监控：`/health`、`lutetia status`、运维看板异常总览，无外部告警（押后）；发布：`deploy/host-deploy.sh`；回滚：git checkout 上一个 tag 后重跑脚本，迁移只加不删所以旧代码能跑新库；**备份：未定**，生产库是两家厂家数据的唯一存档，没有定时 pg_dump，见 §11 与 §16 |
+| 运维（日志 / 监控 / 备份 / 发布与回滚） | 未定（备份）；其余决定 | 日志：docker logs，按调用方名字可查；监控：`/health`、`lutetia status`、运维看板异常总览，无外部告警（押后）；发布：`deploy/host-deploy.sh`；回滚：`git checkout` 上一个 tag 后手动 `docker compose up -d --build`（不重跑 host-deploy.sh：分离 HEAD 下它第 1 步的 `git pull --ff-only` 会失败退出），迁移只加不删所以旧代码能跑新库；跨 Phase 7 Task 7.3（单容器 → collector + web）回滚时布局不兼容，先 `docker compose rm -sf web` 再起旧布局，否则旧 collector 抢不到看板端口、推送中断（Task 7.3 审查 M-2、复核 R-M2 实测，见 README 回滚预案）；**备份：未定**，生产库是两家厂家数据的唯一存档，没有定时 pg_dump，见 §11 与 §16 |
 
 ## 8. 关键决策记录（ADR）
 

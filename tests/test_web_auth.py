@@ -240,7 +240,7 @@ def test_limiter_disabled_never_locks():
 def _lock_app(lockout):
     cfg = dataclasses.replace(Config.from_env(), dashboard_pwd=_LOCK_PWD, api_key="k-test",
                               dashboard_host="127.0.0.1", login_lockout=lockout)
-    return WebServer(cfg, None, None, datetime.now(timezone.utc)).build_app()
+    return WebServer(cfg, None, datetime.now(timezone.utc)).build_app()
 
 
 async def _post_login(client, password):

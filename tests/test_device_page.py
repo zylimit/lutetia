@@ -38,7 +38,7 @@ def make_cfg(**kw):
 
 
 def make_app(db):
-    return WebServer(make_cfg(), db, None, datetime.now(timezone.utc)).build_app()
+    return WebServer(make_cfg(), db, datetime.now(timezone.utc)).build_app()
 
 
 async def login(client):

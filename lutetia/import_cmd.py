@@ -11,7 +11,7 @@ from pathlib import Path
 import asyncpg
 
 from .config import Config
-from .db import Database
+from .db import Database, DatabaseConnectError
 from .poi_import import LedgerError, LedgerParse, parse_ledger
 from .poi_store import apply_ledger
 from .xlsx_min import XlsxError
@@ -61,7 +61,8 @@ async def cmd_import_poi(cfg: Config, args) -> int:
             await db.close()
     except (OSError, asyncio.TimeoutError, asyncpg.PostgresError, asyncpg.InterfaceError) as e:
         # 只报异常类名：异常文本可能带行内容（台账是真实业务数据）；apply_ledger 单事务，失败即整批回滚
-        return _fail("database: %s (nothing written)" % type(e).__name__)
+        reason = str(e) if isinstance(e, DatabaseConnectError) else type(e).__name__  # DatabaseConnectError 的文本只含原因类名，安全
+        return _fail("database: %s (nothing written)" % reason)
     if args.dry_run:
         print("dry-run: nothing written")
     print("read: %d POI / %d segments (%d POI without cable detail)"

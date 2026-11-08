@@ -14,28 +14,68 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # 采集容器：写库账号、GPS51 / Dingtek 账号都只在这里；启动时先迁移（同时给只读角色设密码）再起采集与推送接收
   collector:
     build: .
+    image: lutetia:local
+    command: ["sh", "-c", "lutetia migrate && exec lutetia run --role collector"]
     env_file: .env
     environment:
       # scan-secrets:ignore -- 密码来自环境变量 POSTGRES_PASSWORD，默认值 lutetia 只给本地开发；db 服务不对外发布端口
       DATABASE_URL: postgresql://lutetia:${POSTGRES_PASSWORD:-lutetia}@db:5432/lutetia
+      DATABASE_RO_PASSWORD: ${DATABASE_RO_PASSWORD:?set DATABASE_RO_PASSWORD in .env}
       STATE_DIR: /data/state
-      DASHBOARD_LISTEN_HOST: 0.0.0.0
-      DASHBOARD_TRUST_PROXY: "true"
-      DASHBOARD_PWD: ${DASHBOARD_PWD:?set DASHBOARD_PWD in .env}
-      API_KEY: ${API_KEY:?set API_KEY in .env}
       GPS51_DAILY_BUDGET: ${GPS51_DAILY_BUDGET:-1400}
     ports:
-      - "127.0.0.1:${PUSH_PUBLISH_PORT:-8080}:8080"       # GPS51 push receiver, loopback only; host nginx fronts it with HTTPS
-      - "127.0.0.1:${DASHBOARD_PUBLISH_PORT:-8081}:8081"  # dashboard + query API, loopback only; host nginx fronts it
+      - "127.0.0.1:${PUSH_PUBLISH_PORT:-8080}:8080"       # GPS51 push receiver + /health, loopback only; host nginx fronts it with HTTPS
     volumes:
       - lutetia-state:/data
       - ./data/poi:/ledger:ro
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # python:3.12-slim 没有 curl；/health 回 200 才算健康（此时迁移已跑完、只读角色已有密码）
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     stop_grace_period: 40s
+    restart: unless-stopped
+
+  # 看板容器：只读。不用 env_file（拿不到厂家账号与写库账号），只列看板实际读的键；用只读库角色 lutetia_ro 连库
+  web:
+    build: .
+    image: lutetia:local
+    command: ["lutetia", "run", "--role", "web"]
+    environment:
+      DATABASE_URL: postgresql://lutetia_ro:${DATABASE_RO_PASSWORD:?set DATABASE_RO_PASSWORD in .env}@db:5432/lutetia
+      DASHBOARD_LISTEN_HOST: 0.0.0.0
+      DASHBOARD_TRUST_PROXY: "true"
+      DASHBOARD_USER: ${DASHBOARD_USER:-admin}
+      DASHBOARD_PWD: ${DASHBOARD_PWD:?set DASHBOARD_PWD in .env}
+      API_KEY: ${API_KEY:?set API_KEY in .env}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      DASHBOARD_LOW_VOLT: ${DASHBOARD_LOW_VOLT:-3.4}
+      DASHBOARD_LOGIN_LOCKOUT: ${DASHBOARD_LOGIN_LOCKOUT:-on}
+      GPS51_DAILY_BUDGET: ${GPS51_DAILY_BUDGET:-1400}
+      PUSH_SILENCE_MIN: ${PUSH_SILENCE_MIN:-15}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${DASHBOARD_PUBLISH_PORT:-8081}:8081"  # dashboard + query API, loopback only; host nginx fronts it
+    depends_on:
+      collector:
+        # 只等 collector 容器起来，不等健康：web 不依赖 collector 存活（ADR-4）。首次上线时迁移还没跑完、只读角色还没密码，
+        # web 连库会失败并以非零码退出，由 restart 重试，collector 迁移完即自愈；collector 起不来时 web 照样起，看板显示心跳过期
+        condition: service_started
+    healthcheck:
+      # /login 不需登录即回 200
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/login', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     restart: unless-stopped
 
 volumes:

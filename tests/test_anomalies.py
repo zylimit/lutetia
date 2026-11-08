@@ -151,7 +151,7 @@ async def db():
 
 def make_app(db):
     cfg = dataclasses.replace(Config.from_env(), dashboard_pwd=PWD, api_key="k-test", dashboard_host="127.0.0.1")
-    return WebServer(cfg, db, None, datetime.now(timezone.utc)).build_app()
+    return WebServer(cfg, db, datetime.now(timezone.utc)).build_app()
 
 
 async def cleanup(db, dev_id):

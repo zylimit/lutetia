@@ -24,6 +24,13 @@ TRANSIENT_DB_ERRORS = (OSError, asyncio.TimeoutError, asyncpg.PostgresConnection
                        asyncpg.InterfaceError)  # ConnectionError is an OSError
 
 
+class DatabaseConnectError(OSError):
+    """Pool creation failed (an OSError so existing "database unreachable" handlers, e.g. import poi, still catch it). Message carries only the cause's class name, never the DSN, host or the cause's text (a password containing @ / # makes the parsed host a slice of the password). Not retryable: a wrong password or a malformed DSN is not a transient fault, so is_transient_db_error excludes it."""
+
+    def __init__(self, cause: str):
+        super().__init__("database connect failed: %s" % cause)
+
+
 def scram_sha256_verifier(password: str, salt: Optional[bytes] = None, iterations: int = 4096) -> str:
     """PostgreSQL SCRAM-SHA-256 verifier (RFC 5802/7677). Stored pre-hashed, so the plaintext never reaches server SQL/logs."""
     salt = os.urandom(16) if salt is None else salt
@@ -37,7 +44,7 @@ def scram_sha256_verifier(password: str, salt: Optional[bytes] = None, iteration
 
 def is_transient_db_error(e: BaseException) -> bool:
     # client-side asyncpg DataError subclasses both InterfaceError and ValueError: not transient
-    return isinstance(e, TRANSIENT_DB_ERRORS) and not isinstance(e, ValueError)
+    return isinstance(e, TRANSIENT_DB_ERRORS) and not isinstance(e, (ValueError, DatabaseConnectError))
 
 
 def ms_to_dt(ms: Optional[int]) -> Optional[datetime]:
@@ -61,7 +68,11 @@ class Database:
         self.pool: Optional[asyncpg.Pool] = None
 
     async def connect(self) -> None:
-        self.pool = await asyncpg.create_pool(self.url, min_size=1, max_size=5, init=_init_conn)
+        try:
+            self.pool = await asyncpg.create_pool(self.url, min_size=1, max_size=5, init=_init_conn)
+        except Exception as e:
+            # 凭据零入日志：asyncpg 解析 DSN 失败的异常文本会带密码片段（密码里有 / # ? @ 时），所以只留异常类名，不留文本、不留主机名（密码含 @ 后接 / # 时解析出的主机名其实是密码片段），也不串联原异常
+            raise DatabaseConnectError(type(e).__name__) from None
 
     async def close(self) -> None:
         if self.pool:

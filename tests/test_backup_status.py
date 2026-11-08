@@ -87,7 +87,7 @@ async def test_backup_summary_reads_newest_ok_and_newest_run(db):
 
 async def test_overview_includes_last_backup(db):
     cfg = dataclasses.replace(Config.from_env(), dashboard_pwd=PWD, api_key="k-test", dashboard_host="127.0.0.1")
-    app = WebServer(cfg, db, None, datetime.now(timezone.utc)).build_app()
+    app = WebServer(cfg, db, datetime.now(timezone.utc)).build_app()
     async with TestClient(TestServer(app)) as client:
         await client.post("/login", data={"username": "admin", "password": PWD, "next": ""}, allow_redirects=False)
         async with db.pool.acquire() as conn:  # newest row failed -> latest_ok must be False

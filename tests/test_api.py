@@ -39,7 +39,7 @@ def make_cfg():
 
 
 def make_app(db):
-    return WebServer(make_cfg(), db, None, datetime.now(timezone.utc)).build_app()
+    return WebServer(make_cfg(), db, datetime.now(timezone.utc)).build_app()
 
 
 async def cleanup(db, dev):

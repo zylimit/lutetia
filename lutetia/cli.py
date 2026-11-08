@@ -35,7 +35,7 @@ async def cmd_migrate(cfg: Config, args) -> int:
 
 async def cmd_run(cfg: Config, args) -> int:
     from .service import run
-    await run(cfg)
+    await run(cfg, args.role)
     return 0
 
 
@@ -112,7 +112,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lutetia", description="Paris IoT collector (GPS51 + Dingtek)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="apply lutetia/sql/*.sql").set_defaults(fn=cmd_migrate)
-    sub.add_parser("run", help="run the collector service").set_defaults(fn=cmd_run)
+    r = sub.add_parser("run", help="run the service (collector and/or web)")
+    r.add_argument("--role", choices=["collector", "web", "all"], default="all",
+                   help="collector: push receiver + vendor sync + heartbeat; web: read-only dashboard only; all: both (default)")
+    r.set_defaults(fn=cmd_run)
     b = sub.add_parser("backfill", help="pull history over REST (idempotent)")
     b.add_argument("source", choices=["dingtek"])
     b.add_argument("--from", required=True, help="YYYY-MM-DD (UTC)")

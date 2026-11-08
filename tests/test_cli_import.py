@@ -324,7 +324,9 @@ def test_unreachable_database_is_one_error_line_not_traceback(tmp_path):
     rows = order("RNT600001", [("22-100-2", 0.8)], subcon=SECRET_SUBCON)
     r = run_cli(["import", "poi", make_file(tmp_path, rows)], DEAD_URL, tmp_path)
     assert r.returncode == 1, (r.stdout, r.stderr)
-    assert "nothing written" in _db_error_line(r.stderr)
+    line = _db_error_line(r.stderr)
+    assert re.fullmatch(r"error: database: database connect failed: \w+ \(nothing written\)", line), line
+    assert "host=" not in line
     assert "Traceback" not in r.stderr
     assert "result:" not in r.stdout
     assert SECRET_SUBCON not in r.stdout + r.stderr

@@ -9,25 +9,60 @@ CONF_LINK=/etc/nginx/sites-enabled/${DOMAIN}
 ENV_FILE=.env
 CERT_DIR=/etc/letsencrypt/live/${DOMAIN}
 
-cd "$(dirname "$0")/.."
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"  # cd 之前先固定绝对路径：之后 sha256sum / exec 在任何调用方式下都找得到本脚本
+cd "$(dirname "$SELF")/.."
 
 echo "[1/8] 拉取最新代码（只快进）"
+before=$(sha256sum "$SELF" | cut -d' ' -f1)
 git pull --ff-only
+# 本脚本自己被 pull 更新时，用新版本重跑一遍（环境变量防无限重入）
+if [ -z "${LUTETIA_DEPLOY_REEXEC:-}" ] && [ "$before" != "$(sha256sum "$SELF" | cut -d' ' -f1)" ]; then
+  echo "host-deploy.sh 已更新，用新版本重跑"
+  export LUTETIA_DEPLOY_REEXEC=1
+  exec bash "$SELF" "$@"
+fi
 
 echo "[2/8] 检查环境文件存在且必填键非空（不打印值）"
 if [ ! -f "$ENV_FILE" ]; then
   echo "缺 ${ENV_FILE}：先从本机 scp 到主机 ~/lutetia/" >&2
   exit 1
 fi
-for key in DASHBOARD_PWD API_KEY PUSH_PATH; do
+for key in DASHBOARD_PWD API_KEY PUSH_PATH DATABASE_RO_PASSWORD; do
   if ! grep -qE "^${key}=.+" "$ENV_FILE"; then
     echo "${ENV_FILE} 里 ${key} 缺失或为空" >&2
     exit 1
   fi
 done
+# 密码拼进 postgresql://… 连接串：含 / @ # ? % 会让串解析失败或连错账号，所以只许字母数字
+if ! grep -qE '^DATABASE_RO_PASSWORD=[A-Za-z0-9]+$' "$ENV_FILE"; then
+  echo "${ENV_FILE} 里 DATABASE_RO_PASSWORD 只能用字母数字（建议 openssl rand -hex 24 生成）" >&2
+  exit 1
+fi
 
-echo "[3/8] 构建并启动容器"
+echo "[3/8] 构建并启动容器，等 collector 与 web 都 healthy"
 docker compose up -d --build
+
+wait_healthy() {
+  local svc=$1 limit=${HEALTH_WAIT_SEC:-180} cid status=none deadline
+  deadline=$((SECONDS + limit))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    cid=$(docker compose ps -q "$svc")
+    status=none
+    if [ -n "$cid" ]; then
+      status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid" 2>/dev/null || echo none)
+    fi
+    if [ "$status" = healthy ]; then
+      echo "${svc} healthy"
+      return 0
+    fi
+    sleep 3
+  done
+  echo "${svc} 在 ${limit}s 内没有变 healthy（当前 ${status}）；用 docker compose logs ${svc} 查原因" >&2
+  return 1
+}
+
+wait_healthy collector
+wait_healthy web
 
 install_site() {
   if sudo test -e "$CONF_DST" && sudo grep -q 'managed by Certbot' "$CONF_DST"; then

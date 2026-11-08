@@ -6,7 +6,7 @@ import uuid as uuidlib
 import pytest
 
 from lutetia.config import load_dotenv
-from lutetia.db import Database
+from lutetia.db import Database, DatabaseConnectError, is_transient_db_error
 from lutetia.models import Device
 from lutetia.parsers.dingtek import parse_attributes, parse_timeseries
 from lutetia.parsers.gps51 import parse_lastposition, parse_push_payload
@@ -88,3 +88,11 @@ async def test_api_call_counter(db):
     assert after == before + 1
     async with db.pool.acquire() as conn:
         await conn.execute("DELETE FROM api_call WHERE source = 'test'")
+
+
+def test_database_connect_error_is_not_transient_and_hides_host():
+    e = DatabaseConnectError("InvalidPasswordError")
+    assert isinstance(e, OSError)  # 仍是 OSError，但显式排除出可重试
+    assert is_transient_db_error(e) is False
+    assert str(e) == "database connect failed: InvalidPasswordError"
+    assert is_transient_db_error(ConnectionResetError()) is True

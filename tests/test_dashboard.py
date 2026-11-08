@@ -42,7 +42,7 @@ def make_cfg(**kw):
 
 
 def make_app(db, cfg=None):
-    return WebServer(cfg or make_cfg(), db, None, datetime.now(timezone.utc)).build_app()
+    return WebServer(cfg or make_cfg(), db, datetime.now(timezone.utc)).build_app()
 
 
 async def login(client, password=PWD):
@@ -112,7 +112,7 @@ async def test_dashboard_has_no_write_controls(db):
 async def test_start_refuses_non_loopback_without_credentials(db):
     cfg = dataclasses.replace(Config.from_env(), dashboard_host="0.0.0.0", dashboard_pwd="", api_key="k-test")
     with pytest.raises(SystemExit):
-        await WebServer(cfg, db, None, datetime.now(timezone.utc)).start()
+        await WebServer(cfg, db, datetime.now(timezone.utc)).start()
 
 
 def test_web_package_has_no_write_sql():
@@ -284,7 +284,7 @@ async def test_start_refuses_without_api_key_too(db):
     # risk: high  (契约 11: 非回环且 API_KEY 为空也拒启)
     cfg = dataclasses.replace(Config.from_env(), dashboard_host="0.0.0.0", dashboard_pwd="pw", api_key="")
     with pytest.raises(SystemExit):
-        await WebServer(cfg, db, None, datetime.now(timezone.utc)).start()
+        await WebServer(cfg, db, datetime.now(timezone.utc)).start()
 
 
 async def test_start_with_port_in_use_does_not_raise(db, caplog):
@@ -293,7 +293,7 @@ async def test_start_with_port_in_use_does_not_raise(db, caplog):
     blocker.bind(("127.0.0.1", 0))
     blocker.listen(1)
     port = blocker.getsockname()[1]
-    ws = WebServer(make_cfg(dashboard_port=port), db, None, datetime.now(timezone.utc))
+    ws = WebServer(make_cfg(dashboard_port=port), db, datetime.now(timezone.utc))
     try:
         with caplog.at_level(logging.ERROR):
             await asyncio.wait_for(ws.start(), 10)
@@ -305,7 +305,7 @@ async def test_start_with_port_in_use_does_not_raise(db, caplog):
 
 async def test_stop_before_start_is_safe(db):
     # risk: medium
-    await WebServer(make_cfg(), db, None, datetime.now(timezone.utc)).stop()
+    await WebServer(make_cfg(), db, datetime.now(timezone.utc)).stop()
 
 
 def _gps_row(dev, now_ms):
