@@ -360,7 +360,7 @@
   - Business Context：备份坏了没人看见等于没有备份（DFX 第 2 维「备份成功率每日检查」）。例子：昨天 02:30 成功、今天 02:30 失败——今天 03:00 打开运维看板必须看到红色「Backup failed」，而不是只显示昨天的成功时间。
   - 依赖类型：功能前置 Task 6.1（`backup_run` 表）。
   - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
-- **Task 6.3：恢复演练与「只写不删」实测** — 新建 `deploy/restore-drill.sh`：从 COS 下载最近一份日备 → 在 fra 上起一个临时 `postgres:16-alpine` 容器（独立网络、不挂生产卷）→ `pg_restore` → 对比七张表行数落在该备份 `backup_run.row_counts`（dump 前）与 `row_counts_after`（dump 后）之间（含两端；采集在 dump 期间仍在写入、各表只增不删，所以恢复值必须满足 前 ≤ 恢复 ≤ 后，越界即失败；2026-11-09 审查 ❓1 修正，原写「与 row_counts 一致」会把正常写入误报成失败）；按文件名而不是 object_key 找对应记录（周日那行只记 weekly 键）→ 打印耗时并删除临时容器；另用备份凭据对刚上传的对象执行一次 `coscli rm`，必须得到权限拒绝。结果写进 `docs/ops/restore-drill.md`（日期、备份对象、各表行数、耗时、删除测试结果）。验证：fra 上 `sudo deploy/restore-drill.sh` 退出码 0，输出七行「table N = N」与总耗时。
+- **Task 6.3：恢复演练与「只写不删」实测** — 新建 `deploy/restore-drill.sh`：从 COS 下载最近一份日备 → 在 fra 上起一个临时 `postgres:16-alpine` 容器（独立网络、不挂生产卷）→ `pg_restore` → 对比七张表行数落在该备份 `backup_run.row_counts`（dump 前）与 `row_counts_after`（dump 后）之间（含两端；采集在 dump 期间仍在写入、各表只增不删，所以恢复值必须满足 前 ≤ 恢复 ≤ 后，越界即失败；2026-11-09 审查 ❓1 修正，原写「与 row_counts 一致」会把正常写入误报成失败）；按文件名而不是 object_key 找对应记录（周日那行只记 weekly 键）→ 打印耗时并删除临时容器；另用备份凭据对该对象尝试一次 `coscli rm -f`，再用只读凭据确认对象仍在才算「删除被拒」（2026-11-09 审查 HIGH-1：coscli v1.0.9 会丢弃删除的返回值、先 HEAD 后删，退出码分不清「被拒」与「没删成」，所以不看退出码、只看对象还在不在；拿不准一律判失败）。读备份与删后核对都要一把只读凭据（上传凭据按设计只写不读），或演练时从 COS 控制台手动下载备份用 `--file`。结果写进 `docs/ops/restore-drill.md`（日期、备份对象、各表行数、耗时、删除测试结果）。验证：fra 上 `sudo deploy/restore-drill.sh --file <备份> --check-delete-denied` 退出码 0，输出七行「表名 前 ≤ 恢复 ≤ 后 OK」、总耗时与「delete-denied PASS」。
   - Business Context：从没恢复过的备份不算备份（DFX 场景 RS-1）。例子：dump 前 sensor_telemetry 记 160,000 行、dump 后 160,008 行，恢复出 160,003 行算通过；恢复出 159,999 行（少于 dump 前）即失败。
   - 依赖类型：功能前置 Task 6.1；验证前置：COS 里至少有一份真实日备。
   - 证据产生者：脚本由 implementer 写（MEDIUM，reviewer Stage 0 + 1）；演练实跑由 deployer 在 fra 执行，主 Agent 读完整输出与演练记录验收。
@@ -368,7 +368,7 @@
 **验收标准**：
 - 迁移重放两次无变化；`tests/test_backup_status.py` 与全量回归绿。
 - fra 上 timer 已启用（`systemctl list-timers lutetia-backup.timer` 有下次触发时间），至少一次自动备份成功，COS 里能看到对象、`backup_run` 有对应行。
-- 恢复演练行数全部一致、耗时 ≤ 4 h；备份凭据删除对象被拒。
+- 恢复演练七张表行数全部落在前后上下界内、耗时 ≤ 4 h；备份凭据删除后对象仍在。
 - 运维看板首页显示「Last backup」。
 
 ---
