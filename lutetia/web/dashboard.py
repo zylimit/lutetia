@@ -1,8 +1,9 @@
 """Login pages and the read-only dashboard (server-rendered, every dynamic value escaped)."""
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote, urlsplit
+from zoneinfo import ZoneInfo
 
 from aiohttp import web
 
@@ -127,6 +128,15 @@ def collector_section(ctx: Any, calls: List[Dict[str, Any]], now: datetime) -> s
     return "<h2>采集器状态</h2>" + rec + api + info
 
 
+def backup_line(summary: Dict[str, Any]) -> str:
+    at: Optional[datetime] = summary["last_ok_at"]
+    if at is None:
+        return "上次备份：无"
+    size = summary["last_ok_bytes"]
+    return "上次备份：%s 巴黎时间 · %s" % (at.astimezone(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M"),
+                              "%.1f MB" % (size / 1048576) if size is not None else "-")
+
+
 def anomalies_section(items: List[Dict[str, Any]]) -> str:
     head = "<h2>异常总览 · %s</h2>" % esc(anomalies.summarize(items))
     if not items:
@@ -144,8 +154,9 @@ async def dashboard(request: web.Request) -> web.Response:
     sensors = await ctx.db.latest_sensor_values(("volt", "temperature", "rsrp"))
     gps = await ctx.db.latest_gps_positions()
     calls = await ctx.db.call_summary(24)
-    items = await build_anomalies(ctx, now, status, sensors, calls)
-    body = ('<p><a href="/dashboard/map">地图</a> · <a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div>' + devices_section(status, now)
+    backup = await ctx.db.backup_summary()
+    items = await build_anomalies(ctx, now, status, sensors, calls, backup)
+    body = ('<p><a href="/dashboard/map">地图</a> · <a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div><p id="last-backup">' + esc(backup_line(backup)) + '</p>' + devices_section(status, now)
             + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now))
     return page("Lutetia 看板", body, script=True)
 

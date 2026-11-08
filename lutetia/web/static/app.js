@@ -50,7 +50,7 @@
     });
   }
 
-  var KIND_LABELS = { stale: '失联', low_volt: '低电压', alarm: '报警', push: '推送通道', quota: '配额', login: '登录次数' };
+  var KIND_LABELS = { stale: '失联', low_volt: '低电压', alarm: '报警', push: '推送通道', backup: '备份', quota: '配额', login: '登录次数' };
 
   function renderAnomalies(data) {
     var box = document.getElementById('anomalies');
@@ -76,8 +76,19 @@
     box.appendChild(ul);
   }
 
+  function fmtBackup(b) {
+    if (!b || !b.at) { return '上次备份：无'; }
+    var parts = {};
+    new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(b.at)).forEach(function (p) { parts[p.type] = p.value; });
+    var size = b.bytes === null || b.bytes === undefined ? '-' : (b.bytes / 1048576).toFixed(1) + ' MB';
+    return '上次备份：' + parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute + ' 巴黎时间 · ' + size;
+  }
+
   function render(data) {
     renderAnomalies(data);
+    var lb = document.getElementById('last-backup');
+    if (lb) { lb.textContent = fmtBackup(data.last_backup); }
     var now = new Date(data.generated_at).getTime();
     var online = { true: '是', false: '否' };
     fill('tbl-devices', data.devices.map(function (r) {

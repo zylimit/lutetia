@@ -34,10 +34,11 @@ def receiver_counts(rcv: object) -> object:
     return out
 
 
-async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict]) -> List[Dict]:
+async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict], backup: Dict) -> List[Dict]:
     return anomalies.compute(now, devices, sensors, await ctx.db.latest_alarm_values(anomalies.ALARM_KEYS), receiver_counts(ctx.receiver),  # type: ignore[attr-defined]
                              calls, ctx.cfg.gps51_daily_budget, ctx.cfg.low_volt,  # type: ignore[attr-defined]
-                             push_silent_limit_sec=ctx.cfg.push_silence_min * 60)  # type: ignore[attr-defined]
+                             push_silent_limit_sec=ctx.cfg.push_silence_min * 60,  # type: ignore[attr-defined]
+                             backup=backup)
 
 
 @require_session_json
@@ -52,7 +53,8 @@ async def overview(request: web.Request) -> web.Response:
         devices.append(dict(r, stale=stale, max_age_h=limit))
     sensors = await ctx.db.latest_sensor_values(DEFAULT_KEYS)
     calls = await ctx.db.call_summary(24)
-    items = await build_anomalies(ctx, now, devices, sensors, calls)
+    backup = await ctx.db.backup_summary()
+    items = await build_anomalies(ctx, now, devices, sensors, calls, backup)
     return _json({
         "generated_at": now,
         "devices": devices,
@@ -62,6 +64,8 @@ async def overview(request: web.Request) -> web.Response:
         "api_calls_24h": calls,
         "anomalies": items,
         "anomaly_summary": anomalies.summarize(items),
+        "last_backup": {"at": backup["last_ok_at"], "bytes": backup["last_ok_bytes"],
+                        "latest_ok": backup["latest_ok"], "latest_at": backup["latest_at"]},
     })
 
 

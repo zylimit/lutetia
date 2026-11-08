@@ -220,6 +220,15 @@ class Database:
             )
         return [dict(r) for r in rows]
 
+    async def backup_summary(self) -> Dict[str, Any]:
+        """Newest successful backup and the newest run overall (read-only; table is tiny, one row per day)."""
+        async with self.pool.acquire() as conn:
+            ok = await conn.fetchrow("SELECT finished_at, bytes FROM backup_run WHERE ok ORDER BY finished_at DESC NULLS LAST LIMIT 1")
+            latest = await conn.fetchrow("SELECT finished_at, ok, error FROM backup_run ORDER BY finished_at DESC NULLS LAST LIMIT 1")
+        return {"last_ok_at": ok["finished_at"] if ok else None, "last_ok_bytes": ok["bytes"] if ok else None,
+                "latest_ok": latest["ok"] if latest else None, "latest_at": latest["finished_at"] if latest else None,
+                "latest_error": latest["error"] if latest else None}
+
     async def latest_sensor_values(self, keys: Sequence[str]) -> List[Dict[str, Any]]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(

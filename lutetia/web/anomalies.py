@@ -9,10 +9,12 @@ LEVEL_YELLOW = "yellow"
 # alarmLevel is deliberately absent: constantly 1 on all 12 real manholes since 2026-08-17, meaning unknown (open Spec question for the vendor)
 ALARM_KEYS = ("alarmFall", "alarmBattery")
 PUSH_SILENT_LIMIT_SEC = 900
-KIND_ORDER = ("stale", "alarm", "push", "low_volt", "quota", "login")
+# DFX-Spec dim 2 / Task 6.2: backup runs daily at 02:30; 26 h = one day plus 2.5 h slack before it counts as overdue
+BACKUP_MAX_AGE_H = 26
+KIND_ORDER = ("stale", "alarm", "push", "backup", "low_volt", "quota", "login")
 VOLT_RED_MARGIN = 0.2
 QUOTA_YELLOW_RATIO = 0.8
-KIND_LABELS = {"stale": "失联", "low_volt": "低电压", "alarm": "报警", "push": "推送通道", "quota": "配额", "login": "登录次数"}
+KIND_LABELS = {"stale": "失联", "low_volt": "低电压", "alarm": "报警", "push": "推送通道", "backup": "备份", "quota": "配额", "login": "登录次数"}
 
 
 def _item(level: str, kind: str, detail: str, device_id: Any = None, name: Any = None) -> Dict[str, Any]:
@@ -69,14 +71,29 @@ def _calls(calls: Iterable[Dict[str, Any]], budget: int) -> List[Dict[str, Any]]
     return out
 
 
+def _backup(now: datetime, summary: Dict[str, Any], max_age_h: float = BACKUP_MAX_AGE_H) -> List[Dict[str, Any]]:
+    out = []
+    last = summary["last_ok_at"]
+    if last is None:
+        out.append(_item(LEVEL_RED, "backup", "从未成功备份"))
+    elif now - last > timedelta(hours=max_age_h):
+        out.append(_item(LEVEL_RED, "backup", "距上次成功备份 %.1f 小时（阈值 %d 小时）" % ((now - last).total_seconds() / 3600, max_age_h)))
+    if summary["latest_ok"] is False:
+        out.append(_item(LEVEL_RED, "backup", "最近一次备份失败：%s" % (summary["latest_error"] or "无错误信息")))
+    return out
+
+
 def compute(now: datetime, devices: List[Dict[str, Any]], latest_sensor: List[Dict[str, Any]],
             latest_alarms: List[Dict[str, Any]], receiver: Optional[Dict[str, Any]], calls_24h: List[Dict[str, Any]],
             budget: int, low_volt: float, max_age_hours_default: float = 3.0,
-            push_silent_limit_sec: int = PUSH_SILENT_LIMIT_SEC) -> List[Dict[str, Any]]:
+            push_silent_limit_sec: int = PUSH_SILENT_LIMIT_SEC,
+            backup: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     items = _stale(now, devices, max_age_hours_default) + _low_volt(latest_sensor, low_volt) + _alarms(latest_alarms)
     if receiver is not None and receiver["silent_sec"] > push_silent_limit_sec:
         items.append(_item(LEVEL_RED, "push", "推送位置静默 %d 分钟（阈值 %d 分钟）" % (receiver["silent_sec"] // 60, push_silent_limit_sec // 60)))
     items += _calls(list(calls_24h), budget)
+    if backup is not None:
+        items += _backup(now, backup)
     items.sort(key=lambda i: (i["level"] != LEVEL_RED, KIND_ORDER.index(i["kind"]), str(i.get("name", ""))))
     return items
 
