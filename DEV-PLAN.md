@@ -377,6 +377,8 @@
 
 ## Phase 7: 采集与看板分容器、只读库角色、心跳表、挪动事件视图（ADR-1、3、4，SCOPE-18，SC-13）
 
+本机进度（2026-11-09）：Task 7.1 ～ 7.3 完成并提交（428eede、b6b27e1、bca8b4b），Phase 四步走本机部分通过——Code Review 各 Task 已审收口；测试完整性 tester 跨 Task 端到端 compose 冒烟 a ～ g 全过、补 tests/test_phase7_wiring.py；编译 compileall / static-check 全绿；全量 538 passed / 1 failed（#70 预存）。待上线后做 Task 7.4（生产只读实测 SC-13 基线与视图计时），之后整个 Phase 才标 ✅。
+
 **交付内容**：
 - 生产 compose 起 db、collector、web 三个服务（同一镜像）：collector 只跑采集与推送接收，web 只跑看板与 API、用只读库角色连库；web 宕掉不影响采集。
 - collector 每 30 秒写一行心跳到 `collector_status`；运维看板的采集状态改读这张表，超过 90 秒没更新即标红。
