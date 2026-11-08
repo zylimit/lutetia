@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Lutetia database backup daily at 02:30 Europe/Paris
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Europe/Paris
+Persistent=true
+
+[Install]
+WantedBy=timers.target

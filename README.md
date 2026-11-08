@@ -88,6 +88,18 @@ curl -H "Authorization: Bearer $API_KEY" \
    - `silent_sec`：距最近一条能认出的位置消息的秒数，轮询兜底看它
    - `message_silent_sec`：距最近一条合法 JSON 的秒数
 
+## 备份
+
+生产库是两家厂家数据的唯一存档，每天自动 `pg_dump` 一份传到腾讯云 COS（eu-frankfurt，数据不出欧洲）。
+
+- 何时跑：`lutetia-backup.timer` 每天 02:30（Europe/Paris）触发 `deploy/backup.sh`；周日那份同时传到 `daily/` 与 `weekly/`（同一文件、同 sha256），其余日子只传 `daily/`。本地 `/var/backups/lutetia`（可用 `BACKUP_DIR` 改）只留最近 2 份。
+- 记录：每次运行（成功或失败）在 `backup_run` 表插一行，含大小、sha256、dump 前后各表行数（表只增不删，恢复演练时每表应满足 前 ≤ 恢复值 ≤ 后）；被 systemd 超时（`TimeoutStartSec=3h`）或手动 kill 的运行记 `signal=TERM` / `signal=INT`；失败写 `ok=false` 与阶段原因，不写凭据，脚本随后以非零码退出。
+- 启用：在主机亲手写好 `/etc/lutetia/backup.env`（至少 `COS_BUCKET=<桶名>`），并自行配置好 `coscli`：服务以 root 跑，所以用 `sudo coscli config init`（配置落在 `/root/.cos.yaml`），或把配置文件放别处并在 `backup.env` 里设 `COSCLI_CONFIG=<路径>`（脚本改调 `coscli -c`，文件不存在则 `stage=config` 失败）；`deploy/host-deploy.sh` 第 8 步检测到该文件才安装并启用 timer，没有就打印提示、不启用。凭据只放这个文件，不进仓库、不进日志。
+- 手动 / 无凭据验证：`sudo deploy/backup.sh --local-only` 只 dump 与记录（`object_key` 为空），不上传。
+- 周日恰逢主机宕机错过时，周一补跑按 daily 记，那一周没有 weekly——已接受。
+- 桶清单（用户在腾讯云控制台自行核对）：私有桶、地域 eu-frankfurt；开默认服务端加密；开版本控制（只写密钥仍能覆盖同名对象，版本控制留住旧的）；配生命周期规则落实保留期（14 份 daily + 8 份 weekly）；密钥只给该桶的只写权限。
+- 保留期由 COS 桶的生命周期规则负责（脚本永不删除远端对象）；上传密钥必须是只写、不带删除权限的子账号密钥，泄漏也删不掉备份。
+
 ## 数据表
 
 `device`（两源混放，`source` 区分）、`gps_position`（宽表，去重键 deviceid+updatetime）、`sensor_telemetry`（窄表，去重键 uuid+key+ts）、`sensor_attribute`、`api_call`（调用计数）。原始值不换算，单位换算在 `gps_position_v` / `sensor_telemetry_v` 视图里。

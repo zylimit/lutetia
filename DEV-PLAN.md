@@ -261,7 +261,9 @@
 
 ---
 
-## Phase 5: POI 台账导入——把 Excel 台账读进自己的库（SCOPE-16，SC-12）
+## Phase 5: POI 台账导入——把 Excel 台账读进自己的库（SCOPE-16，SC-12） ✅
+
+交付记录（2026-11-08）：提交 43118d3（Task 5.2 / 5.3）、6aa7e55（release 0.3.0）；5.3 复核 ACCEPT 无 HIGH，Low 三条记 #85（排进 Task 13.3）；用户亲敲 /release-builder 部署法兰克福，真台账在 fra 正式导入。v0.3.1（2947365）另加测试阶段可关闭登录锁定。
 
 > 用户 2026-11-07 批准「导入先于整体架构」：只做建两张表和一条命令，不含看板页面、账号、手机版、井盖挪动事件；知道表结构先定、架构设计后可能要改。需求来源 Product-Spec.md v1.8（功能需求「POI 台账导入」、数据与权限 poi / poi_cable_segment 两行、规则与例外「台账导入按表头名取列」「只有有电缆明细的工单才有计划吨数」、FLOW-5）。
 
@@ -313,6 +315,357 @@
 
 ---
 
+## 迭代 2026-11-09：Phase 6 ～ 13（项目看板、公开契约、嵌入、备份）
+
+> 需求来源：Product-Spec.md v1.13（SCOPE-14、15、17 ～ 20，SC-10、11、13 ～ 15）、Architecture-Design.md（2026-11-08 批准，ADR-1 ～ 6）、DFX-Spec.md（2026-11-08 批准）、Design-Brief.md + DESIGN.md、设计稿 demo/index.html（2026-11-09，编码最高参照）。排序依据：DFX 优先级栈「数据不丢 > 安全 > 隐私 > 可服务 > 性能 > 成本」（用户 2026-11-08 确认）——备份排第一；读侧要先有只读角色、心跳与事件视图，公开契约才有可读的东西；页面只经 `/api/v1` 取数（ADR-5），所以契约先于页面；嵌入复用页面组件，排在页面之后；给 Orange 看之前的收口放最后。Phase 3 的 GPS51 转发（#31）是外部条件，不阻塞本迭代，Bundles 页按「暂无上报」的空态做。
+
+**本迭代开工前置**：
+- `[默认]` DFX 候选数字按候选执行，用户可否决：RTO ≤ 4 h、备份保留 14 份日备 + 8 份周备、心跳超时 90 s、恢复演练每季度一次（DFX-Spec §11 第 5 条；Phase 6、7 用到）。
+- `[默认]` 备份上传工具用腾讯云官方 coscli（单个二进制，装在 fra 宿主机，安装时取最新正式版并写进本计划技术栈表）；保留期用存储桶生命周期规则在 COS 控制台配，上传凭据只给写入权限、不给删除——过期删除由 COS 自己做，泄漏的凭据删不掉备份（THR-6）。COS 宣称 S3 兼容但不保证完全一致，Task 6.3 必须实测「用这把凭据删除被拒」。
+- `[默认]` SLA 参考图的数据来源：Spec 规定 SLA 表不进 Git（规则与例外「项目业务数据只在 fra 与自己的库里」），所以拆除计划页的 SLA 参考不能写死在前端；按台账导入同一套做法加 `lutetia import sla <文件>` 把三份 DEPOSE 模板导进库、经 `/api/v1/sla-templates` 读（Task 10.3）。Spec 只写了「显示模板」、没写数据怎么进库，这是实现手段不是新需求；用户若要改成别的来源，回本计划改 Task 10.3。
+- `[默认]` 「Open in Ariane」链到 `https://ofr.digifiber.net/` 首页、新窗口打开；具体到某单的深链要等与 Ariane 开发方对接（OUT-14），不猜对方路由。
+- `[默认]` 界面文案 EN / FR 用前端自带的两份字典（与设计稿同法），不引 vue-i18n；法语「Tourets」作 Bundles 的译名待法语使用者确认（#98），确认前照用。
+- `[默认]` 前端路由用 vue-router 5.x（2026-06 已发 5.1.0，5.0 起把 unplugin-vue-router 并进核心、声明无破坏性改动；安装时核 peerDependencies 覆盖 Vue 3.5）。
+- 验证前置（外部条件，只卡对应 Phase 收口、不卡开工）：Phase 6 需要用户在 COS eu-frankfurt 建私有桶、配生命周期规则、建只能写这个桶的子账号密钥，并在 fra 上亲手写好 `/etc/lutetia/backup.env`（主 Agent 不碰凭据）；Phase 8 需要用户在 fra 的环境文件里加 Orange、华为两个账号的密码变量与调用方登记文件；Phase 13 收口需要用户换强密码并删掉 `DASHBOARD_LOGIN_LOCKOUT=off`（#88）。
+- 浏览器验证一律在 fra 的 `~/tools/pw`（Playwright + Chromium）上跑，本机没有 playwright（progress Notes 2026-11-09）。
+- 模型与档位沿用本计划「开发规则」：implementer 一律 sonnet；碰鉴权、迁移、契约的 Task 判 HIGH，reviewer 全三 Stage 并派 tester。
+
+---
+
+## Phase 6: 每日备份上 COS 与第一次恢复演练（#89，DFX 第 2 维、场景 RS-1）
+
+**交付内容**：
+- fra 每天 02:30（Europe/Paris）自动把生产库 pg_dump 一份传到 COS eu-frankfurt，周日那份另存一份周备；成功与失败都记一行。
+- 运维看板顶部异常总览显示「Last backup」时间，超过 26 小时没有成功备份或最近一次失败即标红。
+- 用真实备份在隔离容器里恢复一次，五张表行数与备份时记录的一致，耗时写进演练记录。
+
+**验证的假设**：
+- COS 的 S3 兼容在「只写不删」的权限上真的生效（技术未知）——用备份凭据执行删除返回拒绝即成立；不成立就改成 COS 原生 CAM 策略语法重配，再测一次。
+- RTO ≤ 4 h（`[候选]`）——演练从下载到行数核对完成的实测耗时 ≤ 4 h 即成立，实测数写回 DFX-Spec 第 2 维。
+
+**关键文件**：
+- `lutetia/sql/004_backup_run.sql` — 新表 `backup_run`（Task 6.1 唯一 owner）
+- `deploy/backup.sh` — 宿主机上的备份脚本
+- `deploy/lutetia-backup.service`、`deploy/lutetia-backup.timer` — systemd 定时（服务以 root 运行，`TimeoutStartSec=3h`）
+- `deploy/restore-drill.sh` — 恢复演练脚本
+- `lutetia/web/anomalies.py`、`lutetia/web/data.py` — 运维看板读 `backup_run`
+- `docs/ops/restore-drill.md` — 演练记录（每次一节）
+
+**Task 清单**：
+- **Task 6.1：备份脚本与记录表** — 新建 `lutetia/sql/004_backup_run.sql`：表 `backup_run(id bigserial, started_at timestamptz, finished_at timestamptz, ok boolean, kind text check in ('daily','weekly'), object_key text, bytes bigint, sha256 text, row_counts jsonb, error text)`，幂等。新建 `deploy/backup.sh`：`docker compose exec -T db pg_dump -U lutetia -Fc lutetia` 写到 `/var/backups/lutetia/lutetia-<UTC 日期>.dump`，算 sha256，同时记五张业务表（device、gps_position、sensor_telemetry、sensor_attribute、api_call）与 poi、poi_cable_segment 的行数，用 coscli 上传到 `daily/`（周日另传 `weekly/`），本地只留最近 2 份；结束时经 `docker compose exec -T db psql` 插一行 `backup_run`（成功或失败都插，失败写 error 原因、不写凭据）；凭据只从 systemd `EnvironmentFile=/etc/lutetia/backup.env` 给的环境变量读。新建 `deploy/lutetia-backup.service` 与 `.timer`（每天 02:30 Europe/Paris，`Persistent=true`）；`deploy/host-deploy.sh` 安装并启用 timer。脚本加 `--local-only` 开关（不上传，只 dump 与记录），供没有 COS 凭据时验证。验证：本机 `bash -n deploy/backup.sh && shellcheck deploy/backup.sh`；`.venv/bin/pytest tests/test_migrations.py -q`（迁移重放两次结果相同）；fra 上 `sudo deploy/backup.sh --local-only` 后 `docker compose exec -T db pg_restore --list /…dump | head` 能列出表、`backup_run` 新增一行 ok=true。
+  - Business Context：生产库是两家厂家数据的唯一存档，主机丢盘即永久丢失（Architecture §11 第一条，用户 2026-11-08 定每日 pg_dump 上 COS 法兰克福）。区分对错的例子：周日 02:30 跑完，COS 里 `daily/` 与 `weekly/` 各多一个同 sha256 的对象，`backup_run` 多一行 kind=weekly、ok=true；上传失败时也要多一行 ok=false，而不是什么都不留。
+  - 依赖类型：功能前置无；验证前置——上传部分要用户建好桶与 `/etc/lutetia/backup.env`，没建好时只验 `--local-only`。`deploy/host-deploy.sh` 本 Phase 由 Task 6.1 独占修改。
+  - 证据产生者：HIGH 档（迁移 + 远端写 + 凭据路径）：implementer 自检 → code-reviewer 全三 Stage → tester 写迁移幂等与脚本失败分支用例；fra 上的实跑由 deployer 在 /release-builder 里做，主 Agent 核 `backup_run` 行与 COS 对象。
+- **Task 6.2：运维看板显示「Last backup」** — `lutetia/web/data.py` 的 overview 数据口加 `last_backup`（最近一行 ok=true 的 finished_at 与 bytes，以及最近一行是否失败）；`lutetia/web/anomalies.py` 加两条异常：距上次成功 > 26 h、最近一次失败；运维看板首页异常块显示。验证：`.venv/bin/pytest tests/test_backup_status.py -q`（新建，`# risk: high`，在合成库插 `backup_run` 行覆盖：从未备份、25 h 前成功、27 h 前成功、最近失败四种）。
+  - Business Context：备份坏了没人看见等于没有备份（DFX 第 2 维「备份成功率每日检查」）。例子：昨天 02:30 成功、今天 02:30 失败——今天 03:00 打开运维看板必须看到红色「Backup failed」，而不是只显示昨天的成功时间。
+  - 依赖类型：功能前置 Task 6.1（`backup_run` 表）。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
+- **Task 6.3：恢复演练与「只写不删」实测** — 新建 `deploy/restore-drill.sh`：从 COS 下载最近一份日备 → 在 fra 上起一个临时 `postgres:16-alpine` 容器（独立网络、不挂生产卷）→ `pg_restore` → 对比七张表行数落在该备份 `backup_run.row_counts`（dump 前）与 `row_counts_after`（dump 后）之间（含两端；采集在 dump 期间仍在写入、各表只增不删，所以恢复值必须满足 前 ≤ 恢复 ≤ 后，越界即失败；2026-11-09 审查 ❓1 修正，原写「与 row_counts 一致」会把正常写入误报成失败）；按文件名而不是 object_key 找对应记录（周日那行只记 weekly 键）→ 打印耗时并删除临时容器；另用备份凭据对刚上传的对象执行一次 `coscli rm`，必须得到权限拒绝。结果写进 `docs/ops/restore-drill.md`（日期、备份对象、各表行数、耗时、删除测试结果）。验证：fra 上 `sudo deploy/restore-drill.sh` 退出码 0，输出七行「table N = N」与总耗时。
+  - Business Context：从没恢复过的备份不算备份（DFX 场景 RS-1）。例子：dump 前 sensor_telemetry 记 160,000 行、dump 后 160,008 行，恢复出 160,003 行算通过；恢复出 159,999 行（少于 dump 前）即失败。
+  - 依赖类型：功能前置 Task 6.1；验证前置：COS 里至少有一份真实日备。
+  - 证据产生者：脚本由 implementer 写（MEDIUM，reviewer Stage 0 + 1）；演练实跑由 deployer 在 fra 执行，主 Agent 读完整输出与演练记录验收。
+
+**验收标准**：
+- 迁移重放两次无变化；`tests/test_backup_status.py` 与全量回归绿。
+- fra 上 timer 已启用（`systemctl list-timers lutetia-backup.timer` 有下次触发时间），至少一次自动备份成功，COS 里能看到对象、`backup_run` 有对应行。
+- 恢复演练行数全部一致、耗时 ≤ 4 h；备份凭据删除对象被拒。
+- 运维看板首页显示「Last backup」。
+
+---
+
+## Phase 7: 采集与看板分容器、只读库角色、心跳表、挪动事件视图（ADR-1、3、4，SCOPE-18，SC-13）
+
+**交付内容**：
+- 生产 compose 起 db、collector、web 三个服务（同一镜像）：collector 只跑采集与推送接收，web 只跑看板与 API、用只读库角色连库；web 宕掉不影响采集。
+- collector 每 30 秒写一行心跳到 `collector_status`；运维看板的采集状态改读这张表，超过 90 秒没更新即标红。
+- 库里有视图 `fall_event`：同一台井盖 30 分钟内的连续 alarmFall 翻转合并成一次挪动事件（开始、结束、翻转次数）。
+- 用生产实测算出「合并后平均每台每天几次挪动事件」写回 Spec SC-13 基线。
+
+**验证的假设**：
+- `[默认]` 30 分钟合并窗口（SC-13）——用生产库只读跑视图，看 10 台井盖每台每天事件数是否落在「人看得过来」的量级（个位数）；若仍是几十次，把实测分布交用户定窗口，不在代码里改。
+- `fall_event` 视图在 alarmFall 全量上 ≤ 300 ms（DFX 第 6 维候选）——生产库 `EXPLAIN ANALYZE` 实测。
+- 只读角色真的写不进（THR-8）——web 角色执行 INSERT 被数据库拒绝。
+
+**关键文件**：
+- `lutetia/sql/005_readonly_status_events.sql` — 角色 `lutetia_ro`（NOLOGIN 起建、GRANT SELECT 与默认权限）、表 `collector_status`、视图 `fall_event`（Task 7.1 唯一 owner）
+- `lutetia/db.py` — migrate 时若有 `DATABASE_RO_PASSWORD` 就给 `lutetia_ro` 设登录密码
+- `lutetia/service.py` — 心跳写入；按角色只起采集或只起 web
+- `lutetia/cli.py` — `lutetia run --role collector|web|all`
+- `lutetia/web/dashboard.py`、`lutetia/web/anomalies.py` — 采集状态改读心跳表
+- `docker-compose.yml`、`deploy/nginx-lutetia.conf`、`deploy/host-deploy.sh` — 三服务与按路径分流
+
+**Task 清单**：
+- **Task 7.1：迁移——只读角色、心跳表、挪动事件视图** — 新建 `lutetia/sql/005_readonly_status_events.sql`：`DO` 块里角色不存在才 `CREATE ROLE lutetia_ro NOLOGIN`；`GRANT USAGE ON SCHEMA public`、`GRANT SELECT ON ALL TABLES`、`ALTER DEFAULT PRIVILEGES … GRANT SELECT ON TABLES TO lutetia_ro`；表 `collector_status(id smallint primary key check (id = 1), updated_at timestamptz, version text, push_last_at timestamptz, push_count_24h int, ws_connected boolean, polling boolean, details jsonb)`；视图 `fall_event(device_id text, started_at timestamptz, ended_at timestamptz, flips int)`：从 `sensor_telemetry` 取 key='alarmFall' 的点，按设备排序，相邻非零翻转间隔 ≤ 30 分钟归同一事件（窗口用一个常量写在视图定义里，注释注明来源 SC-13）。`lutetia/db.py` 的 migrate 末尾：环境变量 `DATABASE_RO_PASSWORD` 非空时执行 `ALTER ROLE lutetia_ro LOGIN PASSWORD`（用 `quote_literal` 拼、日志只打「ro password set」）。验证：`.venv/bin/pytest tests/test_migrations.py tests/test_fall_event.py -q`（`test_fall_event.py` 新建 `# risk: high`：合成遥测覆盖「两次翻转相隔 29 分钟算一次」「相隔 31 分钟算两次」「alarmFall 由 0 变非 0 的每一次都落进某个事件」三例）；`tests/test_readonly_role.py`（新建 `# risk: high`）：以 `lutetia_ro` 连合成库执行 INSERT 被拒。
+  - Business Context：挪动事件规则只在视图里一处（ADR-3、DFX 归一化）；web 用只读角色是「看板只读」从约定变成数据库强制（Pinned、THR-8）。例子：同一台井盖 08:00、08:20、08:45 三次翻转——08:00 与 08:20 是一个事件（flips=2），08:45 距 08:20 只有 25 分钟也并入，得到一个 08:00 ～ 08:45、flips=3 的事件；若第三次在 08:51 则是两个事件。
+  - 依赖类型：功能前置无。
+  - 证据产生者：HIGH 档（迁移 + 鉴权边界）：implementer → code-reviewer 全三 Stage → tester 补视图边界用例。
+- **Task 7.2：心跳写入与看板改读心跳** — `lutetia/service.py` 加一个每 30 秒的任务，把推送最后到达时间、近 24 小时推送条数、Dingtek WebSocket 是否连着、GPS51 是否在轮询、包版本 upsert 进 `collector_status`（写失败只打 warning、不影响采集）；`lutetia/web/dashboard.py` 与 `lutetia/web/anomalies.py` 不再读 collector 进程内存，改读该表，`updated_at` 早于 90 秒前即在异常块显示「Collector heartbeat stale」。顺手把 `lutetia/__init__.py` 的 `__version__` 改成从包元数据读（#86），心跳里的 version 用它。验证：`.venv/bin/pytest tests/test_heartbeat.py tests/test_dashboard.py tests/test_anomalies.py -q`（`test_heartbeat.py` 新建 `# risk: high`：60 秒前、91 秒前、从无心跳三种）。
+  - Business Context：web 与 collector 分容器后不能再伸手读对方内存（ADR-4、迪米特）；采集挂了要第二天打开就看见（DFX 场景 SV-1）。例子：collector 容器 02:00 退出，03:00 打开运维看板，异常块必须有红色心跳过期，而不是显示 02:00 前最后一次的「WS connected」。
+  - 依赖类型：功能前置 Task 7.1（`collector_status` 表）。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
+- **Task 7.3：分容器与按路径分流** — `lutetia/cli.py` 的 `run` 加 `--role collector|web|all`（默认 all 保持本地开发不变）；`lutetia/service.py` 按角色只起对应部分；`docker-compose.yml` 改为 db、collector（`lutetia migrate && lutetia run --role collector`）、web（`lutetia run --role web`，`DATABASE_URL` 指向 `lutetia_ro`，等 collector 健康后启动）三个服务，同一镜像；`deploy/nginx-lutetia.conf`：`/gps51/push` 与 `/health` 转 collector，其余转 web；`deploy/host-deploy.sh` 同步；README 环境变量表加 `DATABASE_RO_PASSWORD`、`DATABASE_RO_URL`。验证：本机 `docker compose up -d --build` 后 `docker compose ps` 三服务 healthy；`curl -s localhost:8080/health` 有 JSON；`docker compose stop web` 后推送接收端仍回 200（`curl -X POST` 合成推送）、`collector_status.updated_at` 继续前进。
+  - Business Context：看板被刷爆或崩溃时推送照收（Architecture 场景 3、ADR-1）。例子：web 容器 OOM 退出的 10 分钟里，GPS 推送照样入库、心跳照样更新；web 恢复后看到这 10 分钟的数据。
+  - 依赖类型：功能前置 Task 7.1、7.2。`docker-compose.yml` 与 `deploy/host-deploy.sh` 本 Phase 由 Task 7.3 独占修改。
+  - 证据产生者：HIGH 档（部署拓扑 + 鉴权凭据路径）：implementer → code-reviewer 全三 Stage → tester 跑 compose 冒烟；生产切换走 /release-builder，主 Agent 核三件套与三服务各自的容器创建时间。
+- **Task 7.4：SC-13 基线与视图计时（文档 Task，主 Agent 执行）** — 部署后在 fra 用只读角色跑 `SELECT device_id, count(*)/days …` 得到每台每天平均事件数，`EXPLAIN ANALYZE SELECT * FROM fall_event` 记耗时；数字写回 Product-Spec SC-13「当前基线」并成对记 CHANGELOG（直推档），DFX-Spec 第 6 维基线同步。验证：Spec 与 CHANGELOG diff 里有实测数与测量时间。
+  - Business Context：SC-13 要求「导入后用库里实测给出合并后平均每台每天几次写回本行基线」。例子：若实测 10 台平均每台每天 0.4 次，基线写「0.4 次 / 台 / 天（2026-11-xx 生产只读实测）」。
+  - 依赖类型：功能前置 Task 7.3 已上线。
+  - 证据产生者：主 Agent 亲跑只读查询并贴原始输出。
+
+**验收标准**：
+- 全量回归绿；新用例四份全绿。
+- 本机与生产都是三服务；停 web 不影响推送入库与心跳。
+- 运维看板采集状态来自心跳表，停 collector 90 秒后标红。
+- `fall_event` 实测 ≤ 300 ms；SC-13 基线已写回 Spec。
+
+---
+
+## Phase 8: 公开契约 `/api/v1`、调用方登记与三个账号（SCOPE-17、19，SC-14，THR-1）
+
+**交付内容**：
+- admin、orange、huawei 三个账号都能登录（密码各在环境变量）；勾「Keep me signed in」发 30 天会话，不勾 12 小时；改任一密码后该账号所有会话立即失效。
+- 调用方登记文件里每个调用方一把 key（只存摘要）、一组只读范围、来源白名单、每分钟限额；超范围 403、无 key 401、超限 429 带 `Retry-After`；日志写调用方名字不写 key。
+- `/api/v1` 新增项目看板要用的资源：汇总、井盖（含状态）、挪动事件、铜缆捆位置与轨迹、POI 工单与电缆段、采集状态；统一信封 `items` / `as_of` / `next`，游标分页；原有四个接口行为不变。
+- `/api/v1/openapi.json` 列出全部资源；契约测试拿它校验每个资源的响应。
+
+**验证的假设**：
+- 原有四个接口在新鉴权下对现有调用者兼容（LSP）——用旧 `API_KEY` 调四个接口的响应与改造前逐字段一致。
+- 同一时刻自家页面与调用方拿到的挪动事件数一致（SC-14）——会话与 key 两种方式调 `/api/v1/fall-events` 计数相同。
+
+**关键文件**：
+- `lutetia/config.py` — 三账号与调用方登记文件路径（Task 8.1 唯一 owner）
+- `lutetia/web/auth.py` — 三账号登录、30 天会话、按账号派生签名密钥
+- `lutetia/web/callers.py` — 新建：调用方登记读取、key 摘要比对、范围、限流、CORS
+- `lutetia/web/api_v1/` — 新建包：`__init__.py`（路由注册）、`envelope.py`（信封与游标）、`resources.py`（各资源处理函数）
+- `lutetia/web/api.py` — 原四个接口迁入新包后保留兼容入口
+- `lutetia/web/openapi.json` — OpenAPI 3.1 契约
+- `README.md` — 环境变量表与调用方登记文件格式
+
+**Task 清单**：
+- **Task 8.1：三个账号与 30 天会话（SCOPE-17）** — `lutetia/config.py` 加 `ORANGE_USER` / `ORANGE_PWD`、`HUAWEI_USER` / `HUAWEI_PWD`（缺密码的账号不启用，启动日志说明启用了哪几个，不打密码）；`lutetia/web/auth.py`：登录按三账号逐个常量时间比对，会话里记账号名，`remember=1` 时有效期 30 天否则 12 小时，签名密钥由 `SESSION_SECRET` 与该账号密码派生（改密码即失效）；`/login` 表单加「Keep me signed in for 30 days」；运维看板页头显示当前账号。验证：`.venv/bin/pytest tests/test_web_auth.py -q`（加用例：orange 登录成功、改 orange 密码后旧 cookie 401 而 huawei 会话仍有效、remember 的 Max-Age = 2592000）。
+  - Business Context：Orange 与华为各用各的账号、看同样的数据（Spec 功能需求「项目看板登录」，OUT-10 不做行级权限）。例子：华为改了密码，Orange 正在手机上开着的看板不受影响；华为旧手机下一次请求就被要求重新登录。
+  - 依赖类型：功能前置无；验证前置：生产要用户在环境文件里加两个账号的密码变量。
+  - 证据产生者：HIGH 档（鉴权）：implementer → code-reviewer 全三 Stage → tester。
+- **Task 8.2：调用方登记、范围、限流、CORS（SCOPE-19，THR-1）** — 新建 `lutetia/web/callers.py`：读 `CALLERS_FILE`（JSON 数组，每项 `name`、`key_sha256`、`scopes`（`iot:read` / `poi:read` / `status:read` 的子集）、`origins`、`rate_per_min`），启动时校验格式、有错拒绝启动；旧 `API_KEY` 视为名为 `legacy` 的调用方、拥有全部范围（兼容）；请求带 `Authorization: Bearer` 时按摘要常量时间查找；每个调用方一个令牌桶，超限 429 + `Retry-After`；登记了 origins 的调用方对其来源返回 CORS 头（带凭据），其余来源不返回；每次 API 请求日志一行 `api caller=<name> resource=<path> status=<code>`。浏览器会话视为拥有全部只读范围。验证：`.venv/bin/pytest tests/test_callers.py -q`（新建 `# risk: high`：无 key 401、范围外 403、第 N+1 次 429 且有 Retry-After、白名单外 Origin 无 CORS 头、日志行不含 key 原文、登记文件格式错误时启动失败）。
+  - Business Context：每个调用方能单独吊销、单独限流，日志看得出是谁调的（Spec 功能需求「调用方登记」、DFX 场景 S-1）。例子：Ariane 只登记了 `iot:read`，它调 `/api/v1/pois` 必须 403、响应体里没有任何工单数据；删掉 Ariane 那一行并重启 web，它的 key 立刻 401。
+  - 依赖类型：功能前置无（与 Task 8.1 并行无共写文件；`lutetia/config.py` 由 8.1 独占，本 Task 只在 `callers.py` 内读环境变量名）。
+  - 证据产生者：HIGH 档：implementer → code-reviewer 全三 Stage → tester。
+- **Task 8.3：新资源与信封（SCOPE-19、SC-10 的数据面）** — 新建 `lutetia/web/api_v1/`：`envelope.py`（列表信封 `{"items", "as_of", "next"}`、游标编码、`limit` 默认 100 上限 1000、快照资源加 `source`）；`resources.py` 注册 GET：`/api/v1/summary`（井盖总数、24 h 挪动数含正在挪动、离线数、在线安静数——三项互斥合计等于总数，progress Decisions 2026-11-09；铜缆捆追踪器数与在线数、最后位置时间；工单数、有明细工单数、计划吨数、无重量工单数）、`/api/v1/manholes`（每台：状态 quiet / moved / moving / offline、电压、信号、最后上报、属性坐标并带 `location_verified: false`）、`/api/v1/fall-events?since=&until=&device_id=`（读 `fall_event` 视图，正在进行的事件 `ended_at` 为 null）、`/api/v1/bundles`（每台最后位置）、`/api/v1/bundles/{device_id}/track?days=7`（沿用现有抽稀）、`/api/v1/pois`（筛选参数 uci、subcontractor、commune、category、network、cable_type；`source: "excel-snapshot"`）、`/api/v1/pois/{poi_no}/segments`、`/api/v1/collector-status`（读心跳表）；范围：manholes / fall-events / bundles 要 `iot:read`，pois 要 `poi:read`，collector-status 要 `status:read`；原 `/api/v1/devices` 等四个接口迁进本包、路径与字段不变。验证：`.venv/bin/pytest tests/test_api.py tests/test_api_v1_resources.py -q`（新建 `# risk: high`，合成库覆盖每个资源的正常、空、分页翻到底 `next` 为 null、summary 三项合计等于井盖总数）；本机计时：`curl -w '%{time_total}'` 每个列表 ≤ 0.3 s。
+  - Business Context：自家页面、嵌入部件、外部系统都只经这一组接口取数（ADR-5），总览上的数字点下去要能到明细（SC-10）。例子：生产当前 12 台井盖里 2 台离线、1 台正在挪动、2 台 24 h 内动过——summary 必须给 moved=3、offline=2、quiet=7，不能出现原设计稿那种「1 moved · 9 online」合计对不上。
+  - 依赖类型：功能前置 Task 7.1（`fall_event`、`collector_status`）、Task 8.2（范围校验）。`lutetia/web/api.py` 由本 Task 独占修改。
+  - 证据产生者：HIGH 档（公开契约）：implementer → code-reviewer 全三 Stage → tester。
+- **Task 8.4：OpenAPI 契约与契约测试（SC-14，DFX 第 9、10 维）** — 新建 `lutetia/web/openapi.json`（OpenAPI 3.1，列出 Task 8.3 全部资源、参数、信封、错误形状、两种认证方式），由 `GET /api/v1/openapi.json` 返回（需认证）；新建 `tests/test_api_contract.py`（`# risk: high`）：遍历 openapi.json 里每个 GET，在合成库上调用并用 jsonschema 校验响应；另一条用例比对「openapi.json 里的资源集合」与「应用实际注册的 `/api/v1` GET 路由」完全一致（加了路由没写契约就红）。dev 依赖加 `jsonschema`（安装时取最新版，写进技术栈表）。验证：`.venv/bin/pytest tests/test_api_contract.py -q`。
+  - Business Context：外部调用方一旦接上，改坏字段的代价落在别人身上（Architecture §10、§11 第三条风险）；v1 只增不改要有机器守。例子：有人把 `fall-events` 的 `flips` 改名成 `flip_count`——契约测试必须红。
+  - 依赖类型：功能前置 Task 8.3。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1；契约测试本身进发版测试卡点。
+
+**验收标准**：
+- 全量回归绿；新用例全绿；DB 用例 skip = 0。
+- 旧 `API_KEY` 调原四个接口响应与改造前一致。
+- 会话与 key 两种方式拿到的挪动事件数一致；越权 403、超限 429 实测。
+- 每个 `/api/v1` 列表本机服务端 ≤ 300 ms。
+- 日志不含坐标（DFX 场景 P-1）：跑完新用例后对测试日志与本机 compose 近 1 小时 `docker compose logs` 用 `grep -E '[0-9]{1,2}\.[0-9]{4,},\s*-?[0-9]{1,3}\.[0-9]{4,}'` 无输出。
+
+---
+
+## Phase 9: 项目看板骨架、登录、Overview 与 Manholes（SCOPE-14、18，SCREEN-1、2、5，FLOW-4，SC-10 防盗部分）
+
+**交付内容**：
+- 项目方在 `https://iot.digifiber.net/app/` 登录后看到 Overview：防盗状态带（24 h 挪动 / 离线 / 在线安静）、最新三条挪动事件、井盖地图，以及铜缆捆与拆除计划各一行概况；每 60 秒局部刷新。
+- Manholes 页：地图 + 挪动事件时间线（24 h / 7 d / 30 d），点事件或地图标记在本页打开井盖详情抽屉（电压、信号、7 / 30 天曲线、该井盖的事件），Esc 关闭后焦点回到原处。
+- 深色 / 浅色 / 投影三种主题，EN / FR 跟随浏览器且可切换；离线、数据滞后（心跳 > 90 s）、错误三种提示条按严重度只显示一条。
+- 新事件到达时该标记脉冲三次，reduced-motion 下不脉冲。
+
+**验证的假设**：
+- vue-echarts 8 在严格 CSP（`style-src 'self'`）下能画图（Architecture §11 风险，技术未知）——Task 9.1 原型在 fra 用 Playwright 打开，控制台无 CSP 违规且曲线有像素即成立；不成立按 Architecture 预案改用 ECharts 直接挂载，不放宽 CSP。
+- `[默认]` 首批三账号都看全部数据——Orange 账号登录后与 admin 看到的数字相同。
+
+**关键文件**：
+- `web-ui/package.json`、`web-ui/package-lock.json`、`web-ui/vite.config.ts`、`web-ui/index.html` — 前端工程（Task 9.1 唯一 owner）
+- `web-ui/src/main.ts`、`web-ui/src/router.ts`、`web-ui/src/api.ts` — 入口、路由、只读 API 客户端
+- `web-ui/src/styles/tokens.css` — 从 DESIGN.md 落的颜色、字号、圆角、间距 token
+- `web-ui/src/i18n/en.ts`、`web-ui/src/i18n/fr.ts` — 两份字典
+- `web-ui/src/components/` — StatusStrip、ManholeMap、EventRow、RangeSwitch、ManholeDrawer、Banner
+- `web-ui/src/pages/Overview.vue`、`Manholes.vue`、`SignIn.vue`
+- `Dockerfile` — 多阶段：node:24-slim 构建 → 产物拷进 python:3.12-slim
+- `lutetia/web/app.py` — 托管 `/app/`、前端路由回退、按路径的 CSP 与安全头
+
+**Task 清单**：
+- **Task 9.1：前端工程与 CSP 原型（先验技术未知）** — 新建 `web-ui/`：Vite 8.0.x、Vue 3.5.x、vue-router 5.x、vue-echarts 8.x + ECharts 6.1.x、Leaflet 1.9.4、vite-plugin-pwa ≥ 1.3（本 Phase 只装不启用），版本在 `package.json` 锁精确值；IBM Plex Sans / Mono 字体文件随构建产物自托管（与设计稿同字形）；一个占位页面画一张 ECharts 折线。`Dockerfile` 改多阶段，运行镜像不含 Node 与 node_modules。`lutetia/web/app.py`：`/app/` 托管 `web-ui/dist`，非文件路径回退 `index.html`；`/app/*` 的 CSP `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; frame-ancestors 'none'`（地图瓦片域按 Task 13.2 收口前的现状填，测试阶段 Google 瓦片域照 progress Decisions 2026-11-07 临时加入），并带 `X-Frame-Options: DENY`。验证：`cd web-ui && npm ci && npm run build`；`npm audit --audit-level=critical` 无输出；`docker build .` 成功且 `docker run --rm <img> sh -c 'command -v node || echo no-node'` 打印 no-node；fra 上 Playwright 打开 `/app/` 收集 `securitypolicyviolation` 事件为 0、canvas 非空。
+  - Business Context：ADR-2 选 Vue 单页应用的前提之一是严格 CSP 能守住（THR-7 跨站脚本）；这条不先验，后面所有图表页都可能返工。例子：控制台出现「Refused to apply inline style」即不成立，按预案换写法，而不是给 CSP 加 `'unsafe-inline'`。
+  - 依赖类型：功能前置无；验证前置：fra 的 `~/tools/pw`。
+  - 证据产生者：HIGH 档（新依赖 + 安全头 + 构建链）：implementer → code-reviewer 全三 Stage；Playwright 检查由 tester 在 fra 上跑并贴原始输出。
+- **Task 9.2：token、外壳、主题、语言与登录页（SCREEN-5）** — `web-ui/src/styles/tokens.css` 按 DESIGN.md 前言逐个落 CSS 变量（深色与浅色两套，投影 = 浅色加大字号档），组件里不许出现 token 之外的十六进制颜色；外壳：顶栏（项目名、四个标签、As of、主题、EN / FR、账号菜单含 Sign out），手机宽度下改底部标签栏；`web-ui/src/i18n/` 两份字典（键与设计稿 demo/index.html 的 `T` 字典一致），首次按 `navigator.language` 选 fr 或 en；`SignIn.vue` 表单 POST 到 `/login`（带 `remember` 与 `next=/app/`），密码错显示「Wrong username or password.」；`api.ts` 遇 401 跳登录页。验证：`npm run build && npm run lint`；`node scripts/check-tokens.mjs`（新建：扫 `web-ui/src` 里的 `#rrggbb`，不在 DESIGN.md 颜色表里的即失败）；fra 上 Playwright：未登录访问 `/app/` 落到登录页，orange 登录后进 Overview，切 FR 后标签为 Vue d’ensemble / Regards / Tourets / Plan。
+  - Business Context：Design-Brief §6.1 界面只用英、法，默认跟随浏览器；DESIGN.md 是颜色唯一来源。例子：法国同事浏览器是 fr-FR，第一次打开就是法语；手动切到 EN 后刷新仍是 EN（记在 localStorage）。
+  - 依赖类型：功能前置 Task 9.1、Task 8.1（三账号与 remember）。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
+- **Task 9.3：Overview 与 Manholes 页（SCREEN-1、2，CMP-1、3、4、5、6、12）** — 按设计稿 demo/index.html 的布局与状态实现：StatusStrip 读 `/api/v1/summary`（三项互斥计数，点任一项跳 Manholes 并按状态筛选）；EventRow 显示 IMEI、开始时间（Europe/Paris，标时区）、持续、翻转次数、「Notified —」占位；ManholeMap 用 Leaflet，标记形状 + 颜色双编码（安静实心圆、动过琥珀三角、正在挪动红三角、离线空心斜线圆），每个标记带「unverified」角标；ManholeDrawer 用原生 `<dialog>`，电压 / 信号曲线读 `/api/v1/telemetry`（7 d 原始、30 d 小时均值），关闭后焦点回到触发元素；Banner 按「错误 > 数据滞后 > 离线」只显示一条，数据滞后读 `/api/v1/collector-status`；全部安静时状态带换成「All 12 manholes quiet since …」；60 秒自动刷新，新事件到达时对应标记加 `.pulse`（600 ms × 3），`prefers-reduced-motion: reduce` 下不加。验证：`npm run build`；fra 上 Playwright 走查脚本（沿用 design-maker 的 walk.cjs 写法，新建 `web-ui/e2e/walk-manholes.cjs`）：点最新一条事件 → 抽屉打开且含该 IMEI 与「Location unverified」→ Esc 关闭、焦点回到该事件条；断开 API（拦截请求返回 503）→ 出现红色错误条且旧数据保留；reduced-motion 下 `.pulse` 动画名为 none；控制台错误 0、CSP 违规 0。
+  - Business Context：FLOW-4——Orange 的项目经理周一早上打开，先看出哪口井盖被动过并点进去（防盗优先，Spec v1.13）。例子：周日 02:14 井盖 …0107 被动过 6 分钟、翻转 9 次——周一 08:42 打开 Overview，第一屏琥珀三角与事件条都指向它，点一下抽屉里能看到它 7 天电压曲线与这次事件。
+  - 依赖类型：功能前置 Task 8.3（资源）、Task 9.2（外壳）。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1；Playwright 走查由 tester 在 fra 上跑。
+
+**验收标准**：
+- `npm run build`、token 检查、Python 全量回归都绿；运行镜像不含 Node。
+- fra 上 Playwright：两条走查通过、控制台错误 0、CSP 违规 0、UI 审计（`.claude/scripts/ui-audit.mjs`，拷到 `~/tools/pw` 跑）溢出 0、对比度不足 0，1440 与 390 两个宽度。
+- 1440 px 宽首屏不滚动看到防盗状态带、最新事件与地图（SC-10 防盗部分）。
+
+---
+
+## Phase 10: Bundles 与 Plan 页、CSV 导出、SLA 参考（SCOPE-14、16，SCREEN-3、4，SC-10 其余部分）
+
+**交付内容**：
+- Bundles 页：每台铜缆捆追踪器的最后位置与 7 天轨迹，顶部写明「只显示位置与轨迹，运输状态尚未计算」；生产当前没有上报时显示空态而不是 0。
+- Plan 页：六个筛选、按分包商与按电缆型号两张计划吨数条形图（只算有明细的工单，图注写明覆盖几单）、工单表可展开电缆段、「Export filtered rows (CSV)」真下载、无重量的工单显示「weight pending」不显示 0、OCC 原文旁「Open in Ariane」。
+- 运维在 fra 用 `lutetia import sla` 把三份 DEPOSE 模板导进库，Plan 页按类别显示对应 SLA 流程参考图，标「Reference only — not tracked per work order」。
+
+**验证的假设**：
+- `[推断]` Bundles 页按设备而不是按铜缆捆组织（设备与铜缆捆的对应没有台账，Architecture §9）——页面只说「tracker」，不编铜缆捆编号；用户看后挑错。
+- SC-10「不开 Excel 回答计划拆多少吨、分到哪几家」——用生产快照数据在 Plan 页筛一个分包商，表内吨数合计与图上该分包商的条长一致。
+
+**关键文件**：
+- `web-ui/src/pages/Bundles.vue`、`web-ui/src/pages/Plan.vue`
+- `web-ui/src/components/DeviceList.vue`、`FilterBar.vue`、`DataTable.vue`、`SourceNote.vue`、`SlaReference.vue`
+- `lutetia/sla_import.py` — 新建：读三份 DEPOSE xlsx 的节点、责任方、时长（复用 `xlsx_min.py`）
+- `lutetia/sql/006_sla_template.sql` — 新表 `sla_template_step`（Task 10.3 唯一 owner）
+- `lutetia/cli.py`、`lutetia/import_cmd.py` — `lutetia import sla <文件>…`
+- `lutetia/web/api_v1/resources.py` — 加 `/api/v1/sla-templates`
+
+**Task 清单**：
+- **Task 10.1：Bundles 页（SCREEN-3，CMP-3、7）** — `Bundles.vue`：左地图右设备列表（手机上下排），列表每行 IMEI、最后位置时间、在线状态；点设备在地图上画 7 天轨迹（`/api/v1/bundles/{id}/track?days=7`）；全部设备 24 h 无上报时显示「No position reported in the last 24 h」与最后一次上报时间；顶部固定说明一句「Shows last position and 7-day track only; trip status is not computed yet」。验证：`npm run build`；fra 上 Playwright 用合成数据（本机 compose 合成库）点一台设备后轨迹折线出现，空库时出现空态文案。
+  - Business Context：铜缆捆约 250 kg 一捆，从站点运到仓库，运输途中也可能被偷（Spec v1.13 产品概述）；运输异常规则还没定（#96），本版只给位置与轨迹。例子：4072400634 最后上报 10 月 14 日——页面显示该时间与灰色离线，不显示「在途」或「已到仓」。
+  - 依赖类型：功能前置 Task 8.3、Task 9.3（地图组件）。
+  - 证据产生者：LOW 档：implementer 自检，主 Agent 对 diff 与 Playwright 输出验收。
+- **Task 10.2：Plan 页筛选、图、表、导出（SCREEN-4，CMP-8、9、10）** — `Plan.vue` 读 `/api/v1/pois`（筛选参数随 URL 查询串保留）与 `/api/v1/pois/{poi_no}/segments`（展开时取）；两张 ECharts 横向条形图；DataTable 用真 `<table>`，展开行 `aria-expanded`；导出在浏览器里用当前筛选结果生成 CSV（UTF-8 带 BOM、逗号分隔、字段按 RFC 4180 转义），文件名 `lutetia-plan-<日期>.csv`；SourceNote 写「Excel snapshot, as of <导入时间> · Ariane is the source of truth」（as_of 取资源返回值）；筛选无结果显示「No work order matches these filters.」与「Clear filters」。验证：`npm run build && npm run test`（vitest 单测 CSV 转义：含逗号、引号、换行的分包商名导出后再解析得到原值）；fra 上 Playwright：选一个分包商后表行数 = 下载 CSV 数据行数。
+  - Business Context：项目方不开 Excel 就回答计划拆多少吨、分给谁（SC-10）；没有计划重量的段不参与吨数（Spec 规则与例外「只有有电缆明细的工单才有计划吨数」）。例子：117 单里只有 25 单有明细——图注必须写「covers 25 of 117 work orders」，无明细的 92 单表里显示「weight pending」。
+  - 依赖类型：功能前置 Task 8.3、Task 9.2。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
+- **Task 10.3：SLA 模板导入与参考图（Spec 功能需求「SLA 流程参考」，OUT-9 不算超时）** — 新建 `lutetia/sql/006_sla_template.sql`：表 `sla_template_step(template text, seq int, step text, owner text, sla_text text, primary key (template, seq))`；新建 `lutetia/sla_import.py`：读 DEPOSE-Transportation / Distribution / MASSIVE 三份 xlsx 的节点顺序、节点名、责任方（客户 / 华为 / 合作方）、SLA 时长原文，整模板替换写入（单事务）；`lutetia import sla FILE [FILE…] [--dry-run]` 打印每个模板几步，日志不打单元格内容；`/api/v1/sla-templates`（`poi:read`）；`SlaReference.vue` 按工单类别（Transport → Transportation、Distribution → Distribution）显示对应模板的节点流程，MASSIVE 只在参考里列出。验证：`.venv/bin/pytest tests/test_sla_import.py -q`（新建 `# risk: medium`，用 `tests/xlsx_builder.py` 构造合成模板，覆盖重复导入不变、表头缺列报错）；契约测试自动覆盖新资源。
+  - Business Context：SLA 表只能在 fra 与自己的库里（Spec 规则与例外），所以参考图不能写死进前端代码。例子：真表在 fra 的 data/poi/，导入命令只在 fra 上跑；Git 里只有合成测试表。
+  - 依赖类型：功能前置 Task 8.4（契约测试要覆盖新资源）；验证前置：真表导入由 deployer 在 fra 执行。
+  - 证据产生者：MEDIUM 档（迁移 + 解析器）：implementer → code-reviewer Stage 0 + 1；按 red-locks-the-bug 规则这是新解析器不是缺陷修复，不开红锁。
+
+**验收标准**：
+- Python 全量回归、`npm run build`、`npm run test` 绿。
+- fra 上 Playwright：Plan 筛选与导出行数一致，Bundles 轨迹与空态都出现；UI 审计溢出 0、对比度不足 0。
+- 生产快照上 Plan 页图注覆盖数 = `/api/v1/summary` 里有明细工单数。
+
+---
+
+## Phase 11: 手机网页如同 App——PWA、离线上次数据、底部标签栏（SCOPE-15，SC-11）
+
+**交付内容**：
+- iPhone 上「添加到主屏幕」后点图标全屏打开，有应用名、图标与启动画面。
+- 没网时打开显示上次数据与「Offline · data as of HH:MM」，不是白屏；退出登录清空离线缓存。
+- 375 px 宽无横向滚动，触控目标 ≥ 44 px，抽屉在手机上改为全屏底部弹层。
+
+**验证的假设**：
+- `[默认]` 离线缓存只存应用外壳与每个 API 资源最近一次响应（SC-11 约束「不长期保存超过最近一次的数据」，DFX 隐私维）——退出登录后 Cache Storage 为空即成立。
+- iOS Safari 对 Service Worker 与 standalone 显示的支持（技术未知）——需要用户用自己的 iPhone 实测一次，Playwright 的 WebKit 只能代替一部分；实机未测时验收写「未验证：iPhone 实机」。
+
+**关键文件**：
+- `web-ui/vite.config.ts` — 启用 vite-plugin-pwa（manifest、Workbox 运行时缓存规则）
+- `web-ui/public/icons/` — 应用图标与 apple-touch-icon
+- `web-ui/src/offline.ts` — 读缓存时间、退出时清缓存
+- `web-ui/src/pages/*.vue`、`web-ui/src/components/ManholeDrawer.vue` — 手机布局
+
+**Task 清单**：
+- **Task 11.1：manifest、Service Worker 与退出清缓存** — `vite.config.ts` 启用 vite-plugin-pwa：`display: standalone`、名称「Ariane · Copper Watch」、图标 192 / 512 与 `apple-touch-icon`；运行时缓存只对 `/api/v1/*` 用 NetworkFirst、每个 URL 只留最新一份（`maxEntries` 按资源数设、`maxAgeSeconds` 7 天）、`/embed/` 下不注册 Service Worker；`offline.ts`：响应来自缓存时 Banner 显示离线与缓存时间；Sign out 时 `caches.keys()` 全删并注销登录。验证：`npm run build` 产物含 `manifest.webmanifest` 与 `sw.js`；fra 上 Playwright：登录 → 加载 Overview → `context.setOffline(true)` 后刷新仍显示数据与离线条 → 恢复网络后 Sign out → `caches.keys()` 返回空数组。
+  - Business Context：项目方在手机上当 App 用，地铁里没信号也要看到上次数据（SC-11）；GPS 位置是防盗对象的位置，退出后手机上不留（DFX 隐私维）。例子：08:42 看过一次，09:10 在地铁里打开，显示 08:42 的数据与「Offline · data as of 08:42」；Sign out 后同一台手机离线打开只看到登录页。
+  - 依赖类型：功能前置 Phase 9、10 的页面。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1；Playwright 由 tester 跑。
+- **Task 11.2：手机布局与触控（SCREEN-1 ～ 4 响应式）** — 按 Design-Brief 各页「响应式」一节与设计稿 390 px 截图：底部标签栏、Manholes 地图上半屏事件列表下半屏、抽屉改全屏底部弹层、Plan 表改每单一张紧凑行、所有可点元素 ≥ 44 × 44 px。验证：fra 上 UI 审计 `--widths 375,390,1440 --themes light,dark --strict` 溢出 0、折行只允许导航标签误报；Playwright 在 375 px 宽度遍历四页 `document.documentElement.scrollWidth <= 375`。
+  - Business Context：SC-11「375 px 宽无横向滚动、触控目标 ≥ 44 px」。例子：Plan 页在 375 px 宽时不能出现需要横向拖动的表格。
+  - 依赖类型：功能前置 Task 11.1 无（可并行），共享文件 `web-ui/src/pages/*.vue` 本 Phase 由 Task 11.2 独占。
+  - 证据产生者：LOW 档：implementer 自检，主 Agent 读审计 JSON 验收。
+
+**验收标准**：
+- 构建产物含 manifest 与 Service Worker；离线刷新显示上次数据；退出后缓存为空。
+- 375 px 四页无横向滚动、UI 审计对比度不足 0。
+- 用户 iPhone 实机「添加到主屏幕」一次（用户做，主 Agent 记结果；未做则写「未验证」）。
+
+---
+
+## Phase 12: 嵌入部件 `/embed/*`（SCOPE-20，SCREEN-E1 ～ E3，SC-15，THR-2、3、4）
+
+**交付内容**：
+- digifiber.net 下的页面用 iframe 框入 `/embed/fall-timeline`、`/embed/manhole-map`、`/embed/security-summary`：用户已登录 Lutetia 时直接显示，未登录显示「Sign in to Lutetia to see this.」并给新窗口登录链接，部件里不收密码。
+- 只有 `/embed/*` 允许被 `https://*.digifiber.net` 框入，其余页面仍禁止被框入。
+- 点选事件时向宿主发 `{"type": "lutetia:fall-event-selected", "v": 1, "device_id": …, "started_at": …}`，内容高度变化时发 `lutetia:resize`；只向、只收白名单来源。
+
+**验证的假设**：
+- 同站会话 cookie（SameSite=Lax）在 `*.digifiber.net` 宿主的 iframe 里会被带上（技术未知，ADR-6 的前提）——fra 上用一个 `test-host.digifiber.net` 等价的本地同站页实测；若浏览器不带，回 Architecture 改嵌入认证方式（嵌入令牌扩展点），不在本 Phase 自行放宽 cookie 属性。
+
+**关键文件**：
+- `web-ui/src/embed/` — 三个部件入口与无外壳布局（复用 Phase 9 组件）
+- `web-ui/src/embed/messaging.ts` — postMessage 收发与来源校验
+- `lutetia/web/app.py` — `/embed/*` 托管与 `frame-ancestors` 头（只此路径放开）
+- `deploy/embed-test-host.html` — 本地同站宿主测试页（只用于验证，不部署到生产）
+
+**Task 清单**：
+- **Task 12.1：部件路由与安全头（THR-2）** — `lutetia/web/app.py`：`/embed/*` 托管同一构建产物的部件入口，CSP `frame-ancestors` 取调用方登记里 origins 的并集（本版 `https://*.digifiber.net`），不发 `X-Frame-Options`；其余所有路径保持 `frame-ancestors 'none'` 与 `X-Frame-Options: DENY`；`/embed/*` 不注册 Service Worker、响应 `Cache-Control: no-store`。验证：`.venv/bin/pytest tests/test_security_headers.py -q`（新建 `# risk: high`：按路径断言 `/embed/fall-timeline` 有 `frame-ancestors https://*.digifiber.net`、`/app/`、`/dashboard/`、`/login` 有 `'none'` 与 DENY）。
+  - Business Context：只允许 digifiber.net 下的系统嵌入，其余页面一律不能被框入（SC-15、DFX 场景 S-2）。例子：任意外部站点框入 `/embed/fall-timeline`，浏览器拒绝渲染；框入 `/app/` 时 Ariane 自己的页面也被拒。
+  - 依赖类型：功能前置 Task 8.2（调用方 origins）。
+  - 证据产生者：HIGH 档（安全头）：implementer → code-reviewer 全三 Stage → tester。
+- **Task 12.2：三个部件、登录提示与 postMessage（SCREEN-E1 ～ E3，CMP-11，THR-3）** — `web-ui/src/embed/`：`FallTimeline.vue`、`ManholeMapEmbed.vue`、`SecuritySummary.vue` 复用 EventRow、ManholeMap、StatusStrip，默认浅色主题、`lang` 取查询参数缺省按浏览器、宽度跟随容器最小 280 px；`/api/v1` 返回 401 时显示 CMP-11 与 `target="_blank"` 的登录链接；`messaging.ts`：发送时 `targetOrigin` 用 `document.referrer` 的来源且必须在白名单（构建时从 `/api/v1/embed-config` 取，该资源只返回白名单模式），收到消息先校验 `event.origin`，不在白名单直接丢弃；消息只带设备号与时间，不带位置。验证：`npm run test`（vitest：非白名单 origin 的消息被丢弃、发送目标不在白名单时不发送）；fra 上 Playwright 打开 `deploy/embed-test-host.html`（经同站域名访问）：已登录时部件显示事件、点一条后宿主收到 `v: 1` 消息；清 cookie 后部件显示登录提示且页面内没有密码输入框。
+  - Business Context：别的系统不用自己画井盖与挪动事件（Spec 功能需求「嵌入部件」）；部件只读、不收密码（THR-2、OUT-12）。例子：Ariane 的工地页框入时间线，项目经理点 02:14 那条，Ariane 收到 `{"type":"lutetia:fall-event-selected","v":1,"device_id":"864317087590107",…}` 自己决定跳到哪；部件自己不跳转。
+  - 依赖类型：功能前置 Task 12.1、Phase 9 组件。`/api/v1/embed-config` 加在 `lutetia/web/api_v1/resources.py`，并同步 `openapi.json`。
+  - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1；Playwright 由 tester 在 fra 跑。
+
+**验收标准**：
+- 安全头测试与部件单测绿；Python 全量回归绿。
+- fra 上同站宿主页实测：显示、未登录提示、消息往来三项都过；非白名单宿主框入被拒。
+- 部件页面无 Service Worker 注册、无密码输入框。
+
+---
+
+## Phase 13: 给 Orange 看之前的收口——运维看板英法化、底图与豁免收回、残留清理（待办 #94、#88、#85）
+
+**交付内容**：
+- 运维看板 `/dashboard` 所有界面文字改英 / 法、跟随浏览器，不再出现中文。
+- 地图底图从测试阶段的 Google 瓦片换回 OpenStreetMap（修 referrerPolicy），页面保留署名；两个看板与部件一致。
+- 用户换强密码、删掉 `DASHBOARD_LOGIN_LOCKOUT=off` 后，登录锁定实测生效（#88）；Task 5.3 复核的三条 Low 修掉（#85）。
+
+**验证的假设**：
+- OSM 标准瓦片在加了正确 `referrerPolicy` 后能正常加载（2026-11-07 改 Google 瓦片的原因）——fra 上 Playwright 打开地图页，瓦片请求 200 且无 403；不成立则改用 Google 官方 Maps JavaScript API 的方案回 Spec 定（涉及密钥与费用，用户拍板）。
+
+**关键文件**：
+- `lutetia/web/i18n.py` — 新建：运维看板英、法字典与 Accept-Language 选择
+- `lutetia/web/html.py`、`lutetia/web/dashboard.py`、`lutetia/web/pages_device.py`、`lutetia/web/pages_map.py`、`lutetia/web/static/*.js` — 文字走字典
+- `lutetia/web/static/map.js`、`web-ui/src/components/ManholeMap.vue` — 底图来源
+- `lutetia/import_cmd.py` — #85 三条 Low
+
+**Task 清单**：
+- **Task 13.1：运维看板英 / 法（#94）** — 新建 `lutetia/web/i18n.py`（两份字典 + 按 `Accept-Language` 选 fr 或 en，可用 `?lang=` 覆盖并记 cookie）；服务端模板与静态 JS 里的中文文案全部换成字典键。验证：`.venv/bin/pytest tests/test_dashboard.py tests/test_i18n.py -q`（`test_i18n.py` 新建 `# risk: low`）；`grep -rnP '[\x{4e00}-\x{9fff}]' lutetia/web --include=*.py --include=*.js --include=*.html` 无输出。
+  - Business Context：界面只用英文与法语，所有界面包括运维看板（Spec v1.13 决策依据「界面语言」）。例子：法语浏览器打开运维看板首页，异常块标题是法语。
+  - 依赖类型：功能前置无。
+  - 证据产生者：LOW 档（文案，< 50 行逻辑）：implementer 自检，主 Agent 对 diff 与 grep 输出验收。
+- **Task 13.2：底图换回 OSM（#88 第三项）** — 运维看板 `map.js` 与项目看板 `ManholeMap.vue` 的瓦片地址改为 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`，`<img>` 的 `referrerPolicy` 设为 `strict-origin-when-cross-origin`，署名「© OpenStreetMap contributors」；CSP `img-src` 同步去掉 Google 域。验证：fra 上 Playwright 打开 `/dashboard/map` 与 `/app/#/manholes`，统计瓦片响应状态全部 200。
+  - Business Context：测试阶段直拉 Google 瓦片是已接受的临时豁免，给 Orange 看之前收回（progress Decisions 2026-11-07、待办 #88）。例子：上线后地图右下角显示 OSM 署名，网络面板里没有 google 域请求。
+  - 依赖类型：功能前置 Task 9.3。
+  - 证据产生者：LOW 档：implementer 自检，主 Agent 读 Playwright 输出验收。
+- **Task 13.3：#85 三条 Low 与豁免收回核查** — `lutetia/import_cmd.py` 连库异常捕获补 `ValueError`（L-A）及 #85 记的另两条；用户在 fra 换强密码并删掉 `DASHBOARD_LOGIN_LOCKOUT=off` 后（用户亲手改环境文件），主 Agent 实测同一 IP 连续 5 次错密码后第 6 次 429。验证：`.venv/bin/pytest tests/test_cli_import.py -q`；生产实测的 curl 输出贴进验收记录（不贴密码）。
+  - Business Context：测试阶段弱口令与关锁定是用户接受的风险，期限到给 Orange 看为止（THR-9）。例子：收回后用 123456 登录失败、5 次后被锁 5 分钟。
+  - 依赖类型：验证前置——用户改环境文件。
+  - 证据产生者：LOW 档：implementer 自检；生产实测由主 Agent 亲跑。
+
+**验收标准**：
+- 全量回归绿；`lutetia/web` 下中文 0 处。
+- 两个看板地图走 OSM、无 Google 请求。
+- 生产登录锁定生效；待办 #88 三项全部关闭后才算本 Phase 完成。
+
+---
+
+## 范围外（本次不计划）
+
+- OUT-14 Lutetia 与 Ariane 的具体对接（登记 Ariane 为调用方、Ariane 用哪些资源、POI 来源切到 Ariane）：已押后——用户 2026-11-08「下一步开发，具体开发要 Ariane 自己去开发」；本迭代只把契约与登记机制做好，对接开始时回本计划开 Task（只加登记与来源适配，不改契约）。
+- 主动通知（#95）、铜缆捆运输异常（#96）、井盖实时位置（#97）：待确认——分别等用户单独谈、项目清晰、Dingtek 厂家答复；页面已留「Notified —」与「trip status is not computed yet」的位置。
+- OUT-13 外部域名嵌入（嵌入令牌）、webhook 推送、写入型接口：已押后——出现第一个外部域名嵌入方或第一个要推送的调用方时回 Architecture §5 扩展点。
+- GPS 位置保留期与告知义务（#93）：待确认——项目合规负责人答复前按 high 档保护、不删数据，不排 Task。
+- 运维看板 `/dashboard/data` 迁入 `/api/v1`：已押后——Architecture §9，运维看板大改时再迁。
+- GPS51 转发打通（#31，Phase 3 剩余）：外部条件，不在本迭代；打通后补 Phase 3 的 SC-3 / SC-4 生产证据。
+
+---
+
 ## 技术栈
 
 沿用首版，Python 侧不引新依赖、不升级；v1.4 起前端静态库随包自托管（见下表）。版本为 2026-11-06 本机 venv 实装与 Spec 技术方向表记录的 PyPI 核对结果。
@@ -329,6 +682,14 @@
 | 前端静态库（v1.4） | Chart.js / Leaflet | 4.6.1（MIT）/ 1.9.4（BSD-2-Clause） | 2026-11-06 向 npm 仓库核过版本与许可证；从 jsdelivr 按精确版本下载进 `lutetia/web/static/vendor/` 随包发布，不走 CDN；地图底图 OpenStreetMap 标准瓦片（浏览器直连，页面保留署名） |
 | xlsx 读取（Phase 5） | Python 标准库 zipfile + xml.etree.ElementTree | 随 Python | 不引 openpyxl：台账只要读单个工作表的值，标准库够用，镜像与依赖不变；解压上限 50 MB 防压缩炸弹 |
 | 反向代理 / 证书（v1.3） | nginx / certbot | 1.24（主机自带）/ 2.9 | 主机 nginx server block + Let's Encrypt，`deploy/host-deploy.sh` 幂等部署 |
+| 前端构建（Phase 9 起） | Node.js / Vite | 24 LTS（node:24-slim，只在构建阶段）/ 8.0.x | Architecture-Design 2026-11-08 联网核过；运行镜像不含 Node |
+| 前端框架（Phase 9 起） | Vue / vue-router | 3.5.x（3.6 仍 beta 不用）/ 5.x | vue-router 5.1.0 于 2026-06 发布、5.0 声明无破坏性改动；安装时核 peerDependencies |
+| 图表 / 地图（Phase 9 起） | ECharts + vue-echarts / Leaflet | 6.1.x + 8.x / 1.9.4 | vue-echarts 严格 CSP 风险由 Task 9.1 先验 |
+| PWA（Phase 11） | vite-plugin-pwa | ≥ 1.3.0（1.2 不支持 Vite 8） | manifest + Workbox 运行时缓存 |
+| 前端单测 | vitest | 安装时取最新正式版 | 只测 CSV 转义、postMessage 来源校验这类纯逻辑 |
+| 契约测试（Phase 8） | jsonschema（dev 依赖） | 安装时取最新正式版 | 用 openapi.json 校验 `/api/v1` 响应；不进运行镜像 |
+| 备份上传（Phase 6） | 腾讯云 coscli | 安装时取最新正式版，装在 fra 宿主机 | COS 官方称 S3 兼容但不保证完全一致，「只写不删」由 Task 6.3 实测 |
+| 浏览器验证 | Playwright + Chromium | fra `~/tools/pw` 现有 | 本机没有 playwright；UI 审计与走查都在 fra 跑 |
 
 ## 数据库表
 
@@ -344,6 +705,11 @@
 | `gps_position_v` / `sensor_telemetry_v` | 首版（已建） | 换算视图，volt ÷100、rsrp ÷10 为 `[默认]` |
 | `poi` | Phase 5 | POI 工单（台账一单一行），poi_no 主键，content_sha 判新增 / 更新 / 未变，in_ledger 标台账里还有没有 |
 | `poi_cable_segment` | Phase 5 | 工单下的电缆段，(poi_no, seq) 主键，计划重量与参考重量；没有电缆明细的工单没有段 |
+| `backup_run` | Phase 6 | 每次备份一行：时间、成败、对象键、大小、sha256、各表行数（恢复演练拿它核对） |
+| `collector_status` | Phase 7 | 采集心跳，只有一行（id = 1），每 30 秒覆盖；web 只读 |
+| `fall_event`（视图） | Phase 7 | alarmFall 翻转按 30 分钟窗口合并的挪动事件，现算不落表（ADR-3） |
+| 角色 `lutetia_ro` | Phase 7 | web 容器连库用的只读角色，GRANT SELECT 与默认权限 |
+| `sla_template_step` | Phase 10 | 三套 DEPOSE SLA 模板的节点、责任方、时长原文，只作参考图 |
 
 ## 开发规则
 

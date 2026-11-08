@@ -1,0 +1,15 @@
+[Unit]
+Description=Lutetia daily database backup to COS
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# @REPO@ 由 deploy/host-deploy.sh 安装时替换为主机上的仓库目录
+WorkingDirectory=@REPO@
+# COS_BUCKET 等变量由用户在主机上亲手写入；文件不存在则本单元起不来，host-deploy.sh 也不会启用 timer
+EnvironmentFile=/etc/lutetia/backup.env
+ExecStart=@REPO@/deploy/backup.sh
+# oneshot 默认没有启动超时（systemd.service）；卡死的上传 3 小时后由 systemd 发 SIGTERM，
+# backup.sh 把它记成 ok=false（signal=TERM），下一晚 timer 照常触发
+TimeoutStartSec=3h

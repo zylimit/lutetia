@@ -1,53 +1,174 @@
 {
-  "target": "/home/ubuntu/code/lutetia/demo",
+  "target": "audit-target",
   "engine": "playwright-core:chromium",
   "themes": [
-    "light"
+    "light",
+    "dark"
   ],
   "widths": [
-    1440,
-    375
+    1280,
+    390
   ],
   "combos": [
     {
       "theme": "light",
-      "width": 1440,
+      "width": 1280,
       "blank": false,
       "overflows": [],
-      "wrapped": [],
+      "wrapped": [
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Overview"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Manholes"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Bundles"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Plan"
+        }
+      ],
       "contrastFails": [],
       "genericTells": {
         "upperTinyLabels": 0,
-        "midDotTexts": 1,
+        "midDotTexts": 4,
         "arrowEndings": 0,
-        "radiusValues": 2,
+        "radiusValues": 3,
         "uniformRadius": false
       },
-      "elementCount": 67,
-      "textLength": 366
+      "elementCount": 314,
+      "textLength": 1218
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "blank": false,
+      "overflows": [],
+      "wrapped": [
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Overview"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Manholes"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Bundles"
+        },
+        {
+          "cls": "tab",
+          "h": 63,
+          "text": "Plan"
+        }
+      ],
+      "contrastFails": [],
+      "genericTells": {
+        "upperTinyLabels": 0,
+        "midDotTexts": 4,
+        "arrowEndings": 0,
+        "radiusValues": 3,
+        "uniformRadius": false
+      },
+      "elementCount": 314,
+      "textLength": 1218
     },
     {
       "theme": "light",
-      "width": 375,
+      "width": 390,
       "blank": false,
       "overflows": [],
-      "wrapped": [],
+      "wrapped": [
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Overview"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Manholes"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Bundles"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Plan"
+        }
+      ],
       "contrastFails": [],
       "genericTells": {
         "upperTinyLabels": 0,
-        "midDotTexts": 1,
+        "midDotTexts": 4,
         "arrowEndings": 0,
-        "radiusValues": 2,
+        "radiusValues": 3,
         "uniformRadius": false
       },
-      "elementCount": 67,
-      "textLength": 366
+      "elementCount": 314,
+      "textLength": 1213
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "blank": false,
+      "overflows": [],
+      "wrapped": [
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Overview"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Manholes"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Bundles"
+        },
+        {
+          "cls": "tab",
+          "h": 64,
+          "text": "Plan"
+        }
+      ],
+      "contrastFails": [],
+      "genericTells": {
+        "upperTinyLabels": 0,
+        "midDotTexts": 4,
+        "arrowEndings": 0,
+        "radiusValues": 3,
+        "uniformRadius": false
+      },
+      "elementCount": 314,
+      "textLength": 1213
     }
   ],
   "screenshots": [
-    "/home/ubuntu/code/lutetia/demo/ui-audit/light-1440.png",
-    "/home/ubuntu/code/lutetia/demo/ui-audit/light-375.png"
+    "/home/ubuntu/tools/pw/audit-out/light-1280.png",
+    "/home/ubuntu/tools/pw/audit-out/dark-1280.png",
+    "/home/ubuntu/tools/pw/audit-out/light-390.png",
+    "/home/ubuntu/tools/pw/audit-out/dark-390.png"
   ],
-  "pass": true,
-  "at": "2026-11-07T14:54:58.766Z"
+  "pass": false,
+  "at": "2026-11-08T16:42:49.319Z"
 }
