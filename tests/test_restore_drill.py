@@ -8,6 +8,7 @@
 临时容器相关（network / run / exec / rm）由垫片模拟，恢复后的行数由 FAKE_COUNTS 文件给定。
 只在 DATABASE_URL 指向合成库（:15433）且容器 lutetia-pg 在跑时才执行，否则 skip。
 """
+import hashlib
 import json
 import os
 import shutil
@@ -127,10 +128,14 @@ class Env:
     def set_counts(self, c):
         self.counts.write_text("".join("%s|%d\n" % (t, c[t]) for t in TABLES))
 
-    def add_run(self, key="daily/" + NAME, ok=True):
-        _psql("insert into backup_run (started_at, finished_at, ok, kind, object_key, row_counts, row_counts_after) "
-              "values (now(), now(), %s, 'daily', '%s', '%s'::jsonb, '%s'::jsonb)"
-              % ("true" if ok else "false", key, json.dumps(BEFORE), json.dumps(AFTER)))
+    def add_run(self, key="daily/" + NAME, ok=True, sha=None):
+        """sha 缺省取 self.dump 当前内容的 sha256（演练按 sha256 找行）；key=None 即本地备份（object_key 为 NULL）。"""
+        if sha is None:
+            sha = hashlib.sha256(self.dump.read_bytes()).hexdigest()
+        keysql = "NULL" if key is None else "'%s'" % key
+        _psql("insert into backup_run (started_at, finished_at, ok, kind, object_key, sha256, row_counts, row_counts_after) "
+              "values (now(), now(), %s, 'daily', %s, '%s', '%s'::jsonb, '%s'::jsonb)"
+              % ("true" if ok else "false", keysql, sha, json.dumps(BEFORE), json.dumps(AFTER)))
 
     def run(self, args, extra=None, bucket="test-bucket"):
         env = {"PATH": "%s:%s" % (self.shims, os.environ["PATH"]), "HOME": str(self.root),
@@ -203,29 +208,47 @@ def test_table_above_after_fails(env):
 
 
 def test_no_matching_backup_run_row_fails_with_message_and_starts_nothing(env):
-    env.add_run(key="daily/lutetia-20990202T000000Z.dump")  # 别的文件
+    env.add_run(sha="0" * 64)  # 别的文件的记录
     r = env.run(["--file", str(env.dump)])
     assert r.returncode != 0
-    assert "backup_run" in r.stderr and NAME in r.stderr
+    assert "sha256 对不上" in r.stderr and "不是任何一次成功备份的原样副本" in r.stderr
     assert not any(c.startswith("run ") for c in env.docker_calls())  # 没起容器
 
 
 def test_failed_run_row_does_not_match(env):
     env.add_run(ok=False)
     r = env.run(["--file", str(env.dump)])
-    assert r.returncode != 0 and "backup_run" in r.stderr
+    assert r.returncode != 0 and "sha256 对不上" in r.stderr
 
 
-def test_sunday_weekly_key_matches_by_basename(env):
+def test_sunday_weekly_key_matches_by_sha256(env):
     env.add_run(key="weekly/" + NAME)
     r = env.run(["--file", str(env.dump)])
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_percent_in_object_key_not_treated_as_wildcard(env):
-    env.add_run(key="daily/lutetia-20990101T00000%Z.dump")
+def test_local_only_backup_object_key_null_drills_by_sha256(env):
+    env.add_run(key=None)
     r = env.run(["--file", str(env.dump)])
-    assert r.returncode != 0 and "backup_run" in r.stderr
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert len(verdict_lines(r)) == 7 and "FAIL" not in r.stdout
+
+
+def test_renamed_file_still_matches_by_sha256_not_name(env):
+    env.add_run()
+    other = env.root / "renamed.dump"
+    other.write_bytes(env.dump.read_bytes())
+    r = env.run(["--file", str(other)])
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_modified_file_one_byte_fails_sha256_mismatch_and_starts_nothing(env):
+    env.add_run()
+    env.dump.write_bytes(b"y")  # 与备份时的 b"x" 差一个字节
+    r = env.run(["--file", str(env.dump)])
+    assert r.returncode != 0
+    assert "sha256 对不上" in r.stderr
+    assert not any(c.startswith("run ") for c in env.docker_calls())
 
 
 def test_restore_failure_cleans_up_and_fails(env):
@@ -276,7 +299,7 @@ def test_from_cos_requires_read_config(env):
 
 
 def test_from_cos_downloads_newest_daily_with_read_config(env):
-    env.add_run()
+    env.add_run(sha=hashlib.sha256(b"dumpbytes\n").hexdigest())  # 垫片 cp 写入的内容
     r = env.run(["--from-cos"], extra={"COSCLI_READ_CONFIG": str(env.cfg)})
     assert r.returncode == 0, r.stdout + r.stderr
     calls = env.coscli_calls()
@@ -355,3 +378,12 @@ def test_pg_restore_skips_privileges_and_owner(env):
     assert r.returncode == 0, r.stdout + r.stderr
     (call,) = [c for c in env.docker_calls() if " pg_restore " in " %s " % c]
     assert "--no-privileges" in call.split() and "--no-owner" in call.split()
+
+
+def test_delete_check_with_local_only_row_fails_without_any_rm(env):
+    env.add_run(key=None)
+    r = _delete_run(env)
+    assert r.returncode != 0 and "PASS" not in r.stdout
+    assert "本地备份没有 COS 对象" in r.stderr
+    assert _rm_calls(env) == []
+    assert env.coscli_calls() == []  # 连 ls 都没碰

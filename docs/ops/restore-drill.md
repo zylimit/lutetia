@@ -15,7 +15,7 @@
 
 在 fra 宿主机的仓库目录，`db` 服务在跑。
 
-**输入方式一：用户先下载**——从 COS 控制台把 `daily/lutetia-<UTC 时间戳>.dump` 下载到 fra（保持原文件名，脚本按文件名找 `backup_run` 行）：
+**输入方式一：用户先下载**——从 COS 控制台把 `daily/lutetia-<UTC 时间戳>.dump` 下载到 fra（文件名随意：脚本按文件 sha256 找 `backup_run` 里最近一条成功记录，找不到即失败，因为那说明这份文件不是任何一次成功备份的原样副本；`--local-only` 的本地备份〔`object_key` 为空〕同样可演练，也证明文件未被改动）：
 
 ```
 deploy/restore-drill.sh --file /path/to/lutetia-20261110T013000Z.dump
@@ -33,7 +33,7 @@ COS_BUCKET=<桶名> COSCLI_READ_CONFIG=/etc/lutetia/coscli-read.yaml deploy/rest
 COS_BUCKET=<桶名> COSCLI_CONFIG=<写配置，同 backup.sh> COSCLI_READ_CONFIG=<只读配置> deploy/restore-drill.sh --file … --check-delete-denied
 ```
 
-判定不看 `coscli rm` 的退出码（coscli 丢弃删除返回值、先 HEAD、不加 -f 还等确认，退出码分不清「被拒」与「静默失败」）。脚本三步：只读配置 `ls` 确认对象在 → 写配置 `rm -f`（退出码只记日志）→ 只读配置再 `ls`。对象仍在记 PASS；对象没了大声 FAIL 并非零退出——那份备份已经没了，立刻修密钥策略并重新备份；复查 `ls` 出错记 FAIL「无法确认」，不当 PASS。
+判定不看 `coscli rm` 的退出码（coscli 丢弃删除返回值、先 HEAD、不加 -f 还等确认，退出码分不清「被拒」与「静默失败」）。脚本三步：只读配置 `ls` 确认对象在 → 写配置 `rm -f`（退出码只记日志）→ 只读配置再 `ls`。对象取匹配行的 `object_key`；为空（本地备份没有 COS 对象）直接 FAIL，不尝试删除。对象仍在记 PASS；对象没了大声 FAIL 并非零退出——那份备份已经没了，立刻修密钥策略并重新备份；复查 `ls` 出错记 FAIL「无法确认」，不当 PASS。
 
 PASS 只证明「用 coscli 删不掉」，不等于「这把密钥没有删除权限」：coscli 删除前先 HEAD 对象，若写密钥有删除权限却没有 HEAD 权限，删除请求根本发不出去，对象还在，脚本照样记 PASS，而这把密钥用原生 API 其实能删（2026-11-09 Task 6.3 复核，依据 coscli v1.0.9 源码，未经真 COS 实测）。所以每次演练记 PASS 后，演练人还要到 COS 控制台打开这把写密钥（子账号）的策略核对一眼：只许写入类动作，不得出现 `cos:DeleteObject`、`cos:DeleteMultipleObject` 或 `cos:*`；结果写进下表「删除测试」一栏（如「PASS，策略已核」）。
 

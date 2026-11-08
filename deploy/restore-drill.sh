@@ -9,7 +9,7 @@
 # 读取要用另一把只读密钥对应的 coscli 配置（环境变量 COSCLI_READ_CONFIG，文件由用户在主机上配好，本脚本不读内容、不打印）。
 #
 # 判定：每表 row_counts(dump 前) <= 恢复值 <= row_counts_after(dump 后)，含两端；采集在 dump 期间仍在写、表只增不删。
-#   backup_run 行按文件名匹配（object_key 以 /<文件名> 结尾）；周日那行只记 weekly/<文件名>，daily/ 里是同一个文件，同样匹配。
+#   backup_run 行按文件 sha256 匹配（最近一条 ok=true）：本地备份（object_key 为空）与周日 weekly 行都适用，且证明文件与备份时字节一致；对不上即失败。
 # 隔离：临时容器 postgres:16-alpine，随机名、独立 docker 网络、不挂任何卷、密码每次随机且不打印；
 #   退出（含失败与信号）一律删容器与网络。永不碰生产库与生产卷（生产库只被只读地查一次 backup_run）。
 #
@@ -21,7 +21,7 @@
 #      stdin 接 /dev/null，退出码只记日志、不参与判定；
 #   3. 再用读配置 ls：对象仍在 = PASS；对象没了 = 大声 FAIL（上传密钥能删备份，对象已没，立刻修密钥策略并重新备份）；
 #      复查本身出错 = FAIL「无法确认」。不确定一律不 PASS。
-#   对象取 backup_run 记录的 object_key（--from-cos 时为刚下载的 daily/ 键）。需要 COS_BUCKET。
+#   对象取匹配到的 backup_run 行的 object_key；为空（本地备份）直接 FAIL，不尝试删除。需要 COS_BUCKET。
 #
 # 退出码：0 = 七表全 OK（且 delete-denied 通过，若要求）；1 = 演练失败；2 = 用法错误。
 set -euo pipefail
@@ -86,30 +86,39 @@ if [ "$CHECK_DELETE" -eq 1 ]; then
   fi
 fi
 
-# 1. 确定文件名；--from-cos 先列 daily/ 取时间戳最大的一份（文件名里是 UTC 时间戳，字典序即时间序）
-DOWNLOAD_KEY=
+# 1. 取得文件；--from-cos 先列 daily/ 取时间戳最大的一份（文件名里是 UTC 时间戳，字典序即时间序），下载后再核对
+#    计时从下载（或恢复）开始
+START=$SECONDS
 if [ "$FROM_COS" -eq 1 ]; then
   LISTING=$("${COSREAD[@]}" ls "cos://${COS_BUCKET}/daily/") || die "列 COS daily/ 失败"
   FILENAME=$(printf '%s\n' "$LISTING" | grep -oE 'lutetia-[0-9]{8}T[0-9]{6}Z\.dump' | sort -u | tail -n 1 || true)
   [ -n "$FILENAME" ] || die "COS daily/ 下没有 lutetia-*.dump"
-  DOWNLOAD_KEY=daily/${FILENAME}
+  WORKDIR=$(mktemp -d)
+  FILE=${WORKDIR}/${FILENAME}
+  "${COSREAD[@]}" cp "cos://${COS_BUCKET}/daily/${FILENAME}" "$FILE" || die "下载失败"
 else
   [ -f "$FILE" ] || die "文件不存在：$FILE"
   FILENAME=$(basename "$FILE")
 fi
+[ -s "$FILE" ] || die "备份文件为空：$FILE"
 
-# 2. 按文件名找 backup_run 行（值走 psql -v，:'name' 转义，不拼 SQL）；取最近一条成功记录
-RUN_ID=$(db_psql -v ON_ERROR_STOP=1 -tAq -v "fname=${FILENAME}" <<'SQL'
-SELECT id FROM backup_run
- WHERE ok AND object_key IS NOT NULL AND right(object_key, length(:'fname') + 1) = '/' || :'fname'
+# 2. 按文件 sha256 找 backup_run 行（值走 psql -v，:'sha' 转义，不拼 SQL）；取最近一条成功记录。
+#    不按文件名：本地备份（object_key 为空）与周日 weekly 行都适用，且证明这份文件与备份时字节一致
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
+else
+  SHA=$(shasum -a 256 "$FILE" | cut -d' ' -f1)
+fi
+[ "${#SHA}" -eq 64 ] || die "计算 sha256 失败：$FILE"
+MATCH=$(db_psql -v ON_ERROR_STOP=1 -tAq -F '|' -v "sha=${SHA}" <<'SQL'
+SELECT id, coalesce(object_key, '') FROM backup_run
+ WHERE ok AND sha256 = :'sha'
  ORDER BY id DESC LIMIT 1;
 SQL
 ) || die "查询 backup_run 失败"
-[ -n "$RUN_ID" ] || die "backup_run 里没有对应 ${FILENAME} 的成功记录（object_key 以 /${FILENAME} 结尾）"
-OBJECT_KEY=$(db_psql -v ON_ERROR_STOP=1 -tAq -v "rid=${RUN_ID}" <<'SQL'
-SELECT object_key FROM backup_run WHERE id = :'rid'::bigint;
-SQL
-) || die "查询 object_key 失败"
+[ -n "$MATCH" ] || die "这份文件不是任何一次成功备份的原样副本（sha256 对不上）：${FILENAME} sha256=${SHA}"
+RUN_ID=${MATCH%%|*}
+OBJECT_KEY=${MATCH#*|}
 BOUNDS=$(db_psql -v ON_ERROR_STOP=1 -tAq -F '|' -v "rid=${RUN_ID}" <<'SQL'
 SELECT t.k, r.row_counts ->> t.k, r.row_counts_after ->> t.k
   FROM backup_run r,
@@ -118,17 +127,7 @@ SELECT t.k, r.row_counts ->> t.k, r.row_counts_after ->> t.k
  ORDER BY array_position(ARRAY['device','gps_position','sensor_telemetry','sensor_attribute','api_call','poi','poi_cable_segment'], t.k);
 SQL
 ) || die "读取行数区间失败"
-[ "$(printf '%s\n' "$BOUNDS" | grep -c .)" -eq "${#TABLES[@]}" ] || die "backup_run#${RUN_ID} 的 row_counts / row_counts_after 缺表"
-echo "备份记录：backup_run#${RUN_ID} object_key=${OBJECT_KEY}"
-
-# 3. 计时从下载（或恢复）开始
-START=$SECONDS
-if [ "$FROM_COS" -eq 1 ]; then
-  WORKDIR=$(mktemp -d)
-  FILE=${WORKDIR}/${FILENAME}
-  "${COSREAD[@]}" cp "cos://${COS_BUCKET}/${DOWNLOAD_KEY}" "$FILE" || die "下载失败"
-fi
-[ -s "$FILE" ] || die "备份文件为空：$FILE"
+echo "备份记录：backup_run#${RUN_ID} object_key=${OBJECT_KEY:-（无，本地备份）} sha256=${SHA}"
 
 # 4. 一次性容器：独立网络、无卷；密码只经环境变量传入、不打印
 SUFFIX=$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')
@@ -160,7 +159,7 @@ SELECT 'sensor_telemetry', count(*) FROM sensor_telemetry UNION ALL
 SELECT 'sensor_attribute', count(*) FROM sensor_attribute UNION ALL
 SELECT 'api_call', count(*) FROM api_call UNION ALL
 SELECT 'poi', count(*) FROM poi UNION ALL
-SELECT 'poi_cable_segment', count(*) FROM poi_cable_segment") || die "恢复库数行失败"
+SELECT 'poi_cable_segment', count(*) FROM poi_cable_segment") || die "恢复库数行失败（恢复后七张表是否有缺失？）"
 ELAPSED=$((SECONDS - START))
 
 is_int() { case "$1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
@@ -169,6 +168,14 @@ for t in "${TABLES[@]}"; do
   before=$(printf '%s\n' "$BOUNDS" | awk -F'|' -v t="$t" '$1 == t { print $2 }')
   after=$(printf '%s\n' "$BOUNDS" | awk -F'|' -v t="$t" '$1 == t { print $3 }')
   got=$(printf '%s\n' "$RESTORED" | awk -F'|' -v t="$t" '$1 == t { print $2 }')
+  if [ -z "$before" ] || [ -z "$after" ]; then
+    echo "${t} backup_run#${RUN_ID} 里没有该表的行数区间  FAIL"
+    FAILS=$((FAILS + 1)); continue
+  fi
+  if [ -z "$got" ]; then
+    echo "${t} 恢复后不存在  FAIL"
+    FAILS=$((FAILS + 1)); continue
+  fi
   if is_int "$before" && is_int "$after" && is_int "$got" && [ "$before" -le "$got" ] && [ "$got" -le "$after" ]; then
     verdict=OK
   else
@@ -183,10 +190,13 @@ echo "总耗时：${ELAPSED} 秒"
 cos_has_object() {
   local out
   out=$("${COSREAD[@]}" ls "cos://${COS_BUCKET}/${OBJECT_KEY}") || return 2
-  printf '%s\n' "$out" | grep -qF -- "$FILENAME"
+  printf '%s\n' "$out" | grep -qF -- "${OBJECT_KEY##*/}"
 }
 DELETE_RC=0
-if [ "$CHECK_DELETE" -eq 1 ]; then
+if [ "$CHECK_DELETE" -eq 1 ] && [ -z "$OBJECT_KEY" ]; then
+  echo "FAIL：本地备份没有 COS 对象，删除测试需要上传过的备份（backup_run#${RUN_ID} 的 object_key 为空；未尝试删除）" >&2
+  DELETE_RC=1
+elif [ "$CHECK_DELETE" -eq 1 ]; then
   pre=0; cos_has_object || pre=$?
   if [ "$pre" -ne 0 ]; then
     echo "FAIL：删除测试前置不满足——读配置$([ "$pre" -eq 2 ] && echo ' ls 出错，无法确认对象存在' || echo '看不到对象')：${OBJECT_KEY}（未尝试删除）" >&2

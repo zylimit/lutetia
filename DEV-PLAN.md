@@ -332,7 +332,9 @@
 
 ---
 
-## Phase 6: 每日备份上 COS 与第一次恢复演练（#89，DFX 第 2 维、场景 RS-1）
+## Phase 6: 每日备份上 COS 与第一次恢复演练（#89，DFX 第 2 维、场景 RS-1） ✅
+
+交付记录（2026-11-09，本机四步走，四态门 CONCERNS）：提交 fb4c780（Task 6.1）、ffc8339（Task 6.2）、71eae61（Task 6.3）与本条之后的集成修复提交。6.1 HIGH 全三 Stage + tester，6.2 / 6.3 MEDIUM；6.3 审查抓到删除测试会误报 PASS（coscli 退出码不可信）已改为复查对象仍在；Phase 收口的全链路测试（tests/test_backup_chain.py，真 postgres 容器恢复真 dump）又抓到本地备份无法演练、缺表分支走不到、空 dump 残留 0 字节文件三处，已修（改按 sha256 匹配备份记录）。合成库全量 419 passed / 1 failed（#70 基线）。CONCERNS 残留：真 COS 上传、fra 上 systemd 实跑、真实恢复演练与「删除被拒」都等用户做 #99；PASS 后要在 COS 控制台核写密钥策略无删除权限；「恢复后表不存在」提示走不到（照样判失败，只是报不出表名）记 #101；shellcheck 本机未装没跑。
 
 **交付内容**：
 - fra 每天 02:30（Europe/Paris）自动把生产库 pg_dump 一份传到 COS eu-frankfurt，周日那份另存一份周备；成功与失败都记一行。
@@ -360,7 +362,7 @@
   - Business Context：备份坏了没人看见等于没有备份（DFX 第 2 维「备份成功率每日检查」）。例子：昨天 02:30 成功、今天 02:30 失败——今天 03:00 打开运维看板必须看到红色「Backup failed」，而不是只显示昨天的成功时间。
   - 依赖类型：功能前置 Task 6.1（`backup_run` 表）。
   - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1。
-- **Task 6.3：恢复演练与「只写不删」实测** — 新建 `deploy/restore-drill.sh`：从 COS 下载最近一份日备 → 在 fra 上起一个临时 `postgres:16-alpine` 容器（独立网络、不挂生产卷）→ `pg_restore` → 对比七张表行数落在该备份 `backup_run.row_counts`（dump 前）与 `row_counts_after`（dump 后）之间（含两端；采集在 dump 期间仍在写入、各表只增不删，所以恢复值必须满足 前 ≤ 恢复 ≤ 后，越界即失败；2026-11-09 审查 ❓1 修正，原写「与 row_counts 一致」会把正常写入误报成失败）；按文件名而不是 object_key 找对应记录（周日那行只记 weekly 键）→ 打印耗时并删除临时容器；另用备份凭据对该对象尝试一次 `coscli rm -f`，再用只读凭据确认对象仍在才算「删除被拒」（2026-11-09 审查 HIGH-1：coscli v1.0.9 会丢弃删除的返回值、先 HEAD 后删，退出码分不清「被拒」与「没删成」，所以不看退出码、只看对象还在不在；拿不准一律判失败）。读备份与删后核对都要一把只读凭据（上传凭据按设计只写不读），或演练时从 COS 控制台手动下载备份用 `--file`。结果写进 `docs/ops/restore-drill.md`（日期、备份对象、各表行数、耗时、删除测试结果）。验证：fra 上 `sudo deploy/restore-drill.sh --file <备份> --check-delete-denied` 退出码 0，输出七行「表名 前 ≤ 恢复 ≤ 后 OK」、总耗时与「delete-denied PASS」。
+- **Task 6.3：恢复演练与「只写不删」实测** — 新建 `deploy/restore-drill.sh`：从 COS 下载最近一份日备 → 在 fra 上起一个临时 `postgres:16-alpine` 容器（独立网络、不挂生产卷）→ `pg_restore` → 对比七张表行数落在该备份 `backup_run.row_counts`（dump 前）与 `row_counts_after`（dump 后）之间（含两端；采集在 dump 期间仍在写入、各表只增不删，所以恢复值必须满足 前 ≤ 恢复 ≤ 后，越界即失败；2026-11-09 审查 ❓1 修正，原写「与 row_counts 一致」会把正常写入误报成失败）；按文件 sha256 找对应的成功记录（本地备份与周日 weekly 行都适用，且证明文件未被改动）→ 打印耗时并删除临时容器；另用备份凭据对该对象尝试一次 `coscli rm -f`，再用只读凭据确认对象仍在才算「删除被拒」（2026-11-09 审查 HIGH-1：coscli v1.0.9 会丢弃删除的返回值、先 HEAD 后删，退出码分不清「被拒」与「没删成」，所以不看退出码、只看对象还在不在；拿不准一律判失败）。读备份与删后核对都要一把只读凭据（上传凭据按设计只写不读），或演练时从 COS 控制台手动下载备份用 `--file`。结果写进 `docs/ops/restore-drill.md`（日期、备份对象、各表行数、耗时、删除测试结果）。验证：fra 上 `sudo deploy/restore-drill.sh --file <备份> --check-delete-denied` 退出码 0，输出七行「表名 前 ≤ 恢复 ≤ 后 OK」、总耗时与「delete-denied PASS」。
   - Business Context：从没恢复过的备份不算备份（DFX 场景 RS-1）。例子：dump 前 sensor_telemetry 记 160,000 行、dump 后 160,008 行，恢复出 160,003 行算通过；恢复出 159,999 行（少于 dump 前）即失败。
   - 依赖类型：功能前置 Task 6.1；验证前置：COS 里至少有一份真实日备。
   - 证据产生者：脚本由 implementer 写（MEDIUM，reviewer Stage 0 + 1）；演练实跑由 deployer 在 fra 执行，主 Agent 读完整输出与演练记录验收。

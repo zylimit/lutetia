@@ -111,6 +111,8 @@ docker compose exec -T db pg_dump -U lutetia -Fc lutetia > "${DUMP_PATH}.partial
 STAGE=row-counts-after
 ROW_COUNTS_AFTER=$(count_rows)
 STAGE=dump
+# 先验非空再 mv：空 dump 不留 0 字节 .dump（on_exit 会删 .partial）
+[ -s "${DUMP_PATH}.partial" ] || { ERROR="stage=dump 备份文件为空"; exit 1; }
 mv "${DUMP_PATH}.partial" "$DUMP_PATH"
 if command -v sha256sum >/dev/null 2>&1; then
   SHA256=$(sha256sum "$DUMP_PATH" | cut -d' ' -f1)
@@ -118,7 +120,6 @@ else
   SHA256=$(shasum -a 256 "$DUMP_PATH" | cut -d' ' -f1)
 fi
 BYTES=$(wc -c < "$DUMP_PATH" | tr -d ' ')
-[ "$BYTES" -gt 0 ] || { ERROR="stage=dump 备份文件为空"; exit 1; }
 
 STAGE=retention
 # 只清本地，留最近 KEEP_LOCAL 份；放在上传之前，上传反复失败也不会撑爆磁盘；远端对象不动
