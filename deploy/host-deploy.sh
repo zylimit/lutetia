@@ -27,7 +27,7 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "缺 ${ENV_FILE}：先从本机 scp 到主机 ~/lutetia/" >&2
   exit 1
 fi
-for key in DASHBOARD_PWD API_KEY PUSH_PATH DATABASE_RO_PASSWORD; do
+for key in DASHBOARD_PWD API_KEY PUSH_PATH DATABASE_RO_PASSWORD SESSION_SECRET; do
   if ! grep -qE "^${key}=.+" "$ENV_FILE"; then
     echo "${ENV_FILE} 里 ${key} 缺失或为空" >&2
     exit 1
@@ -36,6 +36,11 @@ done
 # 密码拼进 postgresql://… 连接串：含 / @ # ? % 会让串解析失败或连错账号，所以只许字母数字
 if ! grep -qE '^DATABASE_RO_PASSWORD=[A-Za-z0-9]+$' "$ENV_FILE"; then
   echo "${ENV_FILE} 里 DATABASE_RO_PASSWORD 只能用字母数字（建议 openssl rand -hex 24 生成）" >&2
+  exit 1
+fi
+# SESSION_SECRET 同样只许字母数字（建议 openssl rand -hex 32 生成）；不打印值
+if ! grep -qE '^SESSION_SECRET=[A-Za-z0-9]+$' "$ENV_FILE"; then
+  echo "${ENV_FILE} 里 SESSION_SECRET 只能用字母数字（建议 openssl rand -hex 32 生成）" >&2
   exit 1
 fi
 

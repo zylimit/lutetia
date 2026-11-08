@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict
 
 
 def load_dotenv(path: str = ".env") -> None:
@@ -39,6 +40,10 @@ class Config:
     dashboard_port: int = 8081
     dashboard_user: str = "admin"
     dashboard_pwd: str = ""
+    orange_user: str = "orange"
+    orange_pwd: str = ""
+    huawei_user: str = "huawei"
+    huawei_pwd: str = ""
     api_key: str = ""
     session_secret: str = ""
     trust_proxy: bool = False
@@ -71,6 +76,10 @@ class Config:
             dashboard_port=int(e("DASHBOARD_LISTEN_PORT", "8081")),
             dashboard_user=e("DASHBOARD_USER", "admin"),
             dashboard_pwd=e("DASHBOARD_PWD", ""),
+            orange_user=e("ORANGE_USER", "orange"),
+            orange_pwd=e("ORANGE_PWD", ""),
+            huawei_user=e("HUAWEI_USER", "huawei"),
+            huawei_pwd=e("HUAWEI_PWD", ""),
             api_key=e("API_KEY", ""),
             session_secret=e("SESSION_SECRET", ""),
             trust_proxy=e("DASHBOARD_TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes"),
@@ -79,6 +88,17 @@ class Config:
         )
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
         return cfg
+
+    def accounts(self) -> Dict[str, str]:
+        """Enabled dashboard accounts, name -> password. An account with an empty password (or name) is not enabled.
+        The three names must be distinct (checked whether or not each is enabled)."""
+        pairs = [(self.dashboard_user, self.dashboard_pwd), (self.orange_user, self.orange_pwd),
+                 (self.huawei_user, self.huawei_pwd)]
+        names = [n for n, _ in pairs if n]
+        dup = sorted({n for n in names if names.count(n) > 1})
+        if dup:
+            raise SystemExit("duplicate dashboard account names: " + ", ".join(dup))
+        return {n: p for n, p in pairs if n and p}
 
     def require(self, *names: str) -> None:
         missing = [n for n in names if not getattr(self, n)]

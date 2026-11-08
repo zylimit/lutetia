@@ -5,8 +5,8 @@ from typing import Any, Optional, Tuple
 from aiohttp import web
 
 from ..db import max_age_hours
-from .auth import require_session
-from .html import esc, fmt_ago, fmt_ts, page, table
+from .auth import require_admin
+from .html import esc, fmt_ago, fmt_ts, ops_header, page, table
 from .jsonutil import validate_device_id
 
 SOURCES = ("dingtek", "gps51")
@@ -51,7 +51,7 @@ async def _gps_body(db: Any, dev: str) -> Tuple[str, Optional[datetime]]:
             rows[0]["update_time"] if rows else None)
 
 
-@require_session
+@require_admin
 async def device_page(request: web.Request) -> web.Response:
     source, dev = request.match_info["source"], request.match_info["device_id"]
     if source not in SOURCES or validate_device_id(dev) is not None:
@@ -74,7 +74,8 @@ async def device_page(request: web.Request) -> web.Response:
     online = {True: "是", False: "否"}.get(device["expected_online"], "?")
     sub = "<p>类型 %s · 应在线 %s · 最后入库 %s · 距今 %s</p>" % (
         esc(device["device_type"] or KIND_NAMES[source]), online, esc(fmt_ts(last)), esc(fmt_ago(last, now)))
-    body = ('<p><a href="/dashboard/">← 看板</a></p><h1>%s（%s）</h1>%s<div id="device" data-kind="%s" data-device-id="%s" data-days="%s">%s</div>'
+    body = (ops_header(request["user"], ['<a href="/dashboard/">← 看板</a>'])
+            + '<h1>%s（%s）</h1>%s<div id="device" data-kind="%s" data-device-id="%s" data-days="%s">%s</div>'
             % (esc(name), esc(dev), sub, esc(source), esc(dev), days, content))
     return page(str(name), body, head=head, scripts=scripts)
 

@@ -10,8 +10,8 @@ from aiohttp import web
 from ..db import max_age_hours
 from . import anomalies
 from .data import build_anomalies, heartbeat_view
-from .auth import COOKIE_NAME, check_password, client_ip, require_session
-from .html import esc, fmt_ago, fmt_ts, page, table
+from .auth import COOKIE_NAME, authenticate, client_ip, require_admin
+from .html import esc, fmt_ago, fmt_ts, ops_header, page, table
 
 log = logging.getLogger(__name__)
 
@@ -23,8 +23,9 @@ def login_page(message: str = "", next_url: str = "", status: int = 200) -> web.
     msg = "<p>%s</p>" % esc(message) if message else ""
     body = ('<h1>Lutetia 登录</h1>%s<form method="post" action="/login">'
             '<input type="hidden" name="next" value="%s">'
-            '<p><label>账号 <input name="username" autofocus></label></p>'
-            '<p><label>密码 <input name="password" type="password"></label></p>'
+            '<p><label>账号 <input name="username" autofocus autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username"></label></p>'
+            '<p><label>密码 <input name="password" type="password" autocomplete="current-password"></label></p>'
+            '<p><label><input name="remember" type="checkbox" value="1"> 30 天内保持登录（Keep me signed in for 30 days）</label></p>'
             '<p><button type="submit">登录</button></p></form>' % (msg, esc(next_url)))
     resp = page("Lutetia 登录", body)
     resp.set_status(status)
@@ -55,17 +56,18 @@ async def login_post(request: web.Request) -> web.Response:
     if ctx.limiter.is_globally_locked() or ctx.limiter.is_locked(ip):
         log.warning("web login: ip %s locked", ip)
         return login_page("尝试次数过多，请稍后再试", next_url, 429)
-    ok_user = str(form.get("username", "")) == ctx.cfg.dashboard_user
-    ok_pwd = check_password(str(form.get("password", "")), ctx.cfg.dashboard_pwd)
-    if not (ok_user and ok_pwd):
+    user = authenticate(ctx.cfg.accounts(), str(form.get("username", "")), str(form.get("password", "")))
+    if user is None:
         ctx.limiter.record_failure(ip)
         log.warning("web login: failed attempt from %s", ip)
         return login_page("账号或密码错误", next_url, 401)
     ctx.limiter.reset(ip)
     resp = web.HTTPFound(next_url)
     secure = request.headers.get("X-Forwarded-Proto") == "https" or request.scheme == "https"
-    resp.set_cookie(COOKIE_NAME, ctx.signer.issue(ctx.cfg.dashboard_user), httponly=True,
-                    samesite="Lax", max_age=43200, secure=secure)
+    remember = str(form.get("remember", "")) == "1"
+    resp.set_cookie(COOKIE_NAME, ctx.signer.issue(user, remember=remember), httponly=True,
+                    samesite="Lax", max_age=ctx.signer.ttl_for(remember), secure=secure)
+    log.info("web login: account %s signed in (remember=%s)", user, remember)
     raise resp
 
 
@@ -163,7 +165,7 @@ def anomalies_section(items: List[Dict[str, Any]]) -> str:
     return head + "<ul>%s</ul>" % lis
 
 
-@require_session
+@require_admin
 async def dashboard(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
     now = datetime.now(timezone.utc)
@@ -174,7 +176,8 @@ async def dashboard(request: web.Request) -> web.Response:
     backup = await ctx.db.backup_summary()
     receiver, collector = heartbeat_view(await ctx.db.collector_status())
     items = await build_anomalies(ctx, now, status, sensors, calls, backup, receiver, collector)
-    body = ('<p><a href="/dashboard/map">地图</a> · <a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div><p id="last-backup">' + esc(backup_line(backup)) + '</p>' + devices_section(status, now)
+    body = (ops_header(request["user"], ['<a href="/dashboard/map">地图</a>'])
+            + '<h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div><p id="last-backup">' + esc(backup_line(backup)) + '</p>' + devices_section(status, now)
             + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now, receiver, collector))
     return page("Lutetia 看板", body, script=True)
 

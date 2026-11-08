@@ -1,5 +1,4 @@
 """Second HTTP listener: read-only dashboard (and query API). No write path lives under lutetia/web."""
-import hashlib
 import logging
 import secrets
 from pathlib import Path
@@ -67,10 +66,9 @@ class WebServer:
 
     def build_app(self) -> web.Application:
         secret = self.cfg.session_secret.encode("utf-8") if self.cfg.session_secret else secrets.token_bytes(32)
-        secret = hashlib.sha256(secret + b"\x00" + self.cfg.dashboard_pwd.encode("utf-8")).digest()
         app = web.Application(middlewares=[security_headers])
         app["ctx"] = WebContext(self.cfg, self.db, self.started_at,
-                                SessionSigner(secret), LoginLimiter(enabled=self.cfg.login_lockout))
+                                SessionSigner(secret, self.cfg.accounts()), LoginLimiter(enabled=self.cfg.login_lockout))
         register_dashboard(app)
         register_api(app)
         register_data(app)
@@ -81,10 +79,12 @@ class WebServer:
 
     async def start(self) -> None:
         cfg = self.cfg
+        accounts = cfg.accounts()  # duplicate names -> SystemExit
         if cfg.dashboard_host not in LOOPBACK and (not cfg.dashboard_pwd or not cfg.api_key):
             raise SystemExit("DASHBOARD_LISTEN_HOST is not loopback: set DASHBOARD_PWD and API_KEY")
         if not cfg.session_secret:
-            log.warning("SESSION_SECRET not set: sessions are invalidated on every restart")
+            log.warning("SESSION_SECRET not set: a random key is used, so all sessions (including 30-day ones) are lost on restart; set SESSION_SECRET in production")
+        log.info("web accounts enabled: %s", ", ".join(sorted(accounts)) or "none")
         runner = web.AppRunner(self.build_app())
         await runner.setup()
         try:

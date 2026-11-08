@@ -33,6 +33,13 @@ def page(title: str, body: str, script: bool = False, head: str = "", scripts: s
     return web.Response(text=doc, content_type="text/html")
 
 
+def ops_header(user: str, links: Optional[List[str]] = None) -> str:
+    """Shared header of every ops page: nav links (trusted HTML), logout, and the escaped current account."""
+    nav = "".join(l + " · " for l in (links or []))
+    return ('<p id="ops-header"><span id="whoami" style="float:right">当前账号：<strong>%s</strong></span>%s<a href="/logout">退出</a></p>'
+            % (esc(user), nav))
+
+
 def table(headers: List[str], rows: List[List[Any]], row_class: Optional[List[str]] = None, tbody_id: str = "",
           cards: bool = False, links: Optional[Dict[str, Callable[[int], str]]] = None) -> str:
     """links maps a header to a function(row index) -> href; that column renders as an <a> with the escaped cell text."""

@@ -3,7 +3,7 @@
 
 断言依据 DEV-PLAN Phase 7 / TODO #102 / Pinned「凭据零入日志」，不照抄脚本：
   1 步：git pull 之后脚本自己被更新则用新版重跑，且只重跑一次；没变不重跑；
-  2 步：.env 必填键缺失 / 为空 / DATABASE_RO_PASSWORD 含非字母数字时非零退出，任何输出都不含密钥值；
+  2 步：.env 必填键缺失 / 为空 / DATABASE_RO_PASSWORD / SESSION_SECRET 含非字母数字时非零退出，任何输出都不含密钥值；
   3 步：容器等到 healthy 才往下走，等不到就在 HEALTH_WAIT_SEC 后非零退出并点名服务。
 PATH 垫片替换 git / docker / sudo / sha256sum / sleep / nginx / systemctl / certbot / curl，一律不碰真实命令。
 假 sudo 恒返回 42 且不执行任何东西：脚本走到第 4 步第一次 sudo 就停，rc==42 即「前三步全过」。
@@ -94,7 +94,7 @@ class Sandbox:
             _exe(shims / name, body)
         self.shims = shims
         # 值在每次测试运行时随机生成，不写死
-        self.secrets = {k: secrets.token_hex(12) for k in ("DASHBOARD_PWD", "API_KEY", "PUSH_PATH", "DATABASE_RO_PASSWORD")}
+        self.secrets = {k: secrets.token_hex(12) for k in ("DASHBOARD_PWD", "API_KEY", "PUSH_PATH", "DATABASE_RO_PASSWORD", "SESSION_SECRET")}
         self.write_env()
 
     def write_env(self, overrides=None, drop=()):
@@ -172,6 +172,20 @@ def test_ro_password_with_unsafe_chars_rejected_without_echo(sb, make):
     assert sb.count("docker") == 0 and "[3/8" not in r.stdout
 
 
+@pytest.mark.parametrize("make", _bad_values())
+def test_session_secret_with_unsafe_chars_rejected_without_echo(sb, make):
+    bad = make(secrets.token_hex(8))
+    sb.write_env({"SESSION_SECRET": bad})
+    r = sb.run()
+    assert r.returncode != 0
+    assert "[2/8" in r.stdout
+    assert "SESSION_SECRET" in r.stdout + r.stderr
+    core = bad.strip("'\"")
+    for v in (bad, core):
+        assert v not in r.stdout and v not in r.stderr
+    assert sb.count("docker") == 0 and "[3/8" not in r.stdout
+
+
 @pytest.mark.parametrize("how", ["missing", "empty"])
 def test_ro_password_missing_or_empty_rejected(sb, how):
     if how == "missing":
@@ -185,7 +199,7 @@ def test_ro_password_missing_or_empty_rejected(sb, how):
     assert_no_secret(sb, r)
 
 
-@pytest.mark.parametrize("key", ["DASHBOARD_PWD", "API_KEY", "PUSH_PATH"])
+@pytest.mark.parametrize("key", ["DASHBOARD_PWD", "API_KEY", "PUSH_PATH", "SESSION_SECRET"])
 @pytest.mark.parametrize("how", ["missing", "empty"])
 def test_other_required_keys_rejected_without_echo(sb, key, how):
     if how == "missing":

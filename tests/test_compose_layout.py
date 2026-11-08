@@ -59,3 +59,18 @@ def test_healthchecks_present_without_curl():
         blk = service_block(name)
         assert "healthcheck:" in blk and "curl" not in blk
     assert "/health'" in service_block("collector") and "/login'" in service_block("web")
+
+
+def test_web_session_secret_is_required():
+    web = service_block("web")
+    assert "SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}" in web
+    assert "SESSION_SECRET:-" not in web
+
+
+def test_web_gets_orange_huawei_account_keys_collector_does_not():
+    web, col = service_block("web"), service_block("collector")
+    for line in ("ORANGE_USER: ${ORANGE_USER:-orange}", "ORANGE_PWD: ${ORANGE_PWD:-}",
+                 "HUAWEI_USER: ${HUAWEI_USER:-huawei}", "HUAWEI_PWD: ${HUAWEI_PWD:-}"):
+        assert line in web, line
+    for key in ("ORANGE_", "HUAWEI_"):
+        assert key not in col, key

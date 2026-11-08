@@ -27,22 +27,24 @@ pytest
 
 ## 看板与登录
 
-看板由 web 容器（`lutetia run --role web`，本机开发的 `all` 模式下是同进程的第二个 HTTP 监听）提供，只读（服务端渲染 + 每 60 秒局部刷新，没有任何写入口）。v0.2.0 起看板有四块：首页顶部异常总览（失联 / 低电压 / 报警 / 推送通道 / GPS51 配额 / Dingtek 登录次数，无异常显示「全部正常」）、设备详情页（点任一设备名：井盖 7 / 30 天电压温度信号曲线 + 最近 50 条 + 属性表，GPS 最后位置小地图 + 位置表 + 里程）、位置地图页（`/dashboard/map`，12 台井盖固定点 + GPS 最后位置，`?tracks=1` 带近 7 天轨迹（按 5 分钟一格抽稀，每格留最新一点），底图测试阶段直拉 Google 瓦片、标「不商用」，商用前换回 OSM 或 Google 官方 API）、手机宽度适配。图表与地图库（Chart.js 4.6.1、Leaflet 1.9.4）随包自托管在 `/static/`，不走 CDN；页面带 CSP 等安全头。本机打开 `http://127.0.0.1:8081/`，未登录会跳到登录页；账号 `DASHBOARD_USER`（默认 `admin`），密码 `DASHBOARD_PWD`，会话 cookie 12 小时有效，同一 IP 连续输错 5 次锁 5 分钟（`DASHBOARD_LOGIN_LOCKOUT=off` 可关）。
+看板由 web 容器（`lutetia run --role web`，本机开发的 `all` 模式下是同进程的第二个 HTTP 监听）提供，只读（服务端渲染 + 每 60 秒局部刷新，没有任何写入口）。v0.2.0 起看板有四块：首页顶部异常总览（失联 / 低电压 / 报警 / 推送通道 / GPS51 配额 / Dingtek 登录次数，无异常显示「全部正常」）、设备详情页（点任一设备名：井盖 7 / 30 天电压温度信号曲线 + 最近 50 条 + 属性表，GPS 最后位置小地图 + 位置表 + 里程）、位置地图页（`/dashboard/map`，12 台井盖固定点 + GPS 最后位置，`?tracks=1` 带近 7 天轨迹（按 5 分钟一格抽稀，每格留最新一点），底图测试阶段直拉 Google 瓦片、标「不商用」，商用前换回 OSM 或 Google 官方 API）、手机宽度适配。图表与地图库（Chart.js 4.6.1、Leaflet 1.9.4）随包自托管在 `/static/`，不走 CDN；页面带 CSP 等安全头。本机打开 `http://127.0.0.1:8081/`，未登录会跳到登录页；账号 `DASHBOARD_USER`（默认 `admin`），密码 `DASHBOARD_PWD`，登录页勾「保持登录」发 30 天会话，不勾 12 小时；三个账号（admin / orange / huawei，名字不得重复）；运维看板（`/dashboard/…` 全部页面与数据口）只许 admin 进，orange / huawei 登录后打开运维页只见一句 “The project dashboard is coming soon.”，数据口返回 403（项目看板与 `/api/v1` 另做）；升级到本版后旧会话需重新登录一次；同一 IP 连续输错 5 次锁 5 分钟（`DASHBOARD_LOGIN_LOCKOUT=off` 可关）。
 
 | 环境变量 | 默认 | 说明 |
 |---|---|---|
 | `DASHBOARD_LISTEN_HOST` | `127.0.0.1` | 绑 `0.0.0.0` 必须同时设 `DASHBOARD_PWD` 与 `API_KEY`，否则启动报错退出 |
 | `DASHBOARD_LISTEN_PORT` | `8081` | 监听端口 |
 | `DASHBOARD_USER` | `admin` | 登录账号 |
-| `DASHBOARD_PWD` | 空 | 登录密码，只从环境变量读；空则任何人都登不进 |
+| `DASHBOARD_PWD` | 空 | admin 登录密码，只从环境变量读；空则 admin 账号不启用 |
+| `ORANGE_USER` / `ORANGE_PWD` | `orange` / 空 | Orange 的只读看板账号；密码空则该账号不启用 |
+| `HUAWEI_USER` / `HUAWEI_PWD` | `huawei` / 空 | 华为的只读看板账号；密码空则该账号不启用 |
 | `DASHBOARD_TRUST_PROXY` | `false` | 只在前面恰好一层受信反向代理（nginx）时设 `true`（仅信任回环/私网来源，取 X-Forwarded-For 最后一个值，即该代理追加的那个）；**直接绑公网时不要开**，否则伪造该头可绕过登录锁定 |
 | `DASHBOARD_LOW_VOLT` | `3.4` | 首页异常总览的低电压阈值（V）：低于它标黄，再低 0.2 V 标红 |
 | `DASHBOARD_LOGIN_LOCKOUT` | 开 | 设 `off` 关闭登录锁定（同 IP 错 5 次锁 5 分钟、全局 5 分钟 50 次锁 60 秒），仅测试阶段用；失败照常记日志 |
 | `API_KEY` | 空 | 查询 API 的 Bearer key；空则所有 API 请求都返回 401 |
-| `SESSION_SECRET` | 空 | cookie 签名密钥；空则每次启动随机生成，重启后要重新登录 |
+| `SESSION_SECRET` | 空 | cookie 签名密钥；`docker compose` 下**必填**（空则起不来，`host-deploy.sh` 第 2 步校验：非空、只许字母数字，生成用 `openssl rand -hex 32`）；本机不跑 compose 时可留空，此时每次启动随机生成并打 warning，重启后所有人（含 30 天会话）都要重新登录。会话签名密钥另按账号名与该账号密码派生：改某个账号的密码只让该账号的会话失效，改 `SESSION_SECRET` 让全部失效 |
 | `DATABASE_RO_PASSWORD` | 空 | 只读库角色 `lutetia_ro` 的登录密码。collector 启动迁移时设到库里，web 容器用它连库（compose 里拼成 `postgresql://lutetia_ro:…@db:5432/lutetia`，所以没有 `DATABASE_RO_URL`）；`docker compose` 下必填，空则起不来；**只许字母数字**（密码直接拼进连接串，含 `/ @ # ? %` 会解析失败或连错账号；`host-deploy.sh` 第 2 步会校验），生成用 `openssl rand -hex 24`。轮换：改 `.env` 后重跑 `bash deploy/host-deploy.sh`。收回登录要手工执行 `ALTER ROLE lutetia_ro NOLOGIN PASSWORD NULL`（删掉变量不会收回） |
 
-本机可以把 `DASHBOARD_PWD` 填成简单密码，**上云主机前必须换成强密码、`API_KEY` 换成随机长串**。`docker compose` 下 `DASHBOARD_PWD`、`API_KEY`、`DATABASE_RO_PASSWORD` 缺一不能启动；看板端口只发布到宿主机 `127.0.0.1:8081`，云主机经 HTTPS 域名访问（Phase 3）。
+本机可以把 `DASHBOARD_PWD` 填成简单密码，**上云主机前必须换成强密码、`API_KEY` 换成随机长串**。`docker compose` 下 `DASHBOARD_PWD`、`API_KEY`、`DATABASE_RO_PASSWORD`、`SESSION_SECRET` 缺一不能启动；看板端口只发布到宿主机 `127.0.0.1:8081`，云主机经 HTTPS 域名访问（Phase 3）。
 
 ## 查询 API
 
@@ -72,7 +74,7 @@ curl -H "Authorization: Bearer $API_KEY" \
 主机上已有 nginx 与 certbot；本项目并入一个 `iot.digifiber.net` 的 server block，容器端口只绑 127.0.0.1，公网只有 nginx 的 443。
 
 1. 把主机公网 IP（当前生产：法兰克福 43.165.4.9；主机必须在欧盟境内，见 Product-Spec 非功能表「合规」）加进 GPS51 后台「白名单」，openapi 才放行。
-2. 首次：在主机克隆仓库到 `~/lutetia`，并在本机把环境文件 scp 到 `hub:~/lutetia/` 下（文件名见 `.env.example` 同目录）。必须有非空的 DASHBOARD_PWD、API_KEY、PUSH_PATH、DATABASE_RO_PASSWORD；PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`；主机 8081 被占，加一行 `DASHBOARD_PUBLISH_PORT=18081`（nginx 配置指向它）。
+2. 首次：在主机克隆仓库到 `~/lutetia`，并在本机把环境文件 scp 到 `hub:~/lutetia/` 下（文件名见 `.env.example` 同目录）。必须有非空的 DASHBOARD_PWD、API_KEY、PUSH_PATH、DATABASE_RO_PASSWORD、SESSION_SECRET；PUSH_PATH 建议设成 `/gps51/push/<随机 20 位>`；主机 8081 被占，加一行 `DASHBOARD_PUBLISH_PORT=18081`（nginx 配置指向它）。
 3. 在主机 `~/lutetia` 下运行 `bash deploy/host-deploy.sh`：git pull → 查必填键 → `docker compose up -d --build` → 等 collector 与 web 都 healthy → 装 nginx 配置 → `nginx -t` → reload → 无证书才 `certbot --nginx` → 打印冒烟结果。可重复运行。
    三个服务、同一镜像：`db`；`collector`（`lutetia migrate && lutetia run --role collector`：推送接收端与 `/health`、GPS51 / Dingtek 采集、心跳，发布 `127.0.0.1:8080`，持有写库账号与厂家账号）；`web`（`lutetia run --role web`：只读看板与查询 API，不整包注入环境文件，只拿看板用到的键，用只读角色 `lutetia_ro` 连库，发布 `127.0.0.1:8081`，只等 collector 容器启动、不等它健康）。web 停了推送照收、心跳照写；collector 停了看板照开、心跳显示过期。首次上线时 collector 还在迁移、只读角色还没密码，web 连库失败会以非零码退出，由 `restart: unless-stopped` 重试，collector 迁移完即自愈。`lutetia run --role collector|web|all` 默认 `all`（本机开发一个进程全起）。nginx 按路径分流：`/gps51/push` 与 `/health` 到 collector，其余到 web。
 4. GPS51 后台「转发平台列表」新建 `Http Json` 转发，地址填 `https://iot.digifiber.net/gps51/push/<随机段>`；看板在 `https://iot.digifiber.net/dashboard/`。

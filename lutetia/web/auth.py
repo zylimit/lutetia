@@ -11,6 +11,8 @@ from urllib.parse import quote
 
 from aiohttp import web
 
+from .html import ops_header, page
+
 COOKIE_NAME = "lutetia_session"
 
 
@@ -22,18 +24,33 @@ def _b64d(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+SESSION_TTL = 43200  # 12 h
+REMEMBER_TTL = 2592000  # 30 days
+KEY_CONTEXT = "lutetia-session-v2|"
+
+
 class SessionSigner:
-    def __init__(self, secret: bytes, ttl_seconds: int = 43200):
-        self.secret, self.ttl = secret, ttl_seconds
+    """Per-account signing keys: HMAC(secret, "lutetia-session-v2|" + name + "|" + password).
+    Changing one account's password invalidates only that account's sessions; changing the secret invalidates all."""
+
+    def __init__(self, secret: bytes, accounts: Dict[str, str], ttl_seconds: int = SESSION_TTL,
+                 remember_ttl_seconds: int = REMEMBER_TTL):
+        self.ttl, self.remember_ttl = ttl_seconds, remember_ttl_seconds
+        self._keys = {name: hmac.new(secret, (KEY_CONTEXT + name + "|" + pwd).encode("utf-8"), hashlib.sha256).digest()
+                      for name, pwd in accounts.items() if pwd}
         self._revoked: Dict[str, int] = {}  # signature -> exp, kept until the token would expire anyway
 
-    def _sign(self, payload: str) -> str:
-        return hmac.new(self.secret, payload.encode("ascii"), hashlib.sha256).hexdigest()
+    def ttl_for(self, remember: bool) -> int:
+        return self.remember_ttl if remember else self.ttl
 
-    def issue(self, user: str, now: Optional[float] = None) -> str:
+    def _sign(self, user: str, payload: str) -> str:
+        return hmac.new(self._keys[user], payload.encode("ascii"), hashlib.sha256).hexdigest()
+
+    def issue(self, user: str, remember: bool = False, now: Optional[float] = None) -> str:
         now = time.time() if now is None else now
-        payload = _b64e(json.dumps({"u": user, "iat": int(now), "n": secrets.token_hex(8), "exp": int(now + self.ttl)}).encode("utf-8"))
-        return payload + "." + self._sign(payload)
+        exp = int(now + self.ttl_for(remember))
+        payload = _b64e(json.dumps({"u": user, "iat": int(now), "n": secrets.token_hex(8), "exp": exp}).encode("utf-8"))
+        return payload + "." + self._sign(user, payload)
 
     def revoke(self, token: str, now: Optional[float] = None) -> None:
         """Server-side logout: remember the signature of a valid token until its exp."""
@@ -50,13 +67,15 @@ class SessionSigner:
         if not sep or not payload:
             return None
         try:
-            if not hmac.compare_digest(self._sign(payload), sig):
-                return None
             data = json.loads(_b64d(payload).decode("utf-8"))
             user, exp = data["u"], data["exp"]
+            if not isinstance(user, str) or user not in self._keys:  # unknown or disabled account
+                return None
+            if not hmac.compare_digest(self._sign(user, payload), sig):
+                return None
         except (ValueError, KeyError, TypeError, UnicodeError):
             return None
-        if not isinstance(user, str) or not isinstance(exp, int) or now > exp:
+        if not isinstance(exp, int) or now > exp:
             return None
         if sig in self._revoked:
             return None
@@ -126,6 +145,17 @@ def check_password(given: str, expected: str) -> bool:
     return hmac.compare_digest(given.encode("utf-8"), expected.encode("utf-8"))
 
 
+def authenticate(accounts: Dict[str, str], username: str, password: str) -> Optional[str]:
+    """Compare against every enabled account (no early return on a username mismatch) and return the matched name."""
+    matched: Optional[str] = None
+    for name, pwd in accounts.items():
+        name_ok = hmac.compare_digest(username.encode("utf-8"), name.encode("utf-8"))
+        pwd_ok = check_password(password, pwd)
+        if name_ok and pwd_ok:
+            matched = name
+    return matched
+
+
 _INTERNAL_NETS = [ipaddress.ip_network(n) for n in
                   ("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128")]
 
@@ -150,9 +180,19 @@ def client_ip(request: web.Request, trust_proxy: bool = False) -> str:
 Handler = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
 
+def _session_user(request: web.Request) -> Optional[str]:
+    return request.app["ctx"].signer.verify(request.cookies.get(COOKIE_NAME, ""))
+
+
+def is_admin(request: web.Request, user: str) -> bool:
+    """Admin = the DASHBOARD_USER account (an empty name never matches)."""
+    admin = request.app["ctx"].cfg.dashboard_user
+    return bool(admin) and user == admin
+
+
 def require_session(handler: Handler) -> Handler:
     async def wrapper(request: web.Request) -> web.StreamResponse:
-        user = request.app["ctx"].signer.verify(request.cookies.get(COOKIE_NAME, ""))
+        user = _session_user(request)
         if user is None:
             raise web.HTTPFound("/login?next=" + quote(request.path))
         request["user"] = user
@@ -162,10 +202,39 @@ def require_session(handler: Handler) -> Handler:
 
 def require_session_json(handler: Handler) -> Handler:
     async def wrapper(request: web.Request) -> web.StreamResponse:
-        user = request.app["ctx"].signer.verify(request.cookies.get(COOKIE_NAME, ""))
+        user = _session_user(request)
         if user is None:
             return web.json_response({"error": "login required"}, status=401)
         request["user"] = user
+        return await handler(request)
+    return wrapper
+
+
+COMING_SOON = "The project dashboard is coming soon."
+
+
+def require_admin(handler: Handler) -> Handler:
+    """Ops pages: admin only. Other signed-in accounts get 200 with one line of notice, no ops data (the handler never runs)."""
+    async def wrapper(request: web.Request) -> web.StreamResponse:
+        user = _session_user(request)
+        if user is None:
+            raise web.HTTPFound("/login?next=" + quote(request.path))
+        request["user"] = user
+        if not is_admin(request, user):
+            return page("Lutetia", ops_header(user) + '<p id="coming-soon">%s</p>' % COMING_SOON)
+        return await handler(request)
+    return wrapper
+
+
+def require_admin_json(handler: Handler) -> Handler:
+    """Ops JSON: admin only; other signed-in accounts get 403."""
+    async def wrapper(request: web.Request) -> web.StreamResponse:
+        user = _session_user(request)
+        if user is None:
+            return web.json_response({"error": "login required"}, status=401)
+        request["user"] = user
+        if not is_admin(request, user):
+            return web.json_response({"error": "admin only"}, status=403)
         return await handler(request)
     return wrapper
 

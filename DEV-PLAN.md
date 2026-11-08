@@ -375,7 +375,9 @@
 
 ---
 
-## Phase 7: 采集与看板分容器、只读库角色、心跳表、挪动事件视图（ADR-1、3、4，SCOPE-18，SC-13）
+## Phase 7: 采集与看板分容器、只读库角色、心跳表、挪动事件视图（ADR-1、3、4，SCOPE-18，SC-13） ✅
+
+交付记录（2026-11-09，四态门 CONCERNS）：提交 428eede（7.1）、b6b27e1（7.2）、bca8b4b（7.3）、f61b58b（接线测试与示例环境文件）、b3757fc（release 0.5.0，tag v0.5.0）。生产 fra 三服务同镜像、collector / web 创建于 22:49:51Z 晚于提交、容器内 0.5.0、/health 200、web 以 lutetia_ro 连库写入被拒、心跳 12 秒前更新（主 Agent 独立核查）。Task 7.4：生产只读实测 alarmFall 17,590 行 → 498 个事件，平均每台每天 0.69 次（单台 0.24 ～ 1.39，近 30 天约 1.4），30 分钟窗口假设成立不改；fall_event 全量 85 ms、单台过滤 136 ms，均 ≤ 300 ms；写回 Spec v1.15 SC-13 与 DFX-Spec 第 6 维。残留 #103、#104、#106；本机合成库全量 538 passed / 1 failed（#70 预存）。
 
 本机进度（2026-11-09）：Task 7.1 ～ 7.3 完成并提交（428eede、b6b27e1、bca8b4b），Phase 四步走本机部分通过——Code Review 各 Task 已审收口；测试完整性 tester 跨 Task 端到端 compose 冒烟 a ～ g 全过、补 tests/test_phase7_wiring.py；编译 compileall / static-check 全绿；全量 538 passed / 1 failed（#70 预存）。待上线后做 Task 7.4（生产只读实测 SC-13 基线与视图计时），之后整个 Phase 才标 ✅。
 

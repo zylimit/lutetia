@@ -7,7 +7,7 @@ from aiohttp import web
 
 from ..db import max_age_hours
 from . import anomalies
-from .auth import require_session_json
+from .auth import require_admin_json
 from .jsonutil import _dumps, validate_device_id
 
 SERIES_MAX_POINTS = 1500
@@ -53,7 +53,7 @@ async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], senso
                              backup=backup, collector=collector)
 
 
-@require_session_json
+@require_admin_json
 async def overview(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
     now = datetime.now(timezone.utc)
@@ -83,7 +83,7 @@ async def overview(request: web.Request) -> web.Response:
     })
 
 
-@require_session_json
+@require_admin_json
 async def telemetry(request: web.Request) -> web.Response:
     q = request.query
     device_id = q.get("device_id", "")
@@ -107,7 +107,7 @@ async def telemetry(request: web.Request) -> web.Response:
     return _json({"device_id": device_id, "days": days, "hourly": days == 30, "series": series, "truncated": truncated})
 
 
-@require_session_json
+@require_admin_json
 async def positions(request: web.Request) -> web.Response:
     q = request.query
     device_id = q.get("device_id", "")
@@ -149,7 +149,7 @@ async def _gps_entries(db: object, status: List[Dict], with_tracks: bool) -> Lis
     return out
 
 
-@require_session_json
+@require_admin_json
 async def map_data(request: web.Request) -> web.Response:
     days = request.query.get("days", "0")
     if days not in ("0", "7"):
