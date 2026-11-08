@@ -1,6 +1,10 @@
 import asyncio
+import base64
+import hashlib
+import hmac
 import json
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, TypeVar
@@ -18,6 +22,17 @@ T = TypeVar("T")
 TRANSIENT_DB_ERRORS = (OSError, asyncio.TimeoutError, asyncpg.PostgresConnectionError,
                        asyncpg.OperatorInterventionError, asyncpg.InsufficientResourcesError,
                        asyncpg.InterfaceError)  # ConnectionError is an OSError
+
+
+def scram_sha256_verifier(password: str, salt: Optional[bytes] = None, iterations: int = 4096) -> str:
+    """PostgreSQL SCRAM-SHA-256 verifier (RFC 5802/7677). Stored pre-hashed, so the plaintext never reaches server SQL/logs."""
+    salt = os.urandom(16) if salt is None else salt
+    salted = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    client_key = hmac.new(salted, b"Client Key", hashlib.sha256).digest()
+    stored_key = hashlib.sha256(client_key).digest()
+    server_key = hmac.new(salted, b"Server Key", hashlib.sha256).digest()
+    b64 = lambda b: base64.b64encode(b).decode("ascii")  # noqa: E731
+    return "SCRAM-SHA-256$%d:%s$%s:%s" % (iterations, b64(salt), b64(stored_key), b64(server_key))
 
 
 def is_transient_db_error(e: BaseException) -> bool:
@@ -61,6 +76,12 @@ class Database:
             for f in files:
                 await conn.execute(f.read_text(encoding="utf-8"))
                 applied.append(f.name)
+            ro_password = os.environ.get("DATABASE_RO_PASSWORD", "")
+            if ro_password:
+                # 明文不进服务端语句：Python 侧算 SCRAM verifier，ALTER ROLE 不支持绑定参数，经 quote_literal 拼字面量
+                literal = await conn.fetchval("SELECT quote_literal($1::text)", scram_sha256_verifier(ro_password))
+                await conn.execute("ALTER ROLE lutetia_ro LOGIN PASSWORD %s" % literal)
+                log.info("ro password set")
         return applied
 
     # --- devices -----------------------------------------------------------
