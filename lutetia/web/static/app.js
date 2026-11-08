@@ -50,7 +50,7 @@
     });
   }
 
-  var KIND_LABELS = { stale: '失联', low_volt: '低电压', alarm: '报警', push: '推送通道', backup: '备份', quota: '配额', login: '登录次数' };
+  var KIND_LABELS = { collector: '采集', stale: '失联', low_volt: '低电压', alarm: '报警', push: '推送通道', backup: '备份', quota: '配额', login: '登录次数' };
 
   function renderAnomalies(data) {
     var box = document.getElementById('anomalies');
@@ -76,13 +76,27 @@
     box.appendChild(ul);
   }
 
-  function fmtBackup(b) {
-    if (!b || !b.at) { return '上次备份：无'; }
+  function fmtParis(iso) {
     var parts = {};
     new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(b.at)).forEach(function (p) { parts[p.type] = p.value; });
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso)).forEach(function (p) { parts[p.type] = p.value; });
+    return parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute + ' 巴黎时间';
+  }
+
+  function fmtBackup(b) {
+    if (!b || !b.at) { return '上次备份：无'; }
     var size = b.bytes === null || b.bytes === undefined ? '-' : (b.bytes / 1048576).toFixed(1) + ' MB';
-    return '上次备份：' + parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute + ' 巴黎时间 · ' + size;
+    return '上次备份：' + fmtParis(b.at) + ' · ' + size;
+  }
+
+  var RECEIVER_STALE_NOTE = '以下接收端计数为最后已知值（采集心跳已过期）';
+
+  function fmtCollector(c) {
+    if (!c || !c.updated_at) { return '采集从未上报心跳'; }
+    var ws = c.ws_connected === null || c.ws_connected === undefined ? 'WS 未启用' : (c.ws_connected ? 'WS 已连' : 'WS 未连');
+    var state = ws + ' · ' + (c.polling ? '轮询中' : '推送') + ' · v' + (c.version || '?');
+    if (c.stale) { return '采集心跳已过期，最后已知（' + fmtParis(c.updated_at) + '）：' + state; }
+    return '采集心跳：' + fmtParis(c.updated_at) + '（' + Math.floor(c.age_sec) + ' 秒前）· ' + state;
   }
 
   function render(data) {
@@ -113,6 +127,10 @@
       return [r.name, r.device_id, fmtTs(r.update_time), r.lat, r.lon, r.speed_kmh, r.origin];
     }), null, null, { 0: function (i) { return deviceHref('gps51', data.latest_gps[i].device_id); } });
 
+    var cl = document.getElementById('collector-line');
+    if (cl) { cl.textContent = fmtCollector(data.collector); }
+    var rn = document.getElementById('receiver-note');
+    if (rn) { rn.textContent = data.collector && data.collector.stale && data.receiver ? RECEIVER_STALE_NOTE : ''; }
     var rc = data.receiver;
     fill('tbl-receiver', rc ? [[rc.received, rc.stored, rc.rejected, rc.unrecognised, rc.alarms, rc.failed,
       rc.queued, fmtSecs(rc.silent_sec), fmtSecs(rc.message_silent_sec)]] : []);

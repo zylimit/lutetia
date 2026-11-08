@@ -8,6 +8,7 @@ import aiohttp
 
 from .config import Config
 from .db import Database
+from .heartbeat import heartbeat_loop
 from .web import WebServer
 from .sources.dingtek import DingtekClient, DingtekSync, DingtekWs
 from .sources.gps51 import Gps51Client, Gps51Poller, PushReceiver, fallback_loop
@@ -51,9 +52,12 @@ async def run(cfg: Config) -> None:
         dsync = DingtekSync(dclient, db)
         web_server = WebServer(cfg, db, receiver, started_at)
         tasks = []
+        dws = None
         try:
             await receiver.start()
             await web_server.start()
+            # first heartbeat goes out now, before the (slow) startup syncs; dws is looked up at each beat
+            tasks.append(asyncio.create_task(heartbeat_loop(db, receiver, poller, lambda: dws), name="heartbeat"))
             if cfg.gps51_user:
                 try:
                     await poller.sync_devices()
@@ -70,7 +74,8 @@ async def run(cfg: Config) -> None:
                     log.exception("dingtek startup reconcile failed")
                 device_ids = await db.list_device_ids("dingtek")
                 if device_ids:
-                    tasks.append(asyncio.create_task(DingtekWs(dclient, db, session, device_ids).run(), name="dingtek-ws"))
+                    dws = DingtekWs(dclient, db, session, device_ids)
+                    tasks.append(asyncio.create_task(dws.run(), name="dingtek-ws"))
                 tasks.append(asyncio.create_task(dingtek_reconcile_loop(cfg, dsync), name="dingtek-reconcile"))
             else:
                 log.warning("DINGTEK_USER not set: dingtek source disabled")

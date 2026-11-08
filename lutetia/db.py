@@ -250,6 +250,31 @@ class Database:
                 "latest_ok": latest["ok"] if latest else None, "latest_at": latest["finished_at"] if latest else None,
                 "latest_error": latest["error"] if latest else None}
 
+    async def write_heartbeat(self, version: str, push_last_at: Optional[datetime], ws_connected: Optional[bool],
+                              polling: bool, details: Dict[str, Any]) -> None:
+        """Upsert the single collector_status row. push_count_24h = push rows received in the last 24 h (ingested_at; survives restarts)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO collector_status (id, updated_at, version, push_last_at, push_count_24h, ws_connected, polling, details)
+                VALUES (1, now(), $1, $2,
+                        (SELECT count(*)::int FROM gps_position WHERE origin = 'push' AND ingested_at >= now() - interval '24 hours'),
+                        $3, $4, $5)
+                ON CONFLICT (id) DO UPDATE SET updated_at = EXCLUDED.updated_at, version = EXCLUDED.version,
+                    push_last_at = COALESCE(EXCLUDED.push_last_at, collector_status.push_last_at),
+                    push_count_24h = EXCLUDED.push_count_24h, ws_connected = EXCLUDED.ws_connected,
+                    polling = EXCLUDED.polling, details = EXCLUDED.details
+                """,
+                version, push_last_at, ws_connected, polling, details,
+            )
+
+    async def collector_status(self) -> Optional[Dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            # age_sec is computed by the database clock, the only clock the heartbeat age may use (web and collector clocks can differ)
+            row = await conn.fetchrow("SELECT updated_at, EXTRACT(EPOCH FROM now() - updated_at)::float8 AS age_sec, version, push_last_at, "
+                                      "push_count_24h, ws_connected, polling, details FROM collector_status WHERE id = 1")
+        return dict(row) if row else None
+
     async def latest_sensor_values(self, keys: Sequence[str]) -> List[Dict[str, Any]]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(

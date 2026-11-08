@@ -11,10 +11,12 @@ ALARM_KEYS = ("alarmFall", "alarmBattery")
 PUSH_SILENT_LIMIT_SEC = 900
 # DFX-Spec dim 2 / Task 6.2: backup runs daily at 02:30; 26 h = one day plus 2.5 h slack before it counts as overdue
 BACKUP_MAX_AGE_H = 26
-KIND_ORDER = ("stale", "alarm", "push", "backup", "low_volt", "quota", "login")
+# DFX-Spec candidate (Decisions 2026-11-09): the collector writes a heartbeat every 30 s, 90 s = three missed beats. One place only.
+HEARTBEAT_STALE_SEC = 90
+KIND_ORDER = ("collector", "stale", "alarm", "push", "backup", "low_volt", "quota", "login")
 VOLT_RED_MARGIN = 0.2
 QUOTA_YELLOW_RATIO = 0.8
-KIND_LABELS = {"stale": "失联", "low_volt": "低电压", "alarm": "报警", "push": "推送通道", "backup": "备份", "quota": "配额", "login": "登录次数"}
+KIND_LABELS = {"collector": "采集", "stale": "失联", "low_volt": "低电压", "alarm": "报警", "push": "推送通道", "backup": "备份", "quota": "配额", "login": "登录次数"}
 
 
 def _item(level: str, kind: str, detail: str, device_id: Any = None, name: Any = None) -> Dict[str, Any]:
@@ -83,17 +85,28 @@ def _backup(now: datetime, summary: Dict[str, Any], max_age_h: float = BACKUP_MA
     return out
 
 
+def _collector(collector: Dict[str, Any], stale_sec: int = HEARTBEAT_STALE_SEC) -> List[Dict[str, Any]]:
+    if collector["updated_at"] is None:
+        return [_item(LEVEL_RED, "collector", "采集从未上报心跳")]
+    age = collector["age_sec"]  # database clock, see Database.collector_status
+    if age > stale_sec:
+        return [_item(LEVEL_RED, "collector", "采集心跳已 %d 分 %d 秒未更新（阈值 %d 秒）" % (age // 60, age % 60, stale_sec))]
+    return []
+
+
 def compute(now: datetime, devices: List[Dict[str, Any]], latest_sensor: List[Dict[str, Any]],
             latest_alarms: List[Dict[str, Any]], receiver: Optional[Dict[str, Any]], calls_24h: List[Dict[str, Any]],
             budget: int, low_volt: float, max_age_hours_default: float = 3.0,
             push_silent_limit_sec: int = PUSH_SILENT_LIMIT_SEC,
-            backup: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+            backup: Optional[Dict[str, Any]] = None, collector: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     items = _stale(now, devices, max_age_hours_default) + _low_volt(latest_sensor, low_volt) + _alarms(latest_alarms)
     if receiver is not None and receiver["silent_sec"] > push_silent_limit_sec:
         items.append(_item(LEVEL_RED, "push", "推送位置静默 %d 分钟（阈值 %d 分钟）" % (receiver["silent_sec"] // 60, push_silent_limit_sec // 60)))
     items += _calls(list(calls_24h), budget)
     if backup is not None:
         items += _backup(now, backup)
+    if collector is not None:  # None = caller has no heartbeat to judge (pure-rule tests); the web layer always passes one
+        items += _collector(collector)
     items.sort(key=lambda i: (i["level"] != LEVEL_RED, KIND_ORDER.index(i["kind"]), str(i.get("name", ""))))
     return items
 

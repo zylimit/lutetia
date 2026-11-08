@@ -26,6 +26,7 @@ class DingtekWs:
         self.last_msg_at: Optional[float] = None
         self.stored = 0
         self.connections = 0
+        self.connected = False  # True only while a websocket session is open (read by the heartbeat)
 
     async def _session_once(self) -> None:
         await self.client.ensure_token()
@@ -38,6 +39,7 @@ class DingtekWs:
             sub_map[i] = uuid
         async with self.session.ws_connect(url, heartbeat=30, timeout=30) as ws:
             self.connections += 1
+            self.connected = True
             await ws.send_json({"tsSubCmds": cmds, "historyCmds": [], "attrSubCmds": []})
             log.info("dingtek ws connected, %d subscriptions", len(cmds))
             async for msg in ws:
@@ -88,6 +90,7 @@ class DingtekWs:
                 raise
             except Exception as e:  # noqa: BLE001 - keep the ws loop alive; no traceback (it can embed the token URL)
                 log.error("dingtek ws session failed: %s: %s", type(e).__name__, self._redact(str(e)))
+            self.connected = False
             if time.monotonic() - started >= WS_STABLE_SESSION_S:
                 backoff = WS_BACKOFF_START
             await asyncio.sleep(backoff)

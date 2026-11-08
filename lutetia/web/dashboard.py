@@ -9,7 +9,7 @@ from aiohttp import web
 
 from ..db import max_age_hours
 from . import anomalies
-from .data import build_anomalies
+from .data import build_anomalies, heartbeat_view
 from .auth import COOKIE_NAME, check_password, client_ip, require_session
 from .html import esc, fmt_ago, fmt_ts, page, table
 
@@ -114,18 +114,35 @@ def gps_section(rows: List[Dict[str, Any]]) -> str:
                                                                                     links={"名字": lambda i: device_url("gps51", cells[i][1])})
 
 
-def collector_section(ctx: Any, calls: List[Dict[str, Any]], now: datetime) -> str:
-    rcv = ctx.receiver
-    if rcv is None:
-        rec = "<p>推送接收端未启用</p>"
+def paris_ts(at: datetime) -> str:
+    return "%s 巴黎时间" % at.astimezone(ZoneInfo("Europe/Paris")).strftime("%Y-%m-%d %H:%M")
+
+
+def collector_line(c: Dict[str, Any]) -> str:
+    if c["updated_at"] is None:
+        return "采集从未上报心跳"
+    ws = "WS 未启用" if c["ws_connected"] is None else ("WS 已连" if c["ws_connected"] else "WS 未连")
+    state = "%s · %s · v%s" % (ws, "轮询中" if c["polling"] else "推送", c["version"] or "?")
+    if c["stale"]:  # SV-1: the old WS / polling values are not current facts once the heartbeat is stale
+        return "采集心跳已过期，最后已知（%s）：%s" % (paris_ts(c["updated_at"]), state)
+    return "采集心跳：%s（%d 秒前）· %s" % (paris_ts(c["updated_at"]), c["age_sec"], state)
+
+
+RECEIVER_STALE_NOTE = "以下接收端计数为最后已知值（采集心跳已过期）"
+
+
+def collector_section(ctx: Any, calls: List[Dict[str, Any]], now: datetime, receiver: Optional[Dict[str, Any]], collector: Dict[str, Any]) -> str:
+    if receiver is None:
+        rec = "<p>采集器尚未上报心跳</p>"
     else:
-        queued = rcv.queue.qsize() if hasattr(rcv, "queue") else getattr(rcv, "queued", 0)
-        pairs = [(k, getattr(rcv, k)) for k in ("received", "stored", "rejected", "unrecognised", "alarms", "failed")]
-        pairs += [("queued", queued), ("silent", fmt_secs(rcv.silent_for())), ("message_silent", fmt_secs(rcv.message_silent_for()))]
+        pairs = [(k, receiver[k]) for k in ("received", "stored", "rejected", "unrecognised", "alarms", "failed", "queued")]
+        pairs += [("silent", fmt_secs(receiver["silent_sec"])), ("message_silent", fmt_secs(receiver["message_silent_sec"]))]
         rec = table([k for k, _ in pairs], [[v for _, v in pairs]], tbody_id="tbl-receiver")
     api = table(["source", "action", "24h 调用数"], [[c["source"], c["action"], c["n"]] for c in calls], tbody_id="tbl-calls")
-    info = '<p>服务启动 %s · <span id="last-refresh">生成于 %s</span></p>' % (esc(fmt_ts(ctx.started_at)), esc(fmt_ts(now)))
-    return "<h2>采集器状态</h2>" + rec + api + info
+    info = '<p>Web 启动 %s · <span id="last-refresh">生成于 %s</span></p>' % (esc(fmt_ts(ctx.started_at)), esc(fmt_ts(now)))
+    note = RECEIVER_STALE_NOTE if collector["stale"] and receiver is not None else ""
+    return ("<h2>采集器状态</h2>" + '<p id="collector-line">' + esc(collector_line(collector)) + "</p>"
+            + '<p id="receiver-note">' + esc(note) + "</p>" + rec + api + info)
 
 
 def backup_line(summary: Dict[str, Any]) -> str:
@@ -155,9 +172,10 @@ async def dashboard(request: web.Request) -> web.Response:
     gps = await ctx.db.latest_gps_positions()
     calls = await ctx.db.call_summary(24)
     backup = await ctx.db.backup_summary()
-    items = await build_anomalies(ctx, now, status, sensors, calls, backup)
+    receiver, collector = heartbeat_view(await ctx.db.collector_status())
+    items = await build_anomalies(ctx, now, status, sensors, calls, backup, receiver, collector)
     body = ('<p><a href="/dashboard/map">地图</a> · <a href="/logout">退出</a></p><h1>Lutetia 看板</h1><div id="anomalies">' + anomalies_section(items) + '</div><p id="last-backup">' + esc(backup_line(backup)) + '</p>' + devices_section(status, now)
-            + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now))
+            + sensors_section(sensors) + gps_section(gps) + collector_section(ctx, calls, now, receiver, collector))
     return page("Lutetia 看板", body, script=True)
 
 

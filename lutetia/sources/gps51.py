@@ -152,6 +152,7 @@ class Gps51Poller:
         self.client, self.db = client, db
         self.last_query_time = 0
         self.polls = 0
+        self.polling = False  # set by fallback_loop: True while in poll mode (push silent)
 
     async def sync_devices(self) -> List[Device]:
         devices = parse_monitorlist(await self.client.monitorlist())
@@ -184,6 +185,7 @@ class PushReceiver:
         self.started_at = time.monotonic()
         self.last_push_at: Optional[float] = None
         self.last_position_at: Optional[float] = None
+        self.last_position_wall: Optional[datetime] = None  # wall-clock twin of last_position_at, for the heartbeat row
         self.received = 0
         self.stored = 0
         self.rejected = 0
@@ -229,6 +231,7 @@ class PushReceiver:
         self.alarms += len(alarm_items)
         rows = parse_push_payload(payload)
         if rows:
+            self.last_position_wall = datetime.now(timezone.utc)
             self.last_position_at = time.monotonic()  # before the write: a duplicate delivery still proves liveness
         else:
             if not alarm_items:
@@ -297,13 +300,17 @@ async def fallback_loop(cfg: Config, poller: Gps51Poller, receiver: PushReceiver
             if mode != "poll":
                 log.warning("gps51 push silent for %.0f min -> polling every %ds", silent / 60, cfg.gps51_poll_interval)
                 mode = "poll"
+                poller.polling = True
             try:
                 await poller.poll_once()
             except BudgetExceeded as e:
                 log.error("%s; polling paused for 1h", e)
+                poller.polling = False  # the heartbeat must not claim we are polling while paused
                 await asyncio.sleep(3600)
+                poller.polling = True
             except Exception:
                 log.exception("gps51 poll failed")
         elif mode != "push":
             log.info("gps51 push resumed -> polling stopped")
             mode = "push"
+            poller.polling = False

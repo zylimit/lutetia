@@ -6,6 +6,7 @@ from aiohttp import web
 
 from ..db import ms_to_dt
 from .auth import require_api_key
+from .data import heartbeat_view
 from .jsonutil import _dumps, validate_device_id
 
 DEFAULT_LIMIT, MAX_LIMIT = 1000, 10000
@@ -81,14 +82,9 @@ async def telemetry(request: web.Request) -> web.Response:
 @require_api_key
 async def status(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
-    rcv = ctx.receiver
-    receiver = None
-    if rcv is not None:
-        receiver = {k: getattr(rcv, k) for k in ("received", "stored", "rejected", "unrecognised", "alarms", "failed")}
-        receiver["queued"] = rcv.queue.qsize() if hasattr(rcv, "queue") else getattr(rcv, "queued", 0)
-        receiver["silent_sec"] = rcv.silent_for()
-        receiver["message_silent_sec"] = rcv.message_silent_for()
-    return _json({"started_at": ctx.started_at, "receiver": receiver,
+    receiver, collector = heartbeat_view(await ctx.db.collector_status())
+    # started_at = start time of this web process; the collector's own start time is collector.collector_started_at
+    return _json({"started_at": ctx.started_at, "receiver": receiver, "collector": collector,
                   "api_calls_24h": await ctx.db.call_summary(24)})
 
 

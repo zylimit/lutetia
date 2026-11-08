@@ -135,20 +135,6 @@ FIELDS9 = {"received", "stored", "rejected", "unrecognised", "alarms", "failed",
            "queued", "silent_sec", "message_silent_sec"}
 
 
-class StubReceiver:
-    received, stored, rejected, unrecognised, alarms, failed = 11, 7, 1, 2, 3, 4
-
-    def __init__(self):
-        self.queue = asyncio.Queue()
-        self.queue.put_nowait(1)
-
-    def silent_for(self):
-        return 12.5
-
-    def message_silent_for(self):
-        return 30.0
-
-
 @pytest.mark.parametrize("header,status", [
     ("bearer " + KEY, 200),
     ("BEARER  " + KEY, 200),
@@ -232,12 +218,22 @@ async def test_api_telemetry_limit_one(db):
         await cleanup(db, dev)
 
 
-async def test_api_status_with_receiver_has_nine_fields(db):
-    # risk: medium  (A2)
-    app = WebServer(make_cfg(), db, StubReceiver(), datetime.now(timezone.utc)).build_app()
-    async with TestClient(TestServer(app)) as client:
-        r = await client.get("/api/v1/status", headers=AUTH)
-        assert r.status == 200
-        rcv = (await r.json())["receiver"]
+async def test_api_status_reads_heartbeat_row_with_nine_receiver_fields(db):
+    # risk: medium  (A2; Task 7.2: receiver now comes from collector_status, not process memory)
+    details = {"received": 11, "stored": 7, "rejected": 1, "unrecognised": 2, "alarms": 3, "failed": 4,
+               "queued": 1, "silent_sec": 12.5, "message_silent_sec": 30.0}
+    async with db.pool.acquire() as conn:
+        await conn.execute("DELETE FROM collector_status")
+    await db.write_heartbeat("t", None, False, False, details)
+    try:
+        async with TestClient(TestServer(make_app(db))) as client:
+            r = await client.get("/api/v1/status", headers=AUTH)
+            assert r.status == 200
+            body = await r.json()
+        rcv = body["receiver"]
         assert set(rcv) >= FIELDS9
-        assert rcv["received"] == 11 and rcv["queued"] == 1 and rcv["silent_sec"] == 12.5
+        assert rcv["received"] == 11 and rcv["queued"] == 1 and rcv["silent_sec"] >= 12.5
+        assert body["collector"]["stale"] is False and body["collector"]["version"] == "t"
+    finally:
+        async with db.pool.acquire() as conn:
+            await conn.execute("DELETE FROM collector_status")

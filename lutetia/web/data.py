@@ -1,7 +1,7 @@
 """Session-authenticated JSON data endpoints for the dashboard pages (read-only; the API key is never used here)."""
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from aiohttp import web
 
@@ -24,21 +24,33 @@ def _bad(msg: str) -> web.Response:
     return _json({"error": msg}, status=400)
 
 
-def receiver_counts(rcv: object) -> object:
-    if rcv is None:
-        return None
-    out = {k: getattr(rcv, k) for k in ("received", "stored", "rejected", "unrecognised", "alarms", "failed")}
-    out["queued"] = rcv.queue.qsize() if hasattr(rcv, "queue") else getattr(rcv, "queued", 0)  # type: ignore[attr-defined]
-    out["silent_sec"] = rcv.silent_for()  # type: ignore[attr-defined]
-    out["message_silent_sec"] = rcv.message_silent_for()  # type: ignore[attr-defined]
-    return out
+COUNTER_KEYS = ("received", "stored", "rejected", "unrecognised", "alarms", "failed", "queued")
 
 
-async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict], backup: Dict) -> List[Dict]:
-    return anomalies.compute(now, devices, sensors, await ctx.db.latest_alarm_values(anomalies.ALARM_KEYS), receiver_counts(ctx.receiver),  # type: ignore[attr-defined]
+def heartbeat_view(row: Optional[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+    """(receiver, collector) built from the collector_status row. Age is row["age_sec"] (database clock). Silent seconds are
+    the value at write time plus that age, so they keep growing after the collector dies. No row: receiver None, collector stale."""
+    if row is None:
+        return None, {"updated_at": None, "age_sec": None, "stale": True, "version": None, "ws_connected": None,
+                      "polling": None, "push_last_at": None, "push_count_24h": None, "collector_started_at": None}
+    age = max(0.0, float(row["age_sec"]))  # a future stamp reads as 0; the database keeps counting once the collector stops writing
+    d = row["details"] or {}
+    receiver = {k: d.get(k, 0) for k in COUNTER_KEYS}
+    receiver["silent_sec"] = d.get("silent_sec", 0) + age
+    receiver["message_silent_sec"] = d.get("message_silent_sec", 0) + age
+    collector = {"updated_at": row["updated_at"], "age_sec": age, "stale": age > anomalies.HEARTBEAT_STALE_SEC,
+                 "version": row["version"], "ws_connected": row["ws_connected"], "polling": row["polling"],
+                 "push_last_at": row["push_last_at"], "push_count_24h": row["push_count_24h"],
+                 "collector_started_at": d.get("collector_started_at")}
+    return receiver, collector
+
+
+async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict], backup: Dict,
+                          receiver: Optional[Dict], collector: Dict) -> List[Dict]:
+    return anomalies.compute(now, devices, sensors, await ctx.db.latest_alarm_values(anomalies.ALARM_KEYS), receiver,  # type: ignore[attr-defined]
                              calls, ctx.cfg.gps51_daily_budget, ctx.cfg.low_volt,  # type: ignore[attr-defined]
                              push_silent_limit_sec=ctx.cfg.push_silence_min * 60,  # type: ignore[attr-defined]
-                             backup=backup)
+                             backup=backup, collector=collector)
 
 
 @require_session_json
@@ -54,13 +66,15 @@ async def overview(request: web.Request) -> web.Response:
     sensors = await ctx.db.latest_sensor_values(DEFAULT_KEYS)
     calls = await ctx.db.call_summary(24)
     backup = await ctx.db.backup_summary()
-    items = await build_anomalies(ctx, now, devices, sensors, calls, backup)
+    receiver, collector = heartbeat_view(await ctx.db.collector_status())
+    items = await build_anomalies(ctx, now, devices, sensors, calls, backup, receiver, collector)
     return _json({
         "generated_at": now,
         "devices": devices,
         "latest_sensor": sensors,
         "latest_gps": await ctx.db.latest_gps_positions(),
-        "receiver": receiver_counts(ctx.receiver),
+        "receiver": receiver,
+        "collector": collector,
         "api_calls_24h": calls,
         "anomalies": items,
         "anomaly_summary": anomalies.summarize(items),
