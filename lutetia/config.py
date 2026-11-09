@@ -45,6 +45,9 @@ class Config:
     huawei_user: str = "huawei"
     huawei_pwd: str = ""
     api_key: str = ""
+    callers_file: str = ""
+    legacy_rate_per_min: int = 600
+    session_rate_per_min: int = 600
     session_secret: str = ""
     trust_proxy: bool = False
     low_volt: float = 3.4
@@ -81,6 +84,9 @@ class Config:
             huawei_user=e("HUAWEI_USER", "huawei"),
             huawei_pwd=e("HUAWEI_PWD", ""),
             api_key=e("API_KEY", ""),
+            callers_file=e("CALLERS_FILE", "").strip(),
+            legacy_rate_per_min=int(e("LEGACY_RATE_PER_MIN", "600")),
+            session_rate_per_min=int(e("SESSION_RATE_PER_MIN", "600")),
             session_secret=e("SESSION_SECRET", ""),
             trust_proxy=e("DASHBOARD_TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes"),
             low_volt=float(e("DASHBOARD_LOW_VOLT", "3.4")),

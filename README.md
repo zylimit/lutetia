@@ -40,7 +40,10 @@ pytest
 | `DASHBOARD_TRUST_PROXY` | `false` | 只在前面恰好一层受信反向代理（nginx）时设 `true`（仅信任回环/私网来源，取 X-Forwarded-For 最后一个值，即该代理追加的那个）；**直接绑公网时不要开**，否则伪造该头可绕过登录锁定 |
 | `DASHBOARD_LOW_VOLT` | `3.4` | 首页异常总览的低电压阈值（V）：低于它标黄，再低 0.2 V 标红 |
 | `DASHBOARD_LOGIN_LOCKOUT` | 开 | 设 `off` 关闭登录锁定（同 IP 错 5 次锁 5 分钟、全局 5 分钟 50 次锁 60 秒），仅测试阶段用；失败照常记日志 |
-| `API_KEY` | 空 | 查询 API 的 Bearer key；空则所有 API 请求都返回 401 |
+| `API_KEY` | 空 | 旧的查询 API Bearer key；视为名为 `legacy` 的调用方（全部范围、无 origins）；空则不存在 legacy 调用方 |
+| `CALLERS_FILE` | 空 | 调用方登记文件路径（容器内 `/callers/callers.json`），格式见下节「调用方登记」；文件有任何格式错误 web 拒绝启动 |
+| `LEGACY_RATE_PER_MIN` | `600` | `legacy` 调用方每分钟限额 |
+| `SESSION_RATE_PER_MIN` | `600` | 浏览器会话调 `/api/v1` 的每分钟限额，按账号名各算各的 |
 | `SESSION_SECRET` | 空 | cookie 签名密钥；`docker compose` 下**必填**（空则起不来，`host-deploy.sh` 第 2 步校验：非空、只许字母数字，生成用 `openssl rand -hex 32`）；本机不跑 compose 时可留空，此时每次启动随机生成并打 warning，重启后所有人（含 30 天会话）都要重新登录。会话签名密钥另按账号名与该账号密码派生：改某个账号的密码只让该账号的会话失效，改 `SESSION_SECRET` 让全部失效 |
 | `DATABASE_RO_PASSWORD` | 空 | 只读库角色 `lutetia_ro` 的登录密码。collector 启动迁移时设到库里，web 容器用它连库（compose 里拼成 `postgresql://lutetia_ro:…@db:5432/lutetia`，所以没有 `DATABASE_RO_URL`）；`docker compose` 下必填，空则起不来；**只许字母数字**（密码直接拼进连接串，含 `/ @ # ? %` 会解析失败或连错账号；`host-deploy.sh` 第 2 步会校验），生成用 `openssl rand -hex 24`。轮换：改 `.env` 后重跑 `bash deploy/host-deploy.sh`。收回登录要手工执行 `ALTER ROLE lutetia_ro NOLOGIN PASSWORD NULL`（删掉变量不会收回） |
 
@@ -60,6 +63,47 @@ pytest
 - `since` / `until`：ISO 8601（`2026-11-01T00:00:00Z` 或 `+00:00`）或毫秒整数；解析失败返回 `400`。
 - `limit`：默认 1000，范围 1 ～ 10000，越界返回 `400`；缺 `device_id` 返回 `400`。
 - 时间字段统一输出 ISO 8601 UTC，带 `Z`。
+
+`/api/v1` 另认浏览器会话：不带 `Authorization` 但带有效会话 cookie（admin / orange / huawei 任一）按账号给范围：admin 拿全部（`iot:read`、`poi:read`、`status:read`），orange / huawei 只拿 `iot:read` 与 `poi:read`，调 status 返回 `403`（运维内部状态只给 admin，Spec v1.16）。带了 `Authorization` 头就只按 key 判（key 无效、或头不是 `Bearer <非空 key>`（如 Basic、空 Bearer）即 `401`，不回落到会话）。现仅支持 `Authorization: Bearer`，没有 `X-API-Key` 头。四个接口的范围：devices / positions / telemetry 要 `iot:read`，status 要 `status:read`。状态码：`401` 无凭据或 key 无效，`403` key 有效但范围不够（响应体只有 `{"error": "forbidden"}`），`429` 超每分钟限额（带整数秒 `Retry-After`，≥ 1）。
+
+## 调用方登记
+
+每个外部调用方一把 key，只存 SHA-256 摘要，各自有范围、来源白名单和每分钟限额；能单独吊销、单独限流，日志只写调用方名字。登记文件放在宿主机 `~/lutetia/callers/callers.json`（`callers/*.json` 已在 `.gitignore`，不入库），`.env` 里设 `CALLERS_FILE=/callers/callers.json`（compose 把 `./callers` 只读挂到容器 `/callers`），改完 `docker compose up -d web` 重启 web 生效。仓库里的 `callers/example.json.sample` 是格式样例（值全是假的）。
+
+```json
+[
+  {
+    "name": "ofr",
+    "key_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "scopes": ["iot:read", "poi:read"],
+    "origins": ["https://ofr.digifiber.net"],
+    "rate_per_min": 120
+  }
+]
+```
+
+| 字段 | 规则 |
+|---|---|
+| `name` | 必填，`[A-Za-z0-9._-]` 1～64 位，不得重复，不得叫 `legacy`（留给 `API_KEY`） |
+| `key_sha256` | 必填，key 的 SHA-256 摘要，64 位小写 hex，不得重复，不得是空 key 的摘要 |
+| `scopes` | 必填，非空，只能是 `iot:read` / `poi:read` / `status:read` |
+| `origins` | 必填（可空数组），每项必须是 `https://<一个或多个标签>.digifiber.net`（如 `https://ofr.digifiber.net`）：不带端口、路径，不许裸 `digifiber.net`、通配符、大写；嵌入方先只限 digifiber.net 下的系统（ADR-6），不合规 web 拒绝启动并报第几项第几个来源 |
+| `rate_per_min` | 必填，正整数；令牌桶容量与每分钟补充量都等于它 |
+
+出现未知字段、未知范围、重复的 name 或 key_sha256 都会让 web 拒绝启动，报错只写第几项、哪个字段，不含 key 与摘要。
+
+生成 key 与摘要（key 只给调用方，不写进仓库、不写进登记文件，登记文件里只放摘要）：
+
+```bash
+KEY=$(openssl rand -hex 32)
+printf %s "$KEY" | sha256sum        # 取第一列填进 key_sha256
+```
+
+吊销：删掉登记文件里该调用方那一项，重启 web，它的 key 立刻返回 `401`。
+
+CORS：请求带的 `Origin` 恰好在该调用方（已凭 key 认证）登记的 `origins` 里时，响应带 `Access-Control-Allow-Origin: <该 origin>`、`Vary: Origin`、`Access-Control-Allow-Credentials: true`；`OPTIONS` 预检只对任一调用方登记过的来源放行，方法只许 `GET`、头只许 `Authorization`；带 CORS 头的响应还带 `Access-Control-Expose-Headers: Retry-After`（浏览器能读到 429 的等待秒数）；其余来源一律没有 CORS 头，任何情况都不返回 `*`。来源按字符串逐字相等匹配（浏览器发出的 Origin 本就小写）。
+
+日志：每个 `/api/v1` 请求一行 `api caller=<name 或 session:<账号>> resource=<path> status=<code>`，未认证记 `caller=-`；不含 key、摘要与查询参数。
 
 ```bash
 curl -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8081/api/v1/devices

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "ofr",
+    "key_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "scopes": ["iot:read", "poi:read"],
+    "origins": ["https://ofr.digifiber.net"],
+    "rate_per_min": 120
+  },
+  {
+    "name": "monitoring",
+    "key_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "scopes": ["status:read"],
+    "origins": [],
+    "rate_per_min": 30
+  }
+]

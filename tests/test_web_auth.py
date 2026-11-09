@@ -520,7 +520,8 @@ async def test_admin_ops_pages_show_header_with_escaped_account(db, dev_url):
             assert 'id="whoami"' in body and "ad&lt;b&gt;min" in body and "ad<b>min" not in body, path
             assert 'href="/logout"' in body and NOTICE not in body, path
         body = await (await c.get("/dashboard/", headers=hdr)).text()
-        assert 'id="anomalies"' in body and 'id="tbl-receiver"' in body
+        # tbl-receiver only renders when collector_status has a row (shared-DB state), so assert state-independent markers
+        assert 'id="anomalies"' in body and 'id="tbl-devices"' in body
 
 
 @pytest.mark.parametrize("user,pwd_attr", [("orange", "orange_pwd"), ("huawei", "huawei_pwd")])
@@ -604,11 +605,12 @@ async def test_login_form_input_attributes_for_ios_home_screen():
 
 
 async def test_api_v1_unchanged_by_page_gate(db):
-    # risk: high  (8.1 不动 /api/v1：仍只认 Bearer key，不看会话)
+    # risk: high  (8.1 不动 /api/v1；8.2 起会话也能调，带了 Authorization 头则只按 key 判)
     cfg = _acct_cfg()
     async with TestClient(TestServer(_acct_app(cfg, db))) as c:
         hdr = _cookie(await _login_as(c, "orange", cfg.orange_pwd))
-        assert (await c.get("/api/v1/devices", headers=hdr)).status == 401
+        assert (await c.get("/api/v1/devices", headers=hdr)).status == 200
+        assert (await c.get("/api/v1/devices", headers=dict(hdr, Authorization="Bearer wrong"))).status == 401
         assert (await c.get("/api/v1/devices", headers={"Authorization": "Bearer " + cfg.api_key})).status == 200
 
 

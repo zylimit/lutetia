@@ -60,6 +60,9 @@ services:
       HUAWEI_USER: ${HUAWEI_USER:-huawei}
       HUAWEI_PWD: ${HUAWEI_PWD:-}
       API_KEY: ${API_KEY:?set API_KEY in .env}
+      CALLERS_FILE: ${CALLERS_FILE:-}
+      LEGACY_RATE_PER_MIN: ${LEGACY_RATE_PER_MIN:-600}
+      SESSION_RATE_PER_MIN: ${SESSION_RATE_PER_MIN:-600}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
       DASHBOARD_LOW_VOLT: ${DASHBOARD_LOW_VOLT:-3.4}
       DASHBOARD_LOGIN_LOCKOUT: ${DASHBOARD_LOGIN_LOCKOUT:-on}
@@ -68,6 +71,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "127.0.0.1:${DASHBOARD_PUBLISH_PORT:-8081}:8081"  # dashboard + query API, loopback only; host nginx fronts it
+    volumes:
+      - ./callers:/callers:ro                              # 调用方登记文件（只含 key 摘要），只读挂载
     depends_on:
       collector:
         # 只等 collector 容器起来，不等健康：web 不依赖 collector 存活（ADR-4）。首次上线时迁移还没跑完、只读角色还没密码，

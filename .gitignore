@@ -19,5 +19,8 @@ build/
 .env.*
 !.env.example
 
+# 调用方登记文件（只含 key 摘要，仍不进仓库）；示例 example.json.sample 与 .gitkeep 照常入库
+callers/*.json
+
 # 业务数据（POI 台账等）：法国项目数据不出欧洲，只留在 fra，不推 GitHub
 data/

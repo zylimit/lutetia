@@ -24,7 +24,8 @@ def test_web_has_no_env_file_and_no_vendor_secrets():
     assert "env_file" not in web
     for key in ("GPS51_USER", "GPS51_PWD", "DINGTEK_USER", "DINGTEK_PWD", "POSTGRES_PASSWORD", "DATABASE_RO_URL"):
         assert key not in web, key
-    assert "/data" not in web and "volumes:" not in web
+    assert "/data" not in web and "lutetia-state" not in web
+    assert re.findall(r"^\s+- (\S+:\S+:ro)\s*(?:#.*)?$", web, re.M) == ["./callers:/callers:ro"]  # the only mount, read-only
 
 
 def test_web_connects_as_readonly_role_and_runs_web_role():
@@ -73,4 +74,13 @@ def test_web_gets_orange_huawei_account_keys_collector_does_not():
                  "HUAWEI_USER: ${HUAWEI_USER:-huawei}", "HUAWEI_PWD: ${HUAWEI_PWD:-}"):
         assert line in web, line
     for key in ("ORANGE_", "HUAWEI_"):
+        assert key not in col, key
+
+
+def test_web_gets_callers_file_and_rate_keys_collector_does_not():
+    web, col = service_block("web"), service_block("collector")
+    for line in ("CALLERS_FILE: ${CALLERS_FILE:-}", "LEGACY_RATE_PER_MIN: ${LEGACY_RATE_PER_MIN:-600}",
+                 "SESSION_RATE_PER_MIN: ${SESSION_RATE_PER_MIN:-600}", "- ./callers:/callers:ro"):
+        assert line in web, line
+    for key in ("CALLERS_FILE", "RATE_PER_MIN", "/callers"):
         assert key not in col, key

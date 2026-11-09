@@ -12,6 +12,7 @@ from ..config import Config
 from ..db import Database
 from .api import register_api
 from .auth import LoginLimiter, SessionSigner
+from .callers import CallerRegistry, api_middleware
 from .dashboard import register_dashboard
 from .data import register_data
 from .pages_device import register_device_pages
@@ -56,6 +57,7 @@ class WebContext:
     started_at: datetime
     signer: SessionSigner
     limiter: LoginLimiter
+    callers: CallerRegistry
 
 
 class WebServer:
@@ -66,9 +68,10 @@ class WebServer:
 
     def build_app(self) -> web.Application:
         secret = self.cfg.session_secret.encode("utf-8") if self.cfg.session_secret else secrets.token_bytes(32)
-        app = web.Application(middlewares=[security_headers])
+        app = web.Application(middlewares=[security_headers, api_middleware])
         app["ctx"] = WebContext(self.cfg, self.db, self.started_at,
-                                SessionSigner(secret, self.cfg.accounts()), LoginLimiter(enabled=self.cfg.login_lockout))
+                                SessionSigner(secret, self.cfg.accounts()), LoginLimiter(enabled=self.cfg.login_lockout),
+                                CallerRegistry.from_config(self.cfg))
         register_dashboard(app)
         register_api(app)
         register_data(app)

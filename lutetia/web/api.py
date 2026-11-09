@@ -1,11 +1,11 @@
-"""Read-only JSON query API (Bearer API key). GET only: nothing here writes to the database."""
+"""Read-only JSON query API (Bearer key or session). GET only: nothing here writes to the database."""
 from datetime import datetime, timezone
 from typing import Any, Optional, Tuple
 
 from aiohttp import web
 
 from ..db import ms_to_dt
-from .auth import require_api_key
+from .auth import require_api
 from .data import heartbeat_view
 from .jsonutil import _dumps, validate_device_id
 
@@ -54,12 +54,12 @@ def _bad(e: BadParam) -> web.Response:
     return _json({"error": str(e)}, status=400)
 
 
-@require_api_key
+@require_api("iot:read")
 async def devices(request: web.Request) -> web.Response:
     return _json({"devices": await request.app["ctx"].db.list_devices()})
 
 
-@require_api_key
+@require_api("iot:read")
 async def positions(request: web.Request) -> web.Response:
     try:
         device_id, since, until, limit = _parse_common(request)
@@ -69,7 +69,7 @@ async def positions(request: web.Request) -> web.Response:
     return _json({"device_id": device_id, "count": len(rows), "positions": rows})
 
 
-@require_api_key
+@require_api("iot:read")
 async def telemetry(request: web.Request) -> web.Response:
     try:
         device_id, since, until, limit = _parse_common(request)
@@ -79,7 +79,7 @@ async def telemetry(request: web.Request) -> web.Response:
     return _json({"device_id": device_id, "count": len(rows), "telemetry": rows})
 
 
-@require_api_key
+@require_api("status:read")
 async def status(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
     receiver, collector = heartbeat_view(await ctx.db.collector_status())

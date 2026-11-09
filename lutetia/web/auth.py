@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 from aiohttp import web
 
+from .callers import check_access
 from .html import ops_header, page
 
 COOKIE_NAME = "lutetia_session"
@@ -239,13 +240,13 @@ def require_admin_json(handler: Handler) -> Handler:
     return wrapper
 
 
-def require_api_key(handler: Handler) -> Handler:
-    async def wrapper(request: web.Request) -> web.StreamResponse:
-        expected = request.app["ctx"].cfg.api_key
-        header = request.headers.get("Authorization", "")
-        parts = header.split(None, 1)
-        given = parts[1].strip() if len(parts) == 2 and parts[0].lower() == "bearer" else ""
-        if not expected or not check_password(given, expected):
-            return web.json_response({"error": "unauthorized"}, status=401, headers={"WWW-Authenticate": "Bearer"})
-        return await handler(request)
-    return wrapper
+def require_api(scope: str) -> Callable[[Handler], Handler]:
+    """/api/v1 guard: Bearer key (401 bad key, 429 over rate, 403 outside scope) or, without a key, a valid session
+    cookie: admin gets every scope, other accounts only iot:read and poi:read (403 on status). Neither -> 401."""
+    def deco(handler: Handler) -> Handler:
+        async def wrapper(request: web.Request) -> web.StreamResponse:
+            user = _session_user(request)
+            denied = check_access(request, scope, user, user is not None and is_admin(request, user))
+            return denied if denied is not None else await handler(request)
+        return wrapper
+    return deco
