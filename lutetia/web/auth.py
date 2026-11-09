@@ -240,7 +240,7 @@ def require_admin_json(handler: Handler) -> Handler:
     return wrapper
 
 
-def require_api(scope: str) -> Callable[[Handler], Handler]:
+def require_api(scope: Optional[str]) -> Callable[[Handler], Handler]:
     """/api/v1 guard: Bearer key (401 bad key, 429 over rate, 403 outside scope) or, without a key, a valid session
     cookie: admin gets every scope, other accounts only iot:read and poi:read (403 on status). Neither -> 401."""
     def deco(handler: Handler) -> Handler:

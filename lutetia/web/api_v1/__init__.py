@@ -1,12 +1,25 @@
 """/api/v1: the one public, versioned, read-only data contract (ADR-5). v1 only adds, never changes."""
+from pathlib import Path
+
 from aiohttp import web
 
+from ..auth import require_api
 from . import legacy, pois, resources
+
+OPENAPI_FILE = Path(__file__).resolve().parent.parent / "openapi.json"
+OPENAPI_BYTES: "web.AppKey[bytes]" = web.AppKey("openapi_bytes", bytes)
+
+
+@require_api(None)  # the contract itself: any valid key or session, whatever its scopes; one key lookup, in the guard
+async def openapi_doc(request: web.Request) -> web.Response:
+    return web.Response(body=request.app[OPENAPI_BYTES], content_type="application/json", charset="utf-8")
 
 
 def register_api(app: web.Application) -> None:
+    app[OPENAPI_BYTES] = OPENAPI_FILE.read_bytes()  # read once at startup: a missing file stops the server here, not at the first call
     legacy.register_legacy(app)
     r = app.router
+    r.add_get("/api/v1/openapi.json", openapi_doc)
     r.add_get("/api/v1/summary", resources.summary)
     r.add_get("/api/v1/manholes", resources.manholes)
     r.add_get("/api/v1/fall-events", resources.fall_events)

@@ -53,6 +53,8 @@ pytest
 
 只读 JSON，四个 GET 接口，没有任何写入接口。每个请求都要带 `Authorization: Bearer <API_KEY>`；缺头、key 错或服务端没配 `API_KEY` 一律返回 `401`，并带 `WWW-Authenticate: Bearer`。`since` / `until` 的时区偏移请用 `Z` 或把 `+` 编码为 `%2B`。
 
+契约在 `/api/v1/openapi.json`（OpenAPI 3.1，需会话或任意有效 key，范围不限；列出全部资源、参数、响应与错误形状、每个资源要的范围），v1 只增不改；契约测试 `tests/test_api_v1_contract.py` 守着它与代码一致。
+
 | 接口 | 参数 | 返回 |
 |------|------|------|
 | `GET /api/v1/devices` | 无 | `{"devices": [{source, device_id, name, device_type, expected_online, last_ts}]}` |

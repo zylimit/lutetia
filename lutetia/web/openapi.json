@@ -1,0 +1,2146 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lutetia API v1",
+    "version": "1.0.0",
+    "description": "Read-only data contract (ADR-5). v1 only adds, never changes. New resources use the envelopes {items, as_of, next} (+ source for snapshots) and {data, as_of}; the original four (devices, positions, telemetry, status) keep their own shapes. Timestamps are UTC with a trailing Z. Clients must ignore unknown fields; v1 only adds fields, never removes or renames. Clients must also accept enum values they do not know (for example a new manhole status) and treat them as unknown; v1 may add enum values."
+  },
+  "paths": {
+    "/api/v1/openapi.json": {
+      "get": {
+        "summary": "This document.",
+        "description": "Any valid key or session; no particular scope is needed.",
+        "responses": {
+          "200": {
+            "description": "The OpenAPI 3.1 document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "openapi",
+                    "info",
+                    "paths"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "operationId": "getOpenapi"
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "summary": "Overview counts: manholes, bundles, POIs, collector.",
+        "operationId": "getSummary",
+        "responses": {
+          "200": {
+            "description": "Single object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/manholes": {
+      "get": {
+        "summary": "Manholes with their status, sorted by (name or device_id, device_id).",
+        "operationId": "listManholes",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManholeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/fall-events": {
+      "get": {
+        "summary": "Fall events overlapping [since, until], newest start first.",
+        "operationId": "listFallEvents",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "Window start."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "Window end; must not be before since."
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DeviceId"
+            },
+            "description": "Only this device."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FallEventList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/bundles": {
+      "get": {
+        "summary": "GPS trackers with their last position, sorted by device_id.",
+        "operationId": "listBundles",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/bundles/{device_id}/track": {
+      "get": {
+        "summary": "Thinned track of one tracker, newest first.",
+        "operationId": "getBundleTrack",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeviceId"
+            },
+            "description": "Tracker id."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 7
+            },
+            "description": "Look-back in days."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/pois": {
+      "get": {
+        "summary": "POI work orders (Excel snapshot).",
+        "operationId": "listPois",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          },
+          {
+            "name": "uci",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "subcontractor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "commune",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "cable_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Exact-match filter."
+          },
+          {
+            "name": "include_removed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            },
+            "description": "List work orders gone from the ledger too."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoiList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "poi:read"
+      }
+    },
+    "/api/v1/pois/{poi_no}/segments": {
+      "get": {
+        "summary": "Cable segments of one POI, by seq.",
+        "operationId": "listPoiSegments",
+        "parameters": [
+          {
+            "name": "poi_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Work order number."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoiSegmentList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "poi:read"
+      }
+    },
+    "/api/v1/collector-status": {
+      "get": {
+        "summary": "Collector heartbeat and receiver counters.",
+        "operationId": "getCollectorStatus",
+        "responses": {
+          "200": {
+            "description": "Single object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "status:read"
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "summary": "[original] All devices.",
+        "operationId": "listDevices",
+        "responses": {
+          "200": {
+            "description": "`devices` array, no envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyDevices"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/positions": {
+      "get": {
+        "summary": "[original] GPS positions of one device, newest first.",
+        "operationId": "listPositions",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeviceId"
+            },
+            "description": "Device id."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "From (inclusive)."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "To (inclusive)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1000
+            },
+            "description": "Page size."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`positions` array, no envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyPositions"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/telemetry": {
+      "get": {
+        "summary": "[original] Sensor telemetry of one device, newest first.",
+        "operationId": "listTelemetry",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeviceId"
+            },
+            "description": "Device id."
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only this telemetry key."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "From (inclusive)."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "ISO 8601 (use Z, or encode + as %2B) or epoch milliseconds."
+            },
+            "description": "To (inclusive)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1000
+            },
+            "description": "Page size."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`telemetry` array, no envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyTelemetryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "summary": "[original] Service and collector status.",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "description": "Single object, no envelope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "status:read"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Authorization: Bearer <key>. A key is checked alone; an invalid one is 401 with no fall-back to the session."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "lutetia_session",
+        "description": "Dashboard login (admin / orange / huawei). Used only when no Authorization header is sent. admin holds every scope; orange and huawei hold iot:read and poi:read."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed parameter or cursor.",
+        "headers": {},
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "No credentials, or an invalid key.",
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "const": "Bearer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Valid credentials without the scope in `x-scope`.",
+        "headers": {},
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Unknown id in the path.",
+        "headers": {},
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Over the caller's per-minute limit.",
+        "headers": {
+          "Retry-After": {
+            "required": true,
+            "description": "Whole seconds to wait (>= 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$",
+        "description": "UTC instant, ISO 8601 with a trailing Z."
+      },
+      "Date": {
+        "type": "string",
+        "format": "date",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "Every error response has exactly this shape."
+      },
+      "Cursor": {
+        "type": "string",
+        "maxLength": 512,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "Opaque keyset cursor: pass the previous response's `next` unchanged."
+      },
+      "NextCursor": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 512,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "Opaque keyset cursor for the next page; null on the last page."
+      },
+      "DeviceId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+      },
+      "Collector": {
+        "type": "object",
+        "properties": {
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "age_sec": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ws_connected": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "polling": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "push_last_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "push_count_24h": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "collector_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          }
+        },
+        "required": [
+          "updated_at",
+          "age_sec",
+          "stale",
+          "version",
+          "ws_connected",
+          "polling",
+          "push_last_at",
+          "push_count_24h",
+          "collector_started_at"
+        ],
+        "description": "Heartbeat of the collector. With no heartbeat row at all everything is null except stale = true."
+      },
+      "Receiver": {
+        "type": "object",
+        "properties": {
+          "received": {
+            "type": "number"
+          },
+          "stored": {
+            "type": "number"
+          },
+          "rejected": {
+            "type": "number"
+          },
+          "unrecognised": {
+            "type": "number"
+          },
+          "alarms": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "queued": {
+            "type": "number"
+          },
+          "silent_sec": {
+            "type": "number"
+          },
+          "message_silent_sec": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "received",
+          "stored",
+          "rejected",
+          "unrecognised",
+          "alarms",
+          "failed",
+          "queued",
+          "silent_sec",
+          "message_silent_sec"
+        ],
+        "description": "Push receiver counters. null when the collector has never written a heartbeat."
+      },
+      "Manhole": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ManholeStatus"
+          },
+          "open_event": {
+            "type": "boolean"
+          },
+          "volt": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rsrp": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "last_seen": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lon": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "location_verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "device_id",
+          "name",
+          "status",
+          "open_event",
+          "volt",
+          "rsrp",
+          "last_seen",
+          "lat",
+          "lon",
+          "location_verified"
+        ]
+      },
+      "ManholeStatus": {
+        "type": "string",
+        "enum": [
+          "inactive",
+          "offline",
+          "moving",
+          "moved",
+          "quiet"
+        ],
+        "description": "Priority order, first match wins. inactive = not expected online (or unknown); offline stays offline even with an unfinished event (open_event reports that)."
+      },
+      "FallEvent": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "started_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "flips": {
+            "type": "integer"
+          },
+          "duration_sec": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "started_at",
+          "ended_at",
+          "flips",
+          "duration_sec"
+        ]
+      },
+      "Bundle": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lon": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "moving": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "online": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "device_id",
+          "name",
+          "lat",
+          "lon",
+          "at",
+          "moving",
+          "online"
+        ]
+      },
+      "TrackPoint": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          },
+          "speed_kmh": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "moving": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "lat",
+          "lon",
+          "speed_kmh",
+          "moving"
+        ]
+      },
+      "Poi": {
+        "type": "object",
+        "properties": {
+          "poi_no": {
+            "type": "string"
+          },
+          "uci": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subcontractor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "site_ville": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "commune_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status_raw": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occ_week_from": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "occ_week_to": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "occ_date_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "occ_date_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "received_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "planned_op_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "in_ledger": {
+            "type": "boolean"
+          },
+          "imported_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "segment_count": {
+            "type": "integer"
+          },
+          "total_length_km": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "planned_tonnes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "null when no segment has a weight: weight pending, never 0."
+          }
+        },
+        "required": [
+          "poi_no",
+          "uci",
+          "subcontractor",
+          "site_ville",
+          "commune_code",
+          "category",
+          "status_raw",
+          "occ_week_from",
+          "occ_week_to",
+          "occ_date_from",
+          "occ_date_to",
+          "received_date",
+          "planned_op_date",
+          "in_ledger",
+          "imported_at",
+          "segment_count",
+          "total_length_km",
+          "planned_tonnes"
+        ]
+      },
+      "PoiSegment": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "cable_category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cable_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "infra": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "length_km": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "weight_t": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ref_min_t": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ref_avg_t": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ref_max_t": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "seq",
+          "cable_category",
+          "cable_type",
+          "infra",
+          "length_km",
+          "weight_t",
+          "ref_min_t",
+          "ref_avg_t",
+          "ref_max_t"
+        ]
+      },
+      "Summary": {
+        "type": "object",
+        "properties": {
+          "manholes": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "inactive": {
+                "type": "integer"
+              },
+              "all": {
+                "type": "integer"
+              },
+              "moved_24h": {
+                "type": "integer"
+              },
+              "moving": {
+                "type": "integer"
+              },
+              "offline": {
+                "type": "integer"
+              },
+              "offline_with_open_event": {
+                "type": "integer"
+              },
+              "quiet": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "inactive",
+              "all",
+              "moved_24h",
+              "moving",
+              "offline",
+              "offline_with_open_event",
+              "quiet"
+            ],
+            "description": "total = in-use manholes (not inactive) = moved_24h + offline + quiet (moving is part of moved_24h); all = total + inactive."
+          },
+          "bundles": {
+            "type": "object",
+            "properties": {
+              "trackers": {
+                "type": "integer"
+              },
+              "online": {
+                "type": "integer"
+              },
+              "last_position_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+              }
+            },
+            "required": [
+              "trackers",
+              "online",
+              "last_position_at"
+            ]
+          },
+          "pois": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "integer"
+                  },
+                  "with_segments": {
+                    "type": "integer"
+                  },
+                  "planned_tonnes": {
+                    "type": "number"
+                  },
+                  "without_weight": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "count",
+                  "with_segments",
+                  "planned_tonnes",
+                  "without_weight"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the caller does not hold poi:read."
+          },
+          "collector": {
+            "type": "object",
+            "properties": {
+              "updated_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "updated_at",
+              "stale"
+            ]
+          }
+        },
+        "required": [
+          "manholes",
+          "bundles",
+          "pois",
+          "collector"
+        ]
+      },
+      "CollectorStatus": {
+        "type": "object",
+        "properties": {
+          "collector": {
+            "$ref": "#/components/schemas/Collector"
+          },
+          "receiver": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Receiver"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "collector",
+          "receiver"
+        ]
+      },
+      "LegacyDevice": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "device_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expected_online": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "last_ts": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          }
+        },
+        "required": [
+          "source",
+          "device_id",
+          "name",
+          "device_type",
+          "expected_online",
+          "last_ts"
+        ]
+      },
+      "LegacyPosition": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "update_time": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "device_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "arrived_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lon": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "speed_kmh": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "speed_raw": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "course": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "altitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "total_distance_km": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "moving": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "temp1_c": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "origin": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "update_time",
+          "device_time",
+          "arrived_time",
+          "lat",
+          "lon",
+          "speed_kmh",
+          "speed_raw",
+          "course",
+          "altitude",
+          "total_distance_km",
+          "moving",
+          "temp1_c",
+          "origin"
+        ]
+      },
+      "LegacyTelemetry": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "ts": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "value_si": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "value_num": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "value_str": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_id",
+          "key",
+          "ts",
+          "value_si",
+          "value_num",
+          "value_str",
+          "origin"
+        ]
+      },
+      "LegacyStatus": {
+        "type": "object",
+        "properties": {
+          "started_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "receiver": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Receiver"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "collector": {
+            "$ref": "#/components/schemas/Collector"
+          },
+          "api_calls_24h": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "n": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "source",
+                "action",
+                "n"
+              ]
+            }
+          }
+        },
+        "required": [
+          "started_at",
+          "receiver",
+          "collector",
+          "api_calls_24h"
+        ]
+      },
+      "SummaryResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "data",
+          "as_of"
+        ]
+      },
+      "ManholeList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Manhole"
+            }
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next"
+        ]
+      },
+      "FallEventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FallEvent"
+            }
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next"
+        ]
+      },
+      "BundleList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bundle"
+            }
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next"
+        ]
+      },
+      "TrackList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackPoint"
+            }
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next"
+        ]
+      },
+      "PoiList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Poi"
+            }
+          },
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          },
+          "source": {
+            "type": "string",
+            "const": "excel-snapshot"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next",
+          "source"
+        ]
+      },
+      "PoiSegmentList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PoiSegment"
+            }
+          },
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          },
+          "source": {
+            "type": "string",
+            "const": "excel-snapshot"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next",
+          "source"
+        ]
+      },
+      "CollectorStatusResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CollectorStatus"
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "data",
+          "as_of"
+        ]
+      },
+      "LegacyDevices": {
+        "type": "object",
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegacyDevice"
+            }
+          }
+        },
+        "required": [
+          "devices"
+        ]
+      },
+      "LegacyPositions": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegacyPosition"
+            }
+          }
+        },
+        "required": [
+          "device_id",
+          "count",
+          "positions"
+        ]
+      },
+      "LegacyTelemetryList": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "telemetry": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegacyTelemetry"
+            }
+          }
+        },
+        "required": [
+          "device_id",
+          "count",
+          "telemetry"
+        ]
+      }
+    }
+  }
+}

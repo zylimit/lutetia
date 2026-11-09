@@ -460,7 +460,7 @@
   - Business Context：自家页面、嵌入部件、外部系统都只经这一组接口取数（ADR-5），总览上的数字点下去要能到明细（SC-10）。例子：生产当前 12 台井盖里 2 台离线、1 台正在挪动、2 台 24 h 内动过——summary 必须给 moved=3、offline=2、quiet=7，不能出现原设计稿那种「1 moved · 9 online」合计对不上。
   - 依赖类型：功能前置 Task 7.1（`fall_event`、`collector_status`）、Task 8.2（范围校验）。`lutetia/web/api.py` 由本 Task 独占修改。
   - 证据产生者：HIGH 档（公开契约）：implementer → code-reviewer 全三 Stage → tester。
-- **Task 8.4：OpenAPI 契约与契约测试（SC-14，DFX 第 9、10 维）** — 新建 `lutetia/web/openapi.json`（OpenAPI 3.1，列出 Task 8.3 全部资源、参数、信封、错误形状、两种认证方式），由 `GET /api/v1/openapi.json` 返回（需认证）；新建 `tests/test_api_contract.py`（`# risk: high`）：遍历 openapi.json 里每个 GET，在合成库上调用并用 jsonschema 校验响应；另一条用例比对「openapi.json 里的资源集合」与「应用实际注册的 `/api/v1` GET 路由」完全一致（加了路由没写契约就红）。dev 依赖加 `jsonschema`（安装时取最新版，写进技术栈表）。验证：`.venv/bin/pytest tests/test_api_contract.py -q`。
+- **Task 8.4：OpenAPI 契约与契约测试（SC-14，DFX 第 9、10 维）** — 新建 `lutetia/web/openapi.json`（OpenAPI 3.1，列出 Task 8.3 全部资源、参数、信封、错误形状、两种认证方式），由 `GET /api/v1/openapi.json` 返回（需认证）；新建 `tests/test_api_v1_contract.py`（`# risk: high`）：遍历 openapi.json 里每个 GET，在合成库上调用并用 jsonschema 校验响应；另一条用例比对「openapi.json 里的资源集合」与「应用实际注册的 `/api/v1` GET 路由」完全一致（加了路由没写契约就红）。dev 依赖加 `jsonschema`（安装时取最新版，写进技术栈表）。验证：`.venv/bin/pytest tests/test_api_v1_contract.py -q`。
   - Business Context：外部调用方一旦接上，改坏字段的代价落在别人身上（Architecture §10、§11 第三条风险）；v1 只增不改要有机器守。例子：有人把 `fall-events` 的 `flips` 改名成 `flip_count`——契约测试必须红。
   - 依赖类型：功能前置 Task 8.3。
   - 证据产生者：MEDIUM 档：implementer → code-reviewer Stage 0 + 1；契约测试本身进发版测试卡点。
@@ -693,7 +693,7 @@
 | 图表 / 地图（Phase 9 起） | ECharts + vue-echarts / Leaflet | 6.1.x + 8.x / 1.9.4 | vue-echarts 严格 CSP 风险由 Task 9.1 先验 |
 | PWA（Phase 11） | vite-plugin-pwa | ≥ 1.3.0（1.2 不支持 Vite 8） | manifest + Workbox 运行时缓存 |
 | 前端单测 | vitest | 安装时取最新正式版 | 只测 CSV 转义、postMessage 来源校验这类纯逻辑 |
-| 契约测试（Phase 8） | jsonschema（dev 依赖） | 安装时取最新正式版 | 用 openapi.json 校验 `/api/v1` 响应；不进运行镜像 |
+| 契约测试（Phase 8） | jsonschema（dev 依赖） | 实装 4.26.0，下限 4.25 以兼容 3.9 | 用 openapi.json 校验 `/api/v1` 响应；不进运行镜像 |
 | 备份上传（Phase 6） | 腾讯云 coscli | 安装时取最新正式版，装在 fra 宿主机 | COS 官方称 S3 兼容但不保证完全一致，「只写不删」由 Task 6.3 实测 |
 | 浏览器验证 | Playwright + Chromium | fra `~/tools/pw` 现有 | 本机没有 playwright；UI 审计与走查都在 fra 跑 |
 

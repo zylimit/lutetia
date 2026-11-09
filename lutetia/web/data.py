@@ -1,4 +1,5 @@
 """Session-authenticated JSON data endpoints for the dashboard pages (read-only; the API key is never used here)."""
+import logging
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,6 +11,7 @@ from . import anomalies
 from .auth import require_admin_json
 from .jsonutil import _dumps, validate_device_id
 
+log = logging.getLogger(__name__)
 SERIES_MAX_POINTS = 1500
 POSITIONS_LIMIT = 2000
 DEFAULT_KEYS = ("volt", "temperature", "rsrp")
@@ -27,6 +29,19 @@ def _bad(msg: str) -> web.Response:
 COUNTER_KEYS = ("received", "stored", "rejected", "unrecognised", "alarms", "failed", "queued")
 
 
+def _started_at(raw: Any) -> Optional[datetime]:
+    """collector_started_at sits in the details jsonb as the string the collector wrote (isoformat, +00:00 or Z). Parsed to a
+    datetime so jsonutil prints it like every other timestamp (UTC, trailing Z). Unparseable: logged, shown as null."""
+    if raw is None:
+        return None
+    try:
+        t = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        log.warning("collector_started_at is not an ISO 8601 timestamp: %r", raw)
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
 def heartbeat_view(row: Optional[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
     """(receiver, collector) built from the collector_status row. Age is row["age_sec"] (database clock). Silent seconds are
     the value at write time plus that age, so they keep growing after the collector dies. No row: receiver None, collector stale."""
@@ -41,7 +56,7 @@ def heartbeat_view(row: Optional[Dict[str, Any]]) -> Tuple[Optional[Dict[str, An
     collector = {"updated_at": row["updated_at"], "age_sec": age, "stale": age > anomalies.HEARTBEAT_STALE_SEC,
                  "version": row["version"], "ws_connected": row["ws_connected"], "polling": row["polling"],
                  "push_last_at": row["push_last_at"], "push_count_24h": row["push_count_24h"],
-                 "collector_started_at": d.get("collector_started_at")}
+                 "collector_started_at": _started_at(d.get("collector_started_at"))}
     return receiver, collector
 
 

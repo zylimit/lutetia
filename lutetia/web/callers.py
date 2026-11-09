@@ -182,10 +182,10 @@ def _deny(status: int, error: str, headers: Optional[Dict[str, str]] = None) -> 
     return web.json_response({"error": error}, status=status, headers=headers)
 
 
-def check_access(request: web.Request, scope: str, session_user: Optional[str], session_admin: bool = False) -> Optional[web.Response]:
+def check_access(request: web.Request, scope: Optional[str], session_user: Optional[str], session_admin: bool = False) -> Optional[web.Response]:
     """None = let the handler run; otherwise the 401 / 429 / 403 response. Order: key or session, each 401, 429, 403.
     An Authorization header that is not `Bearer <non-empty>` is 401 at once (no lookup, no session fallback).
-    A session holds iot:read + poi:read, plus status:read when session_admin (the caller decides with auth.is_admin)."""
+    scope None = any valid credential, whatever its scopes (the contract document). A session holds iot:read + poi:read, plus status:read when session_admin (the caller decides with auth.is_admin)."""
     reg: CallerRegistry = request.app["ctx"].callers
     if "Authorization" in request.headers:
         key = bearer_key(request)
@@ -196,7 +196,7 @@ def check_access(request: web.Request, scope: str, session_user: Optional[str], 
         wait = reg.take(caller.name, caller.rate_per_min)
         if wait:
             return _deny(429, "rate limit exceeded", {"Retry-After": str(wait)})
-        if scope not in caller.scopes:
+        if scope is not None and scope not in caller.scopes:
             return _deny(403, "forbidden")
         return None
     if session_user is None:
@@ -206,7 +206,7 @@ def check_access(request: web.Request, scope: str, session_user: Optional[str], 
     wait = reg.take(request[API_CALLER], reg.session_rate_per_min)
     if wait:
         return _deny(429, "rate limit exceeded", {"Retry-After": str(wait)})
-    if scope not in (SCOPES if session_admin else SESSION_SCOPES):
+    if scope is not None and scope not in (SCOPES if session_admin else SESSION_SCOPES):
         return _deny(403, "forbidden")
     return None
 

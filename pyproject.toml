@@ -10,7 +10,7 @@ requires-python = ">=3.9"
 dependencies = ["aiohttp>=3.9", "asyncpg>=0.29"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-asyncio>=0.21"]
+dev = ["pytest>=7", "pytest-asyncio>=0.21", "jsonschema>=4.25"]
 
 [project.scripts]
 lutetia = "lutetia.cli:main"
@@ -19,7 +19,7 @@ lutetia = "lutetia.cli:main"
 include = ["lutetia*"]
 
 [tool.setuptools.package-data]
-lutetia = ["sql/*.sql", "web/static/**"]
+lutetia = ["sql/*.sql", "web/static/**", "web/openapi.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
