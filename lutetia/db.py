@@ -7,7 +7,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar
 
 import asyncpg
 
@@ -60,6 +60,14 @@ async def _init_conn(conn: asyncpg.Connection) -> None:
 def max_age_hours(default_hours: float, upload_interval_h: Optional[float]) -> float:
     """STALE threshold: a sensor that uploads every N hours is only stale after 2N hours."""
     return max(default_hours, 2 * (upload_interval_h or 0))
+
+
+def device_stale(r: Dict[str, Any], now: datetime) -> Tuple[bool, float]:
+    """(stale, max_age_h) for a device_status row: expected online and silent longer than max(3 h, 2 x uploadInterval).
+    The one place this rule is written; the dashboard overview and /api/v1 manholes / bundles all call it."""
+    limit = max_age_hours(3.0, r["upload_interval_h"])
+    last = r["last_ts"]
+    return bool(r["expected_online"]) and (last is None or now - last > timedelta(hours=limit)), limit
 
 
 class Database:

@@ -1,11 +1,11 @@
 """Session-authenticated JSON data endpoints for the dashboard pages (read-only; the API key is never used here)."""
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from aiohttp import web
 
-from ..db import max_age_hours
+from ..db import device_stale
 from . import anomalies
 from .auth import require_admin_json
 from .jsonutil import _dumps, validate_device_id
@@ -59,9 +59,7 @@ async def overview(request: web.Request) -> web.Response:
     now = datetime.now(timezone.utc)
     devices: List[Dict] = []
     for r in await ctx.db.device_status():
-        limit = max_age_hours(3.0, r["upload_interval_h"])
-        last = r["last_ts"]
-        stale = bool(r["expected_online"]) and (last is None or now - last > timedelta(hours=limit))
+        stale, limit = device_stale(r, now)
         devices.append(dict(r, stale=stale, max_age_h=limit))
     sensors = await ctx.db.latest_sensor_values(DEFAULT_KEYS)
     calls = await ctx.db.call_summary(24)

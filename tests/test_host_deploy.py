@@ -228,7 +228,7 @@ def test_valid_env_passes_steps_1_to_3_and_prints_no_secret(sb):
 @pytest.mark.parametrize("n", [1, 3])
 def test_waits_until_collector_turns_healthy(sb, n):
     sb.set("healthy-after-collector", n)
-    r = sb.run()
+    r = sb.run(health_wait="60")  # success path: a generous budget, so a loaded machine (parallel runs) cannot time it out
     assert r.returncode == STOP_RC, r.stdout + r.stderr
     assert "collector healthy" in r.stdout and "web healthy" in r.stdout
     assert sb.count("docker inspect") == n + 1  # collector 第 n 次变 healthy 即停止查询，web 一次
@@ -236,7 +236,7 @@ def test_waits_until_collector_turns_healthy(sb, n):
 
 def test_collector_never_healthy_times_out_and_names_service(sb):
     sb.set("healthy-after-collector", "never")
-    r = sb.run(health_wait="2")
+    r = sb.run(health_wait="10")
     assert r.returncode != 0 and r.returncode != STOP_RC
     assert "collector" in r.stderr
     assert "[4/8" not in r.stdout
@@ -256,7 +256,7 @@ def test_web_never_healthy_names_web(sb):
 
 def test_empty_ps_q_does_not_crash_and_times_out(sb):
     sb.set("ps-empty-collector", "all")
-    r = sb.run(health_wait="2")
+    r = sb.run(health_wait="10")
     assert r.returncode != 0 and r.returncode != STOP_RC
     assert "collector" in r.stderr
     assert sb.count("docker inspect") == 0  # 没有容器 id 就不该去 inspect 空串
@@ -266,7 +266,7 @@ def test_empty_ps_q_does_not_crash_and_times_out(sb):
 
 def test_container_appearing_late_is_still_waited_for(sb):
     sb.set("ps-empty-collector", 3)  # 前 3 次 ps -q 返回空，之后才有容器
-    r = sb.run()
+    r = sb.run(health_wait="60")
     assert r.returncode == STOP_RC, r.stdout + r.stderr
     assert "collector healthy" in r.stdout
 

@@ -29,6 +29,7 @@ EMPTY_KEY_DIGEST = hashlib.sha256(b"").digest()
 ORIGIN_SUFFIX = ".digifiber.net"
 API_CALLER: "web.RequestKey[str]" = web.RequestKey("api_caller", str)
 API_ORIGINS: "web.RequestKey[FrozenSet[str]]" = web.RequestKey("api_origins", frozenset)
+API_SCOPES: "web.RequestKey[FrozenSet[str]]" = web.RequestKey("api_scopes", frozenset)  # scopes the authenticated caller holds
 
 
 @dataclass(frozen=True)
@@ -191,7 +192,7 @@ def check_access(request: web.Request, scope: str, session_user: Optional[str], 
         caller = reg.authenticate(key) if key else None
         if caller is None:
             return _deny(401, "unauthorized", {"WWW-Authenticate": "Bearer"})
-        request[API_CALLER], request[API_ORIGINS] = caller.name, caller.origins
+        request[API_CALLER], request[API_ORIGINS], request[API_SCOPES] = caller.name, caller.origins, caller.scopes
         wait = reg.take(caller.name, caller.rate_per_min)
         if wait:
             return _deny(429, "rate limit exceeded", {"Retry-After": str(wait)})
@@ -201,6 +202,7 @@ def check_access(request: web.Request, scope: str, session_user: Optional[str], 
     if session_user is None:
         return _deny(401, "unauthorized", {"WWW-Authenticate": "Bearer"})
     request[API_CALLER] = "session:" + session_user
+    request[API_SCOPES] = frozenset(SCOPES if session_admin else SESSION_SCOPES)
     wait = reg.take(request[API_CALLER], reg.session_rate_per_min)
     if wait:
         return _deny(429, "rate limit exceeded", {"Retry-After": str(wait)})
