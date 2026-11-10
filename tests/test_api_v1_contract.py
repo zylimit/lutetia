@@ -118,6 +118,9 @@ async def fill_world(db):
                            "ref_avg_t, ref_max_t) VALUES ($1, 1, 'DECS2', 'T1', 'aerien', 1.5, 2.0, 1.0, 2.0, 3.0)", PFX + "p-full")
         await conn.execute("INSERT INTO poi_cable_segment (poi_no, seq) VALUES ($1, 2)", PFX + "p-full")
         await conn.execute("INSERT INTO api_call (source, action, ok) VALUES ($1, 'x', true)", PFX + "src")
+        for tpl in ("sla-a", "sla-b"):  # two templates so the list has a second page; one step without an SLA text
+            await conn.execute("INSERT INTO sla_template_step (template, seq, step, owner, sla_text) VALUES ($1, 1, 's1', 'customer', '1 d'), "
+                               "($1, 2, 's2', 'partner', NULL)", PFX + tpl)
     # the original four: a device with nothing optional, one with no name, type, flag or data; positions and telemetry with and without values
     legacy = PFX + "b-legacy"
     await db.upsert_devices([Device("gps51", legacy, legacy, "GT", True, {}), Device("gps51", PFX + "b-blank", None, None, None, {})])
@@ -140,6 +143,7 @@ async def env(db, tmp_path):
         yield world
     async with db.pool.acquire() as conn:
         await conn.execute("DELETE FROM api_call WHERE source = $1", PFX + "src")
+        await conn.execute("DELETE FROM sla_template_step WHERE template LIKE $1", PFX + "%")
         await conn.execute("DELETE FROM collector_status")
 
 
@@ -156,6 +160,7 @@ def requests_for(w):
         "/api/v1/manholes/{device_id}/series": "/api/v1/manholes/%s/series?days=7" % w.manhole,
         "/api/v1/pois": "/api/v1/pois",
         "/api/v1/pois/{poi_no}/segments": "/api/v1/pois/%s/segments" % w.poi,
+        "/api/v1/sla-templates": "/api/v1/sla-templates",
         "/api/v1/collector-status": "/api/v1/collector-status",
         "/api/v1/devices": "/api/v1/devices",
         "/api/v1/positions": "/api/v1/positions?device_id=" + w.legacy,

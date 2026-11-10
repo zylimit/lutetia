@@ -201,3 +201,23 @@ async def poi_segments(db: Database, poi_no: str, after_seq: Optional[int], limi
             "FROM poi_cable_segment WHERE poi_no = $1 AND ($2::int IS NULL OR seq > $2) ORDER BY seq LIMIT $3",
             poi_no, after_seq, limit)
     return [dict(r) for r in rows]
+
+
+async def sla_templates(db: Database, after: Optional[str], limit: int) -> List[Dict[str, Any]]:
+    """Templates (sorted by name, keyset on the name) with their steps in order; at most `limit` templates."""
+    async with db.pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT template, seq, step, owner, sla_text FROM sla_template_step WHERE template IN ("
+            "SELECT DISTINCT template FROM sla_template_step WHERE ($1::text IS NULL OR template > $1) ORDER BY template LIMIT $2) "
+            "ORDER BY template, seq", after, limit)
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if not out or out[-1]["template"] != r["template"]:
+            out.append({"template": r["template"], "steps": []})
+        out[-1]["steps"].append({"seq": r["seq"], "step": r["step"], "owner": r["owner"], "sla_text": r["sla_text"]})
+    return out
+
+
+async def sla_snapshot_at(db: Database) -> Optional[datetime]:
+    async with db.pool.acquire() as conn:
+        return await conn.fetchval("SELECT max(imported_at) FROM sla_template_step")

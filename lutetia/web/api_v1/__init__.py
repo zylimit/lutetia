@@ -4,7 +4,7 @@ from pathlib import Path
 from aiohttp import web
 
 from ..auth import require_api
-from . import legacy, me, pois, resources, series
+from . import legacy, me, pois, resources, series, sla
 
 OPENAPI_FILE = Path(__file__).resolve().parent.parent / "openapi.json"
 OPENAPI_BYTES: "web.AppKey[bytes]" = web.AppKey("openapi_bytes", bytes)
@@ -29,6 +29,7 @@ def register_api(app: web.Application) -> None:
     r.add_get("/api/v1/bundles/{device_id}/track", resources.bundle_track)
     r.add_get("/api/v1/pois", pois.pois)
     r.add_get("/api/v1/pois/{poi_no}/segments", pois.poi_segments)
+    r.add_get("/api/v1/sla-templates", sla.sla_templates)
     r.add_get("/api/v1/collector-status", resources.collector_status)
 
 

@@ -1,4 +1,4 @@
-"""`lutetia import poi FILE [--dry-run]`：读台账 → 汇总打印 → 入库。
+"""`lutetia import poi FILE [--dry-run]`：读台账 → 汇总打印 → 入库；`lutetia import sla FILE… [--dry-run]` 见文件末。
 
 顺序是契约：解析与 0 单检查都在任何连库动作之前，台账有问题时不连库、库不动。
 标准输出只有固定的汇总行；除可疑工单号外不打印任何行内容（台账是真实业务数据）。
@@ -14,6 +14,7 @@ from .config import Config
 from .db import Database, DatabaseConnectError
 from .poi_import import LedgerError, LedgerParse, parse_ledger
 from .poi_store import apply_ledger
+from .sla_import import SlaError, apply_templates, parse_template
 from .xlsx_min import XlsxError
 
 
@@ -74,4 +75,42 @@ async def cmd_import_poi(cfg: Config, args) -> int:
           "occ_unparsed=%d" % (c["uci_normalised"], c["trimmed_cells"], c["na_to_empty"],
                                c["segment_no_cable_type"], c["not_a_number"], parsed.occ_unparsed))
     print("suspicious: %s" % (", ".join(parsed.suspicious) if parsed.suspicious else "none"))
+    return 0
+
+
+async def cmd_import_sla(cfg: Config, args) -> int:
+    """`lutetia import sla FILE [FILE…] [--dry-run]`：同样先解析再连库；输出只有「模板名 + 步数」，不打任何单元格内容。"""
+    _logs_to_stderr()
+    templates = []
+    for f in args.files:
+        path = Path(f)
+        try:
+            if not path.is_file():
+                raise FileNotFoundError(path)
+            templates.append(parse_template(path))
+        except FileNotFoundError:
+            return _fail("file not found: %s" % path)
+        except (SlaError, XlsxError) as e:
+            return _fail("%s: %s" % (path.name, e))
+        except OSError as e:
+            return _fail("cannot read %s: %s" % (path, e.strerror or e))
+    if not cfg.database_url:
+        return _fail("missing configuration: DATABASE_URL")
+    logging.getLogger("lutetia.sla_import").setLevel(logging.WARNING)
+    db = Database(cfg.database_url)
+    try:
+        await db.connect()
+        try:
+            await apply_templates(db.pool, templates, dry_run=args.dry_run)
+        finally:
+            await db.close()
+    except SlaError as e:
+        return _fail(str(e))
+    except (OSError, asyncio.TimeoutError, asyncpg.PostgresError, asyncpg.InterfaceError) as e:
+        reason = str(e) if isinstance(e, DatabaseConnectError) else type(e).__name__
+        return _fail("database: %s (nothing written)" % reason)
+    if args.dry_run:
+        print("dry-run: nothing written")
+    for t in templates:
+        print("%s: %d steps" % (t.template, len(t.steps)))
     return 0

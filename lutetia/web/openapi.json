@@ -692,6 +692,68 @@
         "x-scope": "poi:read"
       }
     },
+    "/api/v1/sla-templates": {
+      "get": {
+        "summary": "SLA process templates (Excel snapshot): ordered steps with the responsible party and the SLA duration as written. Reference only, no timeout is computed.",
+        "operationId": "listSlaTemplates",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            },
+            "description": "Page size (templates)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            },
+            "description": "The `next` of the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaTemplateList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "poi:read"
+      }
+    },
     "/api/v1/collector-status": {
       "get": {
         "summary": "Collector heartbeat and receiver counters.",
@@ -2244,6 +2306,88 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PoiSegment"
+            }
+          },
+          "as_of": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextCursor"
+          },
+          "source": {
+            "type": "string",
+            "const": "excel-snapshot"
+          }
+        },
+        "required": [
+          "items",
+          "as_of",
+          "next",
+          "source"
+        ]
+      },
+      "SlaStep": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "step": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "huawei",
+              "partner"
+            ]
+          },
+          "sla_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SLA duration as written in the template; null when the template gives none."
+          }
+        },
+        "required": [
+          "seq",
+          "step",
+          "owner",
+          "sla_text"
+        ]
+      },
+      "SlaTemplate": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlaStep"
+            }
+          }
+        },
+        "required": [
+          "template",
+          "steps"
+        ]
+      },
+      "SlaTemplateList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlaTemplate"
             }
           },
           "as_of": {

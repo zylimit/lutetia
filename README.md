@@ -22,6 +22,7 @@ pytest
 | `lutetia run [--role collector\|web\|all]` | 常驻（默认 `all`，本机开发一个进程全起；部署为 collector + web 两个容器）：GPS51 推送接收端 + 静默 15 分钟后轮询；Dingtek WebSocket 订阅 + 每日回补 |
 | `lutetia status` | 每台设备最后入库时间；在线设备超过 3 小时无数据则退出码 1 |
 | `lutetia import poi FILE [--dry-run]` | 导入 POI 台账 xlsx，打印汇总数字；`--dry-run` 只算不写；读出 0 个工单拒绝导入 |
+| `lutetia import sla FILE [FILE…] [--dry-run]` | 导入 SLA 流程模板（文件名须为 `DEPOSE-Transportation` / `DEPOSE-Distribution` / `DEPOSE-MASSIVE` `.xlsx`），按模板整体替换，打印「模板名: N steps」；表头缺列、责任方不认识整批拒绝；`/api/v1/sla-templates` 读取 |
 | `lutetia gps51 sync-devices` / `poll-once` | 手工同步设备、单次轮询 |
 | `lutetia gps51 tracks --device ID --begin '2026-10-06 00:00:00' --end '2026-10-06 23:59:59'` | 单次历史轨迹，每设备每天限 5 次，只能手工 |
 

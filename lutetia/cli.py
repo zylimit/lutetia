@@ -10,7 +10,7 @@ import aiohttp
 from . import log as logsetup
 from .config import Config
 from .db import Database, max_age_hours
-from .import_cmd import cmd_import_poi
+from .import_cmd import cmd_import_poi, cmd_import_sla
 from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
 from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
@@ -139,6 +139,10 @@ def build_parser() -> argparse.ArgumentParser:
     ip.add_argument("file")
     ip.add_argument("--dry-run", action="store_true", default=False)
     ip.set_defaults(fn=cmd_import_poi)
+    isl = ims.add_parser("sla", help="import SLA process templates (DEPOSE-<Transportation|Distribution|MASSIVE>.xlsx); --dry-run writes nothing")
+    isl.add_argument("files", nargs="+", metavar="FILE")
+    isl.add_argument("--dry-run", action="store_true", default=False)
+    isl.set_defaults(fn=cmd_import_sla)
     return p
 
 
