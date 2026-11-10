@@ -428,6 +428,8 @@
 
 ## Phase 8: 公开契约 `/api/v1`、调用方登记与三个账号（SCOPE-17、19，SC-14，THR-1）
 
+本机进度（2026-11-10）：Task 8.1 ～ 8.4 完成并提交（636a7a7、bf3bd8c、8e06518、f3d4706），Phase 四步走本机部分通过——各 Task 审查收口；tester 端到端 compose 冒烟 a ～ i 全过（三账号与 remember Max-Age=2592000、orange 运维口 403、ariane 只读 iot 范围 403 / 429 Retry-After / CORS 只对 ofr.digifiber.net、legacy 四接口 200、openapi.json 未认证 401、六个列表服务端中位数 2.7 ～ 6.5 ms、compose 日志坐标与密钥命中 0、改 orange 密码只失效 orange）；全量 765 passed / 1 failed（#70 预存）。待上线（用户先做 #100）后整个 Phase 标 ✅。
+
 **交付内容**：
 - admin、orange、huawei 三个账号都能登录（密码各在环境变量）；勾「Keep me signed in」发 30 天会话，不勾 12 小时；改任一密码后该账号所有会话立即失效。
 - 调用方登记文件里每个调用方一把 key（只存摘要）、一组只读范围、来源白名单、每分钟限额；超范围 403、无 key 401、超限 429 带 `Retry-After`；日志写调用方名字不写 key。
