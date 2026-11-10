@@ -73,7 +73,11 @@ onMounted(() => {
   void loadBundles()
   void loadTrack()
 })
-onBeforeUnmount(() => stop?.())
+onBeforeUnmount(() => {
+  stop?.()
+  live.pageAsOf = null
+})
+watch(asOf, (v) => (live.pageAsOf = v)) // the offline banner shows when the tracker list was last fetched
 watch(device, () => void loadTrack())
 watch(() => live.tick, () => {
   void loadBundles()

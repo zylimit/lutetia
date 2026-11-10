@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// CMP-12: one banner at a time, the most severe wins (error > data delayed > offline). Old data stays on screen under it.
+// CMP-12: one banner at a time (banner.ts pickBanner: offline first, then error > data delayed). Old data stays on screen under it.
 import { computed } from 'vue'
+import { offlineAsOf } from '../banner'
 import { clock } from '../format'
 import { t, tf } from '../i18n'
 import { banner, live, refresh } from '../live'
@@ -14,8 +15,10 @@ const text = computed(() => {
       const at = live.summary?.collector.updated_at
       return at ? tf('delaybanner', { t: clock(at) }) : t('delaybannernever')
     }
-    case 'offline':
-      return live.asOf ? tf('offlinebanner', { t: clock(live.asOf) }) : t('offlinebannernone')
+    case 'offline': {
+      const at = offlineAsOf(live.pageAsOf, live.asOf)
+      return at ? tf('offlinebanner', { t: clock(at) }) : t('offlinebannernone')
+    }
     default:
       return ''
   }

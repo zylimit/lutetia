@@ -114,8 +114,23 @@ p {
   line-height: var(--type-mono-line);
 }
 @media (max-width: 600px) {
-  button {
+  button,
+  summary {
     min-height: var(--size-touch);
+  }
+  /* Map controls (Leaflet zoom +/-) and marker hit areas reach 44 x 44 on phones (SC-11); the marker art stays 32 px. */
+  .leaflet-container .leaflet-bar a[role='button'] {
+    width: var(--size-touch);
+    height: var(--size-touch);
+    line-height: var(--size-touch);
+  }
+  .mh-marker::after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -6px;
+    width: var(--size-touch);
+    height: var(--size-touch);
   }
 }
 @media (prefers-reduced-motion: reduce) {

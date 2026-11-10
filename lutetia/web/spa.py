@@ -4,10 +4,13 @@ Routing rules (Task 9.1):
 - a real file inside the build directory is served as is;
 - a path under /app/assets/ or whose last segment ends in a known static extension (STATIC_EXTENSIONS) and is not a real file -> 404, never index.html;
 - any other path under /app/ (a front-end route such as /app/manholes, /app/pois/ABC.DEF) -> index.html;
+- PWA files at the build root (sw.js, sw-signout.js, registerSW.js, workbox-*.js, manifest.webmanifest; Task 11.1) -> Cache-Control no-cache
+  with an explicit Content-Type (the manifest as application/manifest+json); the worker's scope is /app/ only, never /embed/;
 - build directory or its index.html missing (no `npm run build` locally, pure Python test env) -> 503 with a plain hint.
 The strict CSP for /app and /app/* (SPA_CSP, no 'unsafe-inline') is stamped by app.security_headers via is_spa_path().
 """
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +25,13 @@ SPA_CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'se
 NOT_BUILT = "Project dashboard is not built on this server (web-ui build directory missing). Run `npm run build` in web-ui/."
 INDEX_CACHE = "no-cache"
 ASSET_CACHE = "public, max-age=31536000, immutable"  # Vite file names carry a content hash
+# PWA files at the build root (Task 11.1): the browser must re-check them on every load, or a new build never reaches an
+# installed phone. Content types are set here because Python 3.9 mimetypes does not know .webmanifest.
+SW_CACHE = "no-cache"
+MANIFEST = "manifest.webmanifest"
+MANIFEST_TYPE = "application/manifest+json"
+JS_TYPE = "text/javascript"
+_PWA_SCRIPT = re.compile(r"(?:sw|sw-signout|registerSW|workbox-[0-9A-Za-z_-]+)\.js")
 # A missing path ending in one of these is a missing file (404); any other dotted last segment (e.g. a POI id) is a front-end route
 STATIC_EXTENSIONS = frozenset("js mjs css map woff woff2 ttf otf png jpg jpeg gif svg ico webp json webmanifest txt xml".split())
 
@@ -73,6 +83,12 @@ def make_handler(dist: Path):
             resp = web.FileResponse(found)
             if tail.startswith("assets/"):
                 resp.headers["Cache-Control"] = ASSET_CACHE
+            elif tail == MANIFEST:
+                resp.headers["Content-Type"] = MANIFEST_TYPE
+                resp.headers["Cache-Control"] = SW_CACHE
+            elif _PWA_SCRIPT.fullmatch(tail):
+                resp.headers["Content-Type"] = JS_TYPE
+                resp.headers["Cache-Control"] = SW_CACHE
             return resp
         if _looks_like_file(tail):
             raise web.HTTPNotFound()

@@ -100,7 +100,11 @@ onMounted(() => {
   void loadBase()
   void loadSla()
 })
-onBeforeUnmount(() => stop?.())
+onBeforeUnmount(() => {
+  stop?.()
+  live.pageAsOf = null
+})
+watch(asOf, (v) => (live.pageAsOf = v)) // the offline banner shows when the work orders were last fetched
 watch(filters, () => void loadRows())
 watch(() => live.tick, () => void loadRows())
 

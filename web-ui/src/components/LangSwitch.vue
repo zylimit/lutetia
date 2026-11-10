@@ -38,7 +38,7 @@ const LANGS: readonly { code: Lang; label: string }[] = [
 }
 @media (max-width: 600px) {
   .lang button {
-    min-height: 36px;
+    min-height: var(--size-touch); /* SC-11: touch targets >= 44 px */
     min-width: var(--size-touch);
   }
 }

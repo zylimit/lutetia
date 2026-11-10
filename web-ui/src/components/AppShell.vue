@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { t } from '../i18n'
 import type { Key } from '../i18n'
 import { session } from '../session'
 import { nextTheme, setTheme, themeState } from '../theme'
 import { clock } from '../format'
-import { live } from '../live'
+import { isOffline, live } from '../live'
+import { clearEverything } from '../offline'
 import LangSwitch from './LangSwitch.vue'
 
 // Project name is the only brand (DESIGN.md Overview): no logo, not translated.
@@ -34,6 +35,27 @@ function reload(): void {
   window.location.reload()
 }
 
+// Sign out leaves nothing on the phone (DFX privacy): saved API answers (GPS positions among them), the app shell and the
+// service worker go before the session does. If a cache cannot be deleted the logout still goes through (the session must
+// end) and the failure is logged; the sign-in page clears the API cache once more on arrival (router.ts).
+// Offline the POST cannot reach the server: nothing is cleared and nothing is posted (the session would stay valid while the
+// data was gone), the menu says that signing out needs a connection instead.
+const signingOut = ref(false)
+const signOutBlocked = ref(false)
+async function signOut(ev: Event): Promise<void> {
+  const form = ev.currentTarget
+  if (!(form instanceof HTMLFormElement) || signingOut.value) return
+  signOutBlocked.value = isOffline.value
+  if (signOutBlocked.value) return
+  signingOut.value = true
+  try {
+    await clearEverything()
+  } catch (e) {
+    console.error('Sign out: offline data could not be fully cleared', e)
+  }
+  form.submit() // native submit: does not fire the submit event again
+}
+
 const themeLabel = computed(() => t(themeState.theme === 'projector' ? 'projection' : themeState.theme))
 </script>
 
@@ -55,10 +77,12 @@ const themeLabel = computed(() => t(themeState.theme === 'projector' ? 'projecti
         <summary :aria-label="t('account')">{{ session.account ?? '—' }} <span aria-hidden="true">⌄</span></summary>
         <div class="account-menu">
           <!-- POST /logout (same-origin only); next sends the browser back to this app's sign-in page -->
-          <form method="post" action="/logout">
+          <!-- caches are emptied first (offline.ts clearEverything), then the form is posted -->
+          <form method="post" action="/logout" @submit.prevent="signOut">
             <input type="hidden" name="next" value="/app/signin" />
-            <button type="submit">{{ t('signout') }}</button>
+            <button type="submit" :disabled="signingOut">{{ t('signout') }}</button>
           </form>
+          <p v-if="signOutBlocked && isOffline" class="small" role="status" data-testid="signout-offline">{{ t('signoutoffline') }}</p>
         </div>
       </details>
     </div>
@@ -156,6 +180,11 @@ const themeLabel = computed(() => t(themeState.theme === 'projector' ? 'projecti
 .account-menu button {
   width: 100%;
   text-align: left;
+}
+.account-menu p {
+  max-width: 220px;
+  margin: var(--space-sm) 0 0;
+  color: var(--color-on-surface-muted);
 }
 .notice {
   display: flex;

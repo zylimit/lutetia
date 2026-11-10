@@ -2,6 +2,9 @@
 // One 60 s timer while at least one page uses it (Design-Brief 5.1: background refresh, no full reload, old data kept on error).
 import { computed, reactive } from 'vue'
 import { ApiError } from './api'
+import { pickBanner } from './banner'
+import type { BannerKind } from './banner'
+import { beginRound, endRound, offline } from './offline'
 import { eventKey, getEventsSince, getLatestEvents, getManholes, getSummary } from './resources'
 import type { FallEvent, Manhole, Summary } from './resources'
 
@@ -12,6 +15,7 @@ const PULSE_TOTAL_MS = 3 * 600 + 100 // DESIGN.md Motion: three pulses of 600 ms
 export const live = reactive({
   summary: null as Summary | null,
   asOf: null as string | null, // as_of of the last successful summary
+  pageAsOf: null as string | null, // as_of of the page's own resource (Bundles, Plan): the offline banner shows this one
   manholes: [] as Manhole[],
   latest: [] as FallEvent[],
   loaded: false, // at least one refresh succeeded
@@ -65,6 +69,8 @@ async function openEvents(manholes: Manhole[]): Promise<FallEvent[]> {
 export async function refresh(): Promise<void> {
   if (live.loading) return
   live.loading = true
+  let ok = false
+  beginRound() // one saved answer in this round = the screen is offline (offline.ts)
   try {
     const [summary, manholes, latest] = await Promise.all([getSummary(), getManholes(), getLatestEvents(LATEST_N)])
     live.summary = summary.data
@@ -76,6 +82,7 @@ export async function refresh(): Promise<void> {
     live.loaded = true
     live.error = null
     live.tick++
+    ok = true
   } catch (e) {
     const err = e instanceof ApiError ? e : new ApiError(-1, e instanceof Error ? e.message : String(e))
     if (err.status !== 401) {
@@ -83,6 +90,7 @@ export async function refresh(): Promise<void> {
       console.error('security data refresh failed', err)
     }
   } finally {
+    endRound(ok)
     live.loading = false
   }
 }
@@ -111,15 +119,16 @@ export function useLive(): () => void {
   }
 }
 
-export type BannerKind = 'error' | 'stale' | 'offline'
+export type { BannerKind }
 
-/** Design-Brief CMP-12: at most one banner, the most severe wins: error > data delayed > offline. */
-export const banner = computed<BannerKind | null>(() => {
-  if (live.error && live.online) return 'error'
-  if (live.summary?.collector.stale) return 'stale'
-  if (!live.online) return 'offline'
-  return null
-})
+/** Offline: the browser says so, or the data on screen is the worker's saved copy (offline.ts), e.g. a dead signal that
+ * navigator.onLine still calls "online". */
+export const isOffline = computed(() => !live.online || offline.cached)
+
+/** Design-Brief CMP-12, one banner at a time (banner.ts pickBanner): offline first, then error > data delayed. */
+export const banner = computed<BannerKind | null>(() =>
+  pickBanner({ offline: isOffline.value, error: live.error !== null, stale: live.summary?.collector.stale === true }),
+)
 
 export function byId(id: string): Manhole | undefined {
   return live.manholes.find((m) => m.device_id === id)

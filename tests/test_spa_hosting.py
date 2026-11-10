@@ -134,6 +134,51 @@ async def test_ops_dashboard_csp_unchanged(tmp_path):
             assert "'unsafe-inline'" in r.headers["Content-Security-Policy"], path
 
 
+PWA_FILES = {"sw.js": "self.sw=1;", "sw-signout.js": "self.so=1;", "workbox-ab12cd34.js": "self.wb=1;", "registerSW.js": "self.reg=1;",
+             "manifest.webmanifest": '{"name":"spa-test-manifest"}'}
+
+
+def _pwa_dist(tmp_path):
+    dist = _fake_dist(tmp_path)
+    for name, text in PWA_FILES.items():
+        (dist / name).write_text(text, encoding="utf-8")
+    return dist
+
+
+async def test_pwa_files_no_cache_with_types_and_strict_csp(tmp_path):
+    """Task 11.1: the worker and the manifest are re-checked on every load (no-cache), typed explicitly, under the strict CSP."""
+    async with _client(_pwa_dist(tmp_path)) as c:
+        for name, text in PWA_FILES.items():
+            r = await c.get("/app/" + name)
+            assert r.status == 200 and await r.text() == text, name
+            assert r.headers["Cache-Control"] == "no-cache", name
+            want = "application/manifest+json" if name.endswith(".webmanifest") else "text/javascript"
+            assert r.headers["Content-Type"].split(";")[0] == want, name
+            assert "immutable" not in r.headers["Cache-Control"], name
+            _assert_strict(r)
+        r = await c.get("/app/assets/x.js")  # hashed build assets keep the long cache
+        assert "immutable" in r.headers["Cache-Control"]
+
+
+async def test_missing_pwa_files_are_404_not_index(tmp_path):
+    """A missing worker must 404: index.html served as sw.js would make the browser fail registration in a confusing way."""
+    async with _client(_fake_dist(tmp_path)) as c:
+        for path in ("/app/sw.js", "/app/manifest.webmanifest", "/app/workbox-ffff0000.js", "/app/icons/icon-192.png"):
+            r = await c.get(path)
+            assert r.status == 404, path
+            assert "spa-test-index" not in await r.text(), path
+            _assert_strict(r)
+
+
+async def test_no_pwa_worker_outside_app(tmp_path):
+    """The worker exists only under /app/ (its scope); /embed/ and the site root never serve it."""
+    async with _client(_pwa_dist(tmp_path)) as c:
+        for path in ("/sw.js", "/embed/sw.js", "/manifest.webmanifest"):
+            r = await c.get(path, allow_redirects=False)
+            assert r.status == 404, path
+            assert "self.sw=1" not in await r.text(), path
+
+
 async def test_missing_build_is_503_and_rest_still_serves(tmp_path):
     async with _client(tmp_path / "no-such-dist") as c:
         for path in ("/app/", "/app/manholes", "/app/assets/x.js"):

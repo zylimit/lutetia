@@ -211,7 +211,9 @@ const pois = computed(() => live.summary?.pois ?? null)
   .mappanel {
     display: none; /* Design-Brief SCREEN-1 phone: the small map folds into a "View map" link */
   }
-  .viewmap {
+  .viewmap,
+  .panel-foot a,
+  .summaryline > a {
     display: flex;
     align-items: center;
     min-height: var(--size-touch);

@@ -14,6 +14,7 @@ export const fr: Record<Key, string> = {
   projection: 'Projection',
   language: 'Langue',
   signout: 'Se déconnecter',
+  signoutoffline: 'La déconnexion nécessite une connexion.',
   mainnav: 'Navigation principale',
   comingsoon: 'Disponible dans une prochaine version',
   comingsoonhint: 'Cette page n’est pas encore disponible.',

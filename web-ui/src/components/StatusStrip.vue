@@ -151,5 +151,10 @@ const items = computed<Item[]>(() => {
   .stat strong {
     font-size: var(--type-headline-size);
   }
+  .side a {
+    display: flex;
+    align-items: center;
+    min-height: var(--size-touch);
+  }
 }
 </style>

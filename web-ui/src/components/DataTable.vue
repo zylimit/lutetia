@@ -2,7 +2,7 @@
 // CMP-9: work orders as a real <table>. A row expands to its cable segments, fetched from /api/v1/pois/{poi_no}/segments when
 // opened (aria-expanded on the toggle). No weight shows "weight pending", never 0. Under a cable type / network filter the
 // rows carry the tonnes of the matching segments only (Spec v1.17) and the column says so. "Open in Ariane" only with a URL. On phones the secondary columns hide and each
-// row reads as a compact line (work order, subcontractor, tonnes, expand).
+// row reads as a compact card (work order + expand, tonnes, subcontractor), no sideways dragging.
 import { reactive } from 'vue'
 import { ApiError } from '../api'
 import { num } from '../format'
@@ -39,56 +39,70 @@ function ariane(p: Poi): string | null {
 
 <template>
   <div class="tablewrap">
-    <table class="orders" data-testid="plan-table">
-      <thead>
-        <tr>
-          <th scope="col">POI</th>
-          <th scope="col" class="wide">{{ t('uci') }}</th>
-          <th scope="col">{{ t('sub') }}</th>
-          <th scope="col" class="wide">{{ t('commune') }}</th>
-          <th scope="col" class="wide">{{ t('category') }}</th>
-          <th scope="col" class="num wide">{{ t('segments') }}</th>
-          <th scope="col" class="num wide">{{ t('length') }}</th>
-          <th scope="col" class="num">{{ t('planned') }}<span v-if="matchingOnly" class="hint"><br />{{ t('matchingonly') }}</span></th>
-          <th scope="col" class="wide">{{ t('received') }}</th>
-          <th scope="col" class="wide">{{ t('opdate') }}</th>
-          <th scope="col" class="wide">{{ t('occ') }}</th>
+    <table class="orders" role="table" data-testid="plan-table">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th role="columnheader" scope="col">POI</th>
+          <th role="columnheader" scope="col" class="wide">{{ t('uci') }}</th>
+          <th role="columnheader" scope="col">{{ t('sub') }}</th>
+          <th role="columnheader" scope="col" class="wide">{{ t('commune') }}</th>
+          <th role="columnheader" scope="col" class="wide">{{ t('category') }}</th>
+          <th role="columnheader" scope="col" class="num wide">{{ t('segments') }}</th>
+          <th role="columnheader" scope="col" class="num wide">{{ t('length') }}</th>
+          <th role="columnheader" scope="col" class="num">{{ t('planned') }}<span v-if="matchingOnly" class="hint"><br />{{ t('matchingonly') }}</span></th>
+          <th role="columnheader" scope="col" class="wide">{{ t('received') }}</th>
+          <th role="columnheader" scope="col" class="wide">{{ t('opdate') }}</th>
+          <th role="columnheader" scope="col" class="wide">{{ t('occ') }}</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         <template v-for="p in rows" :key="p.poi_no">
-          <tr class="order" :class="{ expanded: open.has(p.poi_no) }">
-            <td>
+          <tr role="row" class="order" :class="{ expanded: open.has(p.poi_no) }">
+            <td role="cell" class="c-poi">
               <button type="button" class="expand mono" :aria-expanded="open.has(p.poi_no)" :aria-label="`${open.has(p.poi_no) ? t('collapse') : t('expand')} ${p.poi_no}`" @click="toggle(p)">
                 <span aria-hidden="true">{{ open.has(p.poi_no) ? '−' : '+' }}</span> {{ p.poi_no }}
               </button>
             </td>
-            <td class="wide">{{ p.uci ?? '—' }}</td>
-            <td>{{ p.subcontractor ?? '—' }}</td>
-            <td class="wide">{{ p.site_ville ?? '—' }} <span v-if="p.commune_code" class="mono muted">{{ p.commune_code }}</span></td>
-            <td class="wide">{{ p.category ?? '—' }}</td>
-            <td class="num wide">{{ p.segment_count || '—' }}</td>
-            <td class="num wide">{{ p.total_length_km === null ? '—' : num(p.total_length_km, 2) }}</td>
-            <td class="num">
+            <td role="cell" class="wide">{{ p.uci ?? '—' }}</td>
+            <td role="cell" class="c-sub">{{ p.subcontractor ?? '—' }}</td>
+            <td role="cell" class="wide">{{ p.site_ville ?? '—' }} <span v-if="p.commune_code" class="mono muted">{{ p.commune_code }}</span></td>
+            <td role="cell" class="wide">{{ p.category ?? '—' }}</td>
+            <td role="cell" class="num wide">{{ p.segment_count || '—' }}</td>
+            <td role="cell" class="num wide">{{ p.total_length_km === null ? '—' : num(p.total_length_km, 2) }}</td>
+            <td role="cell" class="num c-plan">
+              <span class="cap small muted">{{ t('planned') }}<template v-if="matchingOnly"> · {{ t('matchingonly') }}</template></span>
               <span v-if="p.planned_tonnes === null" class="muted" data-testid="weight-pending">{{ t('pending') }}</span>
               <template v-else>{{ num(p.planned_tonnes, 2) }}</template>
             </td>
-            <td class="wide">{{ p.received_date ?? '—' }}</td>
-            <td class="wide">{{ p.planned_op_date ?? '—' }}</td>
-            <td class="wide">
+            <td role="cell" class="wide">{{ p.received_date ?? '—' }}</td>
+            <td role="cell" class="wide">{{ p.planned_op_date ?? '—' }}</td>
+            <td role="cell" class="wide">
               <div class="occ">
                 <span>{{ p.status_raw ?? '—' }}</span>
                 <a v-if="ariane(p)" :href="ariane(p) ?? undefined" target="_blank" rel="noopener noreferrer">{{ t('ariane') }}</a>
               </div>
             </td>
           </tr>
-          <tr v-if="open.has(p.poi_no)" class="detail">
-            <td colspan="11">
+          <tr role="row" v-if="open.has(p.poi_no)" class="detail">
+            <td role="cell" colspan="11">
               <p v-if="open.get(p.poi_no)?.state === 'loading'" class="small muted" aria-busy="true">{{ t('loadingState') }}</p>
               <p v-else-if="open.get(p.poi_no)?.state === 'failed'" class="small err" role="alert">{{ t('segmentsfailed') }}</p>
               <template v-else>
                 <p v-if="!p.segment_count" class="small muted">{{ t('nodetail') }}</p>
                 <SegmentTable v-else :segments="(open.get(p.poi_no) as { segments: PoiSegment[] }).segments" />
+                <dl class="facts small">
+                  <div><dt>{{ t('uci') }}</dt><dd>{{ p.uci ?? '—' }}</dd></div>
+                  <div class="wrap"><dt>{{ t('commune') }}</dt><dd>{{ p.site_ville ?? '—' }} <span v-if="p.commune_code" class="mono muted">{{ p.commune_code }}</span></dd></div>
+                  <div class="wrap"><dt>{{ t('category') }}</dt><dd>{{ p.category ?? '—' }}</dd></div>
+                  <div><dt>{{ t('segments') }}</dt><dd>{{ p.segment_count || '—' }}</dd></div>
+                  <div><dt>{{ t('length') }}</dt><dd>{{ p.total_length_km === null ? '—' : num(p.total_length_km, 2) }}</dd></div>
+                  <div><dt>{{ t('received') }}</dt><dd>{{ p.received_date ?? '—' }}</dd></div>
+                  <div><dt>{{ t('opdate') }}</dt><dd>{{ p.planned_op_date ?? '—' }}</dd></div>
+                  <div class="wrap full">
+                    <dt>{{ t('occ') }}</dt>
+                    <dd>{{ p.status_raw ?? '—' }} <a v-if="ariane(p)" :href="ariane(p) ?? undefined" target="_blank" rel="noopener noreferrer">{{ t('ariane') }}</a></dd>
+                  </div>
+                </dl>
                 <p class="small muted narrow">{{ t('occ') }}: {{ p.status_raw ?? '—' }}</p>
               </template>
             </td>
@@ -100,6 +114,9 @@ function ariane(p: Poi): string | null {
 </template>
 
 <style scoped>
+.cap {
+  display: none;
+}
 .tablewrap {
   max-height: 70vh;
   overflow: auto;
@@ -168,8 +185,104 @@ thead th {
   .wide {
     display: none;
   }
+}
+@media (min-width: 601px) and (max-width: 800px) {
   .narrow {
     display: block;
+  }
+}
+.facts {
+  display: none;
+}
+/* Phone: one compact card per work order instead of a table that needs dragging. The header row stays in the DOM for
+   screen readers; the grid puts the expand button (work order) and the tonnes on the first line, the subcontractor under. */
+@media (max-width: 600px) {
+  .tablewrap {
+    max-height: none;
+  }
+  .orders,
+  .orders tbody,
+  .orders tr,
+  .orders td {
+    display: block;
+  }
+  .orders thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .orders tr.order {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .orders tr.order.expanded {
+    border-bottom-color: transparent;
+  }
+  .orders td {
+    padding: 0;
+    border-bottom: 0;
+  }
+  .orders td.wide {
+    display: none; /* the id selector above would otherwise win over .wide */
+  }
+  /* The secondary columns (.wide) stay hidden: the card is the compact line of Design-Brief SCREEN-4. They are read in the
+     expanded area (.facts) as label / value pairs in two columns. */
+  .c-poi,
+  .c-sub {
+    overflow-wrap: anywhere;
+  }
+  .c-poi {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .orders td.c-plan {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    justify-items: end;
+    text-align: right;
+  }
+  .c-sub {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .cap {
+    display: block;
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm) var(--space-md);
+    margin: 0 0 var(--space-md);
+  }
+  .facts dt {
+    color: var(--color-on-surface-muted);
+  }
+  .facts dd {
+    margin: 0;
+    white-space: nowrap; /* dates, counts and codes never break */
+  }
+  .facts .wrap dd {
+    white-space: normal;
+  }
+  .facts .full {
+    grid-column: 1 / -1;
+  }
+  .expand {
+    min-width: var(--size-touch);
+    min-height: var(--size-touch);
+  }
+  .orders tr.detail {
+    border-bottom: 1px solid var(--color-border);
+  }
+  .detail td {
+    padding: var(--space-sm) var(--space-md);
   }
 }
 </style>

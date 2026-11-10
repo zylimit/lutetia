@@ -563,7 +563,9 @@
 
 ---
 
-## Phase 11: 手机网页如同 App——PWA、离线上次数据、底部标签栏（SCOPE-15，SC-11）
+## Phase 11: 手机网页如同 App——PWA、离线上次数据、底部标签栏（SCOPE-15，SC-11） ✅
+
+本机完成（2026-11-10，CONCERNS：#114；iPhone 实机未验证，见 #112）：Task 11.1、11.2 提交；fra 隔离栈 walk-offline 全步 PASS、退出后 Cache Storage 为空（验证假设成立）、375 四页无横向滚动、ui-audit 24 组合溢出 0 对比度 0；带库全量 953 passed / 1 failed（#70）。
 
 **交付内容**：
 - iPhone 上「添加到主屏幕」后点图标全屏打开，有应用名、图标与启动画面。

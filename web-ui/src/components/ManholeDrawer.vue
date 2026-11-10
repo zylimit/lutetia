@@ -207,6 +207,7 @@ defineExpose({ dialog })
   border-radius: var(--radius-sm);
 }
 .segmented button {
+  min-width: var(--size-touch);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -235,12 +236,14 @@ defineExpose({ dialog })
   border: 1px solid var(--color-border);
 }
 @media (max-width: 600px) {
+  /* Phone: a full-screen sheet rising from the bottom (Design-Brief SCREEN-2); still the native <dialog>, so Esc and focus return are unchanged. */
   .drawer {
     margin: auto 0 0;
     width: 100%;
-    height: 92dvh;
+    height: 100dvh;
+    padding: var(--space-lg) var(--space-lg) calc(var(--space-lg) + env(safe-area-inset-bottom));
     border-left: 0;
-    border-top: 1px solid var(--color-border);
+    border-top: 0;
   }
 }
 </style>

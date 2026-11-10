@@ -14,6 +14,7 @@ export const en = {
   projection: 'Projection',
   language: 'Language',
   signout: 'Sign out',
+  signoutoffline: 'Signing out needs a connection.', // new: Task 11.1, offline Sign out keeps the session and the saved data
   mainnav: 'Main navigation', // new (the prototype hard-codes it)
   comingsoon: 'Coming in a later release', // new
   comingsoonhint: 'This page is not available yet.', // new

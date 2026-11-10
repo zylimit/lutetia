@@ -28,6 +28,7 @@ function label(r: Range): string {
 }
 .segmented button {
   border: 0;
+  min-width: var(--size-touch);
   border-radius: 0;
   background: transparent;
   color: var(--color-on-surface-muted);

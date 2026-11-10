@@ -1,4 +1,5 @@
 // Read-only client for /api/v1 (GET only; the dashboard never writes through the API).
+import { clearApiCache, noteResponse } from './offline'
 
 export class ApiError extends Error {
   readonly status: number
@@ -53,7 +54,10 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
   } finally {
     if (timer) window.clearTimeout(timer)
   }
+  noteResponse(resp)
   if (resp.status === 401 && opts.redirectOn401 !== false) {
+    // session expired: the saved answers belong to the account that just lost its session, drop them before sign-in
+    await clearApiCache()
     if (!window.location.pathname.startsWith(SIGNIN_PATH)) window.location.assign(signinUrl(window.location.pathname + window.location.search))
     throw new ApiError(401, 'unauthorized')
   }

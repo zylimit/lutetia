@@ -1,0 +1,15 @@
+// risk: medium
+import { describe, expect, it } from 'vitest'
+import { mustClearForAccount } from './account-switch'
+
+describe('mustClearForAccount', () => {
+  it('same account as last time keeps the saved answers', () => {
+    expect(mustClearForAccount('orange', 'orange')).toBe(false)
+  })
+  it('another account clears them', () => {
+    expect(mustClearForAccount('orange', 'huawei')).toBe(true)
+  })
+  it('unknown previous account (first use, storage blocked) clears them', () => {
+    expect(mustClearForAccount(null, 'orange')).toBe(true)
+  })
+})
