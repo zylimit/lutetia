@@ -256,13 +256,18 @@ async def test_truncation_keeps_newest_points(db):
 
 async def test_cards_layout_markup_and_css(db):
     # risk: medium  (M-2: 窄屏卡片排版的标记与样式)
-    async with TestClient(TestServer(make_app(db))) as client:
-        await login(client)
-        html = await (await client.get("/dashboard/")).text()
-        assert 'class="cards"' in html
-        assert "data-label=" in html
-        r = await client.get("/static/app.css")
-        assert r.status == 200
-        css = await r.text()
-        assert "attr(data-label)" in css
-        assert "max-width: 600px" in css
+    dev = "dash-%s" % uuidlib.uuid4().hex[:8]  # data-label 只出现在设备行里：自己放一台合成设备，空库也成立
+    await db.upsert_devices([Device("dingtek", dev, "dash-cards", "DC414", True, {})])
+    try:
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            html = await (await client.get("/dashboard/")).text()
+            assert 'class="cards"' in html
+            assert "data-label=" in html
+            r = await client.get("/static/app.css")
+            assert r.status == 200
+            css = await r.text()
+            assert "attr(data-label)" in css
+            assert "max-width: 600px" in css
+    finally:
+        await cleanup(db, dev)

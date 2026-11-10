@@ -137,11 +137,25 @@ async def test_gps_page_renders_map_and_positions(db):
             assert r.status == 200
             html = await r.text()
             for s in ('id="map"', "/static/vendor/leaflet.js", "/static/vendor/leaflet.css",
-                      "/static/device.js", "© Google", "里程表 7777.0 km"):
+                      "/static/device.js", "OpenStreetMap contributors", "Odometer 7777.0 km"):
                 assert s in html, s
-            tail = html.split("最近位置", 1)[1]
+            tail = html.split("Recent positions", 1)[1]
             assert "22.5011" in tail and "22.5022" in tail
             assert tail.count("22.50") == 2 or tail.count("22.5011") == 1
+    finally:
+        await cleanup(db, dev)
+
+
+async def test_gps_page_missing_odometer_shows_dash_not_none(db):
+    dev = _gps_id()
+    await db.upsert_devices([Device("gps51", dev, "dash-gps-nokm", "GPS", True, {})])
+    try:
+        await db.insert_gps_positions([_gps(dev, datetime.now(timezone.utc) - timedelta(hours=1), 22.5011, 114.0011, None)])
+        async with TestClient(TestServer(make_app(db))) as client:
+            await login(client)
+            for lang, want in (("en", "Odometer — ·"), ("fr", "Compteur — ·")):
+                html = await (await client.get("/dashboard/device/gps51/" + dev, params={"lang": lang})).text()
+                assert want in html and "None" not in html, lang
     finally:
         await cleanup(db, dev)
 

@@ -71,7 +71,7 @@ def test_stale_success_and_failed_latest_yield_two_red_items():
 
 def test_never_succeeded_and_latest_failed_yield_two_items_with_no_error_text_fallback():
     got = items({"last_ok_at": None, "last_ok_bytes": None, "latest_ok": False, "latest_at": NOW, "latest_error": None})
-    assert [i["detail"] for i in got] == ["从未成功备份", "最近一次备份失败：无错误信息"]
+    assert [i["detail"] for i in got] == ["no successful backup yet", "latest backup failed: no error message"]
 
 
 # --- 6.1 备份脚本失败分支 ---

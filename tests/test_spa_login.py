@@ -138,7 +138,7 @@ async def test_failed_login_not_from_the_spa_keeps_the_old_page(tmp_path):
         for target in ("", "/dashboard/", "//evil.example", "/app//evil.example"):  # the last: unsafe /app target is not treated as the SPA
             r = await post_login(c, "orange", password="wrong-" + secrets.token_hex(4), next_url=target)
             assert r.status == 401 and "Location" not in r.headers, target
-            assert "账号或密码错误" in await r.text()
+            assert "Wrong username or password" in await r.text()
 
 
 async def test_locked_login_from_the_spa_goes_back_with_error_locked(tmp_path):

@@ -8,6 +8,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { t } from '../i18n'
+import { addOsmTiles } from '../osm-tiles'
 import type { Manhole } from '../resources'
 import { markerKind, markerSvg } from './marker-svg'
 
@@ -74,8 +75,7 @@ function focusSelected(): void {
 onMounted(() => {
   if (!el.value) return
   map = L.map(el.value, { center: FRANCE, zoom: 5, scrollWheelZoom: !props.compact })
-  // Test-phase tiles straight from Google, same as lutetia/web/static/map.js (Decisions 2026-11-07; replaced by #88 / Task 13.2).
-  L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map)
+  addOsmTiles(map)
   sync()
   focusSelected()
 })

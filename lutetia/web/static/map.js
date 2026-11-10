@@ -36,8 +36,12 @@
   function draw(data) {
     var map = L.map('map');
     L.Icon.Default.imagePath = '/static/vendor/images/';
-    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map);
+    // The site-wide Referrer-Policy is same-origin, which OSM's tile servers refuse (no Referer); the tile <img> overrides it.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    }).addTo(map);
     var layers = [];
     function addItem(item, kindName, layer) {
       var li = el('li', item.name + ' · ' + kindName + ' · ' + (item.update_time || item.last_ts || '-'));
@@ -50,7 +54,7 @@
         });
       } else {
         li.className = 'nopos';
-        li.textContent += ' · 暂无位置';
+        li.textContent += ' · ' + T('pos.noneyet');
       }
       list.appendChild(li);
     }
@@ -58,8 +62,9 @@
       var layer = null;
       if (g.lat !== null && g.lon !== null) {
         layer = L.marker([g.lat, g.lon]).bindPopup(popup('gps51', g, [
-          '最后时间 ' + (g.update_time || '-'), '速度 ' + fmt(g.speed_kmh, ' km/h'),
-          '里程 ' + fmt(g.total_distance_km, ' km'), '运动 ' + (g.moving === true ? '是' : g.moving === false ? '否' : '-')]));
+          T('pop.last', { v: g.update_time || '-' }), T('pop.speed', { v: fmt(g.speed_kmh, ' km/h') }),
+          T('pop.odo', { v: fmt(g.total_distance_km, ' km') }),
+          T('pop.moving', { v: g.moving === true ? T('yes') : g.moving === false ? T('no') : '-' })]));
         if (g.track.length >= 2) {
           var line = L.polyline(g.track, { color: '#1565c0', weight: 3 }).addTo(map);
           layers.push(line);
@@ -69,14 +74,15 @@
     });
     data.manholes.forEach(function (m) {
       var layer = L.circleMarker([m.lat, m.lon], { radius: 7 }).bindPopup(popup('dingtek', m, [
-        '最后时间 ' + (m.last_ts || '-'), '电压 ' + fmt(m.volt, ' V'), '温度 ' + fmt(m.temperature, '')]));
-      addItem(m, '井盖', layer);
+        T('pop.last', { v: m.last_ts || '-' }), T('pop.volt', { v: fmt(m.volt, ' V') }),
+        T('pop.temp', { v: fmt(m.temperature, '') })]));
+      addItem(m, T('pop.manhole'), layer);
     });
     if (layers.length) {
       map.fitBounds(L.featureGroup(layers).getBounds(), { padding: [20, 20], maxZoom: 16 });
     } else {
       map.setView([48.8566, 2.3522], 11);
-      say('暂无位置');
+      say(T('pos.none'));
     }
   }
 
@@ -84,6 +90,6 @@
     if (data) { draw(data); }
   }).catch(function (err) {
     console.error('map page load failed', err);
-    say('加载失败');
+    say(T('load.failed'));
   });
 })();

@@ -380,16 +380,17 @@ def test_unreachable_database_is_one_error_line_not_traceback(tmp_path):
 
 
 # risk: medium
-def test_db_write_failure_is_one_error_line_and_leaves_poi_empty(pg, tmp_path):
-    rows = order("RNT600001", [("22-100-2", 0.8)], subcon=SECRET_SUBCON)
-    rows[0][9] = RawNum("NaN")  # Executed Weight（第一组，未映射列，只进原文）
-    r = run_cli(["import", "poi", make_file(tmp_path, rows)], pg, tmp_path)
+def test_db_write_failure_is_one_error_line_and_rolls_back_the_whole_batch(pg, tmp_path):
+    good = order("RNT600001", [("22-100-2", 0.8)])
+    bad = order("RNT600002", [("22-100-2", 0.8)], subcon=SECRET_SUBCON)
+    bad[0][9] = RawNum("NaN")  # Executed Weight（第一组，未映射列，只进原文）：第二单写库失败
+    r = run_cli(["import", "poi", make_file(tmp_path, good + bad)], pg, tmp_path)
     assert r.returncode == 1, (r.stdout, r.stderr)
     _db_error_line(r.stderr)
     assert "Traceback" not in r.stderr
     assert "result:" not in r.stdout
     assert SECRET_SUBCON not in r.stdout + r.stderr
-    assert counts_in_db()[0] == 0
+    assert counts_in_db() == (0, 0)  # 第一单是好的，也不得留下：整批回滚
 
 
 def run_cli_no_db_env(args, cwd):
@@ -436,3 +437,43 @@ def test_cleaning_warnings_go_to_stderr_not_stdout(pg, tmp_path):
 def test_dockerignore_excludes_data_dir():
     text = (ROOT / ".dockerignore").read_text(encoding="utf-8")
     assert any(ln.strip() in ("data/", "data") for ln in text.splitlines()), ".dockerignore 缺 data/ 行"
+
+
+# --------------------------------------------------------------------------- Task 13.3：#85 L-A / L-B
+# risk: medium
+def test_bad_dsn_port_is_one_error_line_without_traceback_or_secrets(tmp_path):
+    url = "postgresql://u:pw-zz9@127.0.0.1:notaport/x"
+    rows = order("RNT600001", [("22-100-2", 0.8)], subcon=SECRET_SUBCON)
+    r = run_cli(["import", "poi", make_file(tmp_path, rows)], url, tmp_path)
+    assert r.returncode == 1, (r.stdout, r.stderr)
+    line = _db_error_line(r.stderr)
+    assert line.endswith("(nothing written)"), line
+    assert "Traceback" not in r.stderr
+    assert "pw-zz9" not in r.stdout + r.stderr
+    assert SECRET_SUBCON not in r.stdout + r.stderr
+    assert "result:" not in r.stdout
+
+
+# risk: medium
+def test_sla_bad_dsn_port_is_one_error_line_without_traceback_or_secrets(tmp_path):
+    from test_sla_import import make as make_sla, tpl_rows
+    f = make_sla(tmp_path, "Transportation", tpl_rows(2))
+    env = dict(os.environ, DATABASE_URL="postgresql://u:pw-zz9@127.0.0.1:notaport/x", PYTHONPATH=str(ROOT))
+    r = subprocess.run([sys.executable, "-m", "lutetia.cli", "import", "sla", str(f)], env=env, cwd=str(tmp_path),
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 1, (r.stdout, r.stderr)
+    line = _db_error_line(r.stderr)
+    assert line.endswith("(nothing written)"), line
+    assert "Traceback" not in r.stderr
+    assert "pw-zz9" not in r.stdout + r.stderr
+
+
+# risk: medium
+def test_debug_log_level_keeps_stdout_to_result_lines_only(pg, tmp_path):
+    env = dict(os.environ, DATABASE_URL=pg, PYTHONPATH=str(ROOT), LOG_LEVEL="DEBUG")
+    f = make_file(tmp_path, order("RNT600001", [("22-100-2", 0.8)]))
+    r = subprocess.run([sys.executable, "-m", "lutetia.cli", "import", "poi", str(f)], env=env, cwd=str(tmp_path),
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (r.stdout, r.stderr)
+    assert not [x for x in r.stdout.splitlines() if LOG_LINE.match(x) or "selector" in x.lower()], r.stdout
+    assert "Using selector" in r.stderr  # DEBUG 日志确实在，只是改道到了标准错误

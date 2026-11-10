@@ -16,6 +16,7 @@ from .callers import CallerRegistry, api_middleware
 from .dashboard import register_dashboard
 from .data import register_data
 from .embed import EMBED_CSP, register_embed
+from .i18n import register_i18n, remember_lang
 from .pages_device import register_device_pages
 from .pages_map import register_map_pages
 from .spa import SPA_CSP, is_spa_path, register_spa
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 SECURITY_HEADERS = {
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; "
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; "
                                "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -37,6 +38,7 @@ LOOPBACK = ("127.0.0.1", "localhost", "::1")
 def _stamp(resp: web.StreamResponse, request: web.Request) -> None:
     for name, value in SECURITY_HEADERS.items():
         resp.headers[name] = value
+    remember_lang(resp, request)
     if is_spa_path(request.path):  # project dashboard SPA: strict CSP without 'unsafe-inline' (THR-7)
         resp.headers["Content-Security-Policy"] = SPA_CSP
     embed_csp = request.get(EMBED_CSP)
@@ -85,6 +87,7 @@ class WebServer:
         register_data(app)
         register_device_pages(app)
         register_map_pages(app)
+        register_i18n(app)
         register_spa(app, self.cfg.web_ui_dist)
         register_embed(app, self.cfg.web_ui_dist, self.cfg.embed_frame_ancestors)
         app.router.add_static("/static/", STATIC_DIR, show_index=False, follow_symlinks=False)

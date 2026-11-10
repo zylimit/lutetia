@@ -491,7 +491,7 @@ async def test_login_cookie_max_age_remember_vs_not():
         assert 'name="remember"' in await r3.text()
 
 
-OPS_MARKERS = ('id="anomalies"', 'id="tbl-receiver"', 'id="tbl-devices"', 'id="tbl-calls"', "异常总览", "设备总览", "采集器状态")
+OPS_MARKERS = ('id="anomalies"', 'id="tbl-receiver"', 'id="tbl-devices"', 'id="tbl-calls"', "Anomalies", "Devices", "Collector status")
 NOTICE = "The project dashboard is coming soon."
 
 

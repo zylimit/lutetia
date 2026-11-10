@@ -48,7 +48,8 @@ def alarm(key, v, device_id="d1", name="井盖A"):
 
 def test_compute_empty_is_all_ok():
     assert run() == []
-    assert _anom().summarize([]) == "全部正常"
+    assert _anom().summarize([]) == "All normal"
+    assert _anom().summarize([], "fr") == "Tout est normal"
 
 
 def test_stale_rule_uses_max_age_and_upload_interval():
@@ -132,7 +133,7 @@ def test_sorting_red_first():
     assert [key(i) for i in reds] == sorted(key(i) for i in reds)
     assert reds[0]["kind"] == "stale"  # 失联最前，push 不得排在 stale 前
     s = a.summarize(items)
-    assert s.startswith("%d 项异常" % len(items)) and "红" in s and "黄" in s
+    assert s.startswith("%d issue" % len(items)) and "red" in s and "yellow" in s
 
 
 # ---- DB / endpoint ----
@@ -171,7 +172,7 @@ async def test_overview_endpoint_includes_anomalies(db):
             body = await (await client.get("/dashboard/data/overview")).json()
             mine = [a for a in body["anomalies"] if a.get("kind") == "stale" and a.get("device_id") == dev_id]
             assert len(mine) == 1
-            assert body["anomaly_summary"] != "全部正常"
+            assert body["anomaly_summary"] != "All normal"
             html = await (await client.get("/dashboard/", allow_redirects=False)).text()
             assert 'id="anomalies"' in html
             assert dev_id in html

@@ -39,15 +39,14 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _logs_to_stderr() -> None:
-    """本命令内日志改走标准错误：标准输出只留固定汇总行（不改 log.py 的全局行为，collector 仍写标准输出）。"""
+def logs_to_stderr() -> None:
+    """import 命令的日志改走标准错误（由 cli.main 在 logsetup.setup 之后调用）：标准输出只留固定汇总行（不改 log.py 的全局行为，collector 仍写标准输出）。"""
     for h in logging.getLogger().handlers:
         if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stdout:
             h.setStream(sys.stderr)
 
 
 async def cmd_import_poi(cfg: Config, args) -> int:
-    _logs_to_stderr()
     path = Path(args.file)
     try:
         parsed = _read(path)
@@ -91,7 +90,6 @@ async def cmd_import_poi(cfg: Config, args) -> int:
 
 async def cmd_import_sla(cfg: Config, args) -> int:
     """`lutetia import sla FILE [FILE…] [--dry-run]`：同样先解析再连库；输出只有「模板名 + 步数」，不打任何单元格内容。"""
-    _logs_to_stderr()
     templates = []
     for f in args.files:
         path = Path(f)

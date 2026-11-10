@@ -89,7 +89,7 @@ async def test_map_page_renders(db):
         r = await client.get("/dashboard/map", allow_redirects=False)
         assert r.status == 200
         html = await r.text()
-        for s in ('id="map"', 'id="device-list"', "/static/vendor/leaflet.js", "/static/map.js", "© Google"):
+        for s in ('id="map"', 'id="device-list"', "/static/vendor/leaflet.js", "/static/map.js", "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>"):
             assert s in html, s
         assert 'data-days="0"' in html
         r = await client.get("/dashboard/map", params={"tracks": "1"})
@@ -263,20 +263,22 @@ async def test_map_page_tracks_other_values_ignored(db):
             assert 'data-days="0"' in await r.text(), q
 
 
-async def test_map_tiles_google_and_csp(db):
+async def test_map_tiles_osm_and_csp(db):
     async with TestClient(TestServer(make_app(db))) as client:
         await login(client)
         for path in ("/static/map.js", "/static/device.js"):
             r = await client.get(path)
             assert r.status == 200, path
             js = await r.text()
-            assert "mt{s}.google.com/vt/" in js, path
-            assert "openstreetmap" not in js.lower(), path
+            assert "https://tile.openstreetmap.org/{z}/{x}/{y}.png" in js, path
+            assert "referrerPolicy: 'strict-origin-when-cross-origin'" in js and "maxZoom: 19" in js, path
+            assert "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>" in js, path
+            assert "google" not in js.lower(), path
         r = await client.get("/dashboard/map")
+        assert r.headers.get("Referrer-Policy") == "same-origin"  # unchanged site-wide; the tile <img> overrides it itself
         csp = r.headers.get("Content-Security-Policy", "")
         m = re.search(r"img-src([^;]*)", csp)
         assert m, csp
         img = m.group(1)
-        assert "https://mt0.google.com" in img, img
-        assert "https://mt3.google.com" in img, img
-        assert "openstreetmap" not in img.lower(), img
+        assert "https://tile.openstreetmap.org" in img, img
+        assert "google" not in csp.lower(), csp

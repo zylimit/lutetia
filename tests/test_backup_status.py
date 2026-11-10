@@ -10,6 +10,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from lutetia.config import Config, load_dotenv
 from lutetia.db import Database
 from lutetia.web import WebServer, anomalies
+from lutetia.web.i18n import t
 
 load_dotenv()
 DB_URL = os.environ.get("DATABASE_URL", "")
@@ -29,7 +30,7 @@ def compute(bk):
 
 def test_never_backed_up_is_red():
     items = compute(summary(None, latest_ok=None))
-    assert [(i["level"], i["kind"], i["detail"]) for i in items] == [("red", "backup", "从未成功备份")]
+    assert [(i["level"], i["kind"], i["detail"]) for i in items] == [("red", "backup", "no successful backup yet")]
 
 
 def test_success_25h_ago_no_item():
@@ -39,15 +40,15 @@ def test_success_25h_ago_no_item():
 def test_success_27h_ago_red_with_hours_and_threshold():
     items = compute(summary(27))
     assert len(items) == 1 and items[0]["level"] == "red" and items[0]["kind"] == "backup"
-    assert items[0]["detail"] == "距上次成功备份 27.0 小时（阈值 26 小时）"
+    assert items[0]["detail"] == "27.0 h since the last successful backup (limit 26 h)"
 
 
 def test_latest_run_failed_after_earlier_success_is_red_with_error():
     # yesterday 02:30 ok (24 h ago, still fresh), today's run failed: must be red despite the fresh success
     items = compute(summary(24, latest_ok=False, error="dump exit 1"))
     assert len(items) == 1 and items[0]["level"] == "red"
-    assert items[0]["detail"] == "最近一次备份失败：dump exit 1"
-    assert anomalies.KIND_LABELS["backup"] == "备份"
+    assert items[0]["detail"] == "latest backup failed: dump exit 1"
+    assert t("en", "kind.backup") == "Backup" and t("fr", "kind.backup") == "Sauvegarde"
 
 
 def test_compute_without_backup_has_no_backup_items():
@@ -99,7 +100,7 @@ async def test_overview_includes_last_backup(db):
             assert set(body["last_backup"]) == {"at", "bytes", "latest_ok", "latest_at"}
             assert body["last_backup"]["latest_ok"] is False
             html = await (await client.get("/dashboard/")).text()
-            assert 'id="last-backup"' in html and "上次备份：" in html
+            assert 'id="last-backup"' in html and "Last backup:" in html
         finally:
             async with db.pool.acquire() as conn:
                 await conn.execute("DELETE FROM backup_run WHERE id = $1", rid)

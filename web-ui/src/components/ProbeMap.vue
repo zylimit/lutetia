@@ -2,9 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { addOsmTiles } from '../osm-tiles'
 
 // CSP probe only: a world-level view of France and one synthetic point (not a device position).
-// Tiles: Google test-phase layer, same as lutetia/web/static/map.js (progress Decisions 2026-11-07, revoked by #88 / Task 13.2).
+// Tiles: OpenStreetMap, same as every other map (see osm-tiles.ts).
 const SYNTHETIC_CENTER: L.LatLngTuple = [46.5, 2.5]
 
 const el = ref<HTMLDivElement | null>(null)
@@ -13,11 +14,7 @@ let map: L.Map | null = null
 onMounted(() => {
   if (!el.value) return
   map = L.map(el.value, { center: SYNTHETIC_CENTER, zoom: 5 })
-  L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-    subdomains: '0123',
-    attribution: '© Google',
-    maxZoom: 20,
-  }).addTo(map)
+  addOsmTiles(map)
   L.circleMarker(SYNTHETIC_CENTER, { radius: 6 }).addTo(map)
 })
 

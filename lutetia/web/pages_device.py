@@ -6,78 +6,79 @@ from aiohttp import web
 
 from ..db import max_age_hours
 from .auth import require_admin
+from .dashboard import yes_no
 from .html import esc, fmt_ago, fmt_ts, ops_header, page, table
+from .i18n import pick_lang, t
 from .jsonutil import validate_device_id
+from .pages_map import OSM_ATTRIBUTION
 
 SOURCES = ("dingtek", "gps51")
-KIND_NAMES = {"dingtek": "Dingtek 井盖", "gps51": "GPS51 定位器"}
 
 
-def _not_found() -> web.HTTPNotFound:
-    return web.HTTPNotFound(text="<!doctype html><title>404</title><p>设备不存在</p>", content_type="text/html")
+def _not_found(lang: str) -> web.HTTPNotFound:
+    return web.HTTPNotFound(text="<!doctype html><title>404</title><p>%s</p>" % esc(t(lang, "dev.notfound")), content_type="text/html")
 
 
 def _num(v: Any) -> Any:
     return v if v is not None else ""
 
 
-async def _dingtek_body(db: Any, dev: str) -> Tuple[str, Optional[datetime]]:
+async def _dingtek_body(db: Any, dev: str, lang: str) -> Tuple[str, Optional[datetime]]:
     rows = await db.query_telemetry(dev, None, None, None, 50)
     attrs = await db.device_attributes(dev)
-    latest = table(["时间", "key", "值", "原始值", "origin"],
+    latest = table([t(lang, "col.time"), "key", t(lang, "col.value"), t(lang, "col.raw"), "origin"],
                    [[fmt_ts(r["ts"]), r["key"], _num(r["value_si"] if r["value_si"] is not None else r["value_str"]),
                      _num(r["value_num"]), r["origin"]] for r in rows])
-    attr = table(["key", "value", "更新时间"], [[a["key"], a["value"], fmt_ts(a["last_update_ts"])] for a in attrs])
-    period = '<p class="period"><a href="?days=7">7 天</a> · <a href="?days=30">30 天</a></p>'
-    charts = "".join('<h3>%s</h3><div class="chart"><canvas id="chart-%s"></canvas></div>' % (t, k)
-                     for k, t in (("volt", "电压 (V)"), ("temperature", "温度"), ("rsrp", "信号 rsrp (dBm)")))
-    return (period + charts + '<p id="chart-note"></p><h2>最近上报</h2>' + latest + "<h2>属性</h2>" + attr,
-            rows[0]["ts"] if rows else None)
+    attr = table(["key", "value", t(lang, "col.updated")], [[a["key"], a["value"], fmt_ts(a["last_update_ts"])] for a in attrs])
+    period = '<p class="period"><a href="?days=7">%s</a> · <a href="?days=30">%s</a></p>' % (esc(t(lang, "dev.days7")), esc(t(lang, "dev.days30")))
+    charts = "".join('<h3>%s</h3><div class="chart"><canvas id="chart-%s"></canvas></div>' % (esc(t(lang, "chart." + k)), k)
+                     for k in ("volt", "temperature", "rsrp"))
+    return (period + charts + '<p id="chart-note"></p><h2>%s</h2>' % esc(t(lang, "sec.latest")) + latest
+            + "<h2>%s</h2>" % esc(t(lang, "sec.attrs")) + attr, rows[0]["ts"] if rows else None)
 
 
-async def _gps_body(db: Any, dev: str) -> Tuple[str, Optional[datetime]]:
+async def _gps_body(db: Any, dev: str, lang: str) -> Tuple[str, Optional[datetime]]:
     rows = await db.query_positions(dev, None, None, 50)
     if rows:
         top = rows[0]
-        stats = "<p>里程表 %s km · 运动 %s · 最后位置 %s · 来源 %s</p>" % (
-            esc(top["total_distance_km"]), esc({True: "是", False: "否"}.get(top["moving"], "?")),
-            esc(fmt_ts(top["update_time"])), esc(top["origin"]))
+        stats = "<p>%s</p>" % esc(t(lang, "gps.stats", km=t(lang, "gps.nokm") if top["total_distance_km"] is None else "%s km" % top["total_distance_km"], moving=yes_no(top["moving"], lang),
+                                    t=fmt_ts(top["update_time"]), origin=top["origin"]))
     else:
-        stats = "<p>暂无位置</p>"
-    pos = table(["时间", "lat", "lon", "speed_kmh", "origin"],
+        stats = "<p>%s</p>" % esc(t(lang, "pos.none"))
+    pos = table([t(lang, "col.time"), "lat", "lon", "speed_kmh", "origin"],
                 [[fmt_ts(r["update_time"]), r["lat"], r["lon"], r["speed_kmh"], r["origin"]] for r in rows])
     return ('<div id="map"></div><p id="chart-note"></p>'
-            '<p class="attrib">地图 © Google（测试阶段直拉瓦片，不商用）</p>' + stats + "<h2>最近位置</h2>" + pos,
-            rows[0]["update_time"] if rows else None)
+            '<p class="attrib">%s %s</p>' % (esc(t(lang, "map.base")), OSM_ATTRIBUTION) + stats
+            + "<h2>%s</h2>" % esc(t(lang, "sec.positions")) + pos, rows[0]["update_time"] if rows else None)
 
 
 @require_admin
 async def device_page(request: web.Request) -> web.Response:
+    lang = pick_lang(request)
     source, dev = request.match_info["source"], request.match_info["device_id"]
     if source not in SOURCES or validate_device_id(dev) is not None:
-        raise _not_found()
+        raise _not_found(lang)
     db = request.app["ctx"].db
     device = await db.get_device(source, dev)
     if device is None:
-        raise _not_found()
+        raise _not_found(lang)
     days = request.query.get("days", "")
     days = days if days in ("7", "30") else "7"
     now = datetime.now(timezone.utc)
     if source == "dingtek":
-        content, last = await _dingtek_body(db, dev)
+        content, last = await _dingtek_body(db, dev, lang)
         head, scripts = "", '<script src="/static/vendor/chart.umd.js" defer></script><script src="/static/device.js" defer></script>'
     else:
-        content, last = await _gps_body(db, dev)
+        content, last = await _gps_body(db, dev, lang)
         head = '<link rel="stylesheet" href="/static/vendor/leaflet.css">'
         scripts = '<script src="/static/vendor/leaflet.js" defer></script><script src="/static/device.js" defer></script>'
     name = device["name"] or dev
-    online = {True: "是", False: "否"}.get(device["expected_online"], "?")
-    sub = "<p>类型 %s · 应在线 %s · 最后入库 %s · 距今 %s</p>" % (
-        esc(device["device_type"] or KIND_NAMES[source]), online, esc(fmt_ts(last)), esc(fmt_ago(last, now)))
-    body = (ops_header(request["user"], ['<a href="/dashboard/">← 看板</a>'])
-            + '<h1>%s（%s）</h1>%s<div id="device" data-kind="%s" data-device-id="%s" data-days="%s">%s</div>'
+    sub = "<p>%s</p>" % esc(t(lang, "dev.sub", type=device["device_type"] or t(lang, "kind." + source),
+                              online=yes_no(device["expected_online"], lang), last=fmt_ts(last), age=fmt_ago(last, now, lang)))
+    body = (ops_header(request, request["user"], ['<a href="/dashboard/">%s</a>' % esc(t(lang, "nav.board"))])
+            + '<h1>%s (%s)</h1>%s<div id="device" data-kind="%s" data-device-id="%s" data-days="%s">%s</div>'
             % (esc(name), esc(dev), sub, esc(source), esc(dev), days, content))
-    return page(str(name), body, head=head, scripts=scripts)
+    return page(request, str(name), body, head=head, scripts=scripts)
 
 
 def register_device_pages(app: web.Application) -> None:

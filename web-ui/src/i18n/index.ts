@@ -4,15 +4,19 @@ import { en } from './en'
 import type { Key } from './en'
 import { fr } from './fr'
 
-export type Lang = 'en' | 'fr'
+import { pickLang } from './pick'
+import type { Lang } from './pick'
+
+export type { Lang }
 export type { Key }
 export const LANG_KEY = 'lutetia.lang'
 const DICTS: Record<Lang, Partial<Record<Key, string>>> = { en, fr }
 
-/** Stored choice wins; otherwise a browser language starting with fr gives fr, anything else en (Design-Brief 6.1). */
-export function pickLang(stored: string | null, browser: string | undefined): Lang {
-  if (stored === 'en' || stored === 'fr') return stored
-  return (browser ?? '').toLowerCase().startsWith('fr') ? 'fr' : 'en'
+export { pickLang }
+
+/** The browser's preference list, falling back to the single navigator.language. */
+export function browserLanguages(): readonly string[] {
+  return navigator.languages?.length ? navigator.languages : [navigator.language]
 }
 
 function readStored(): string | null {
@@ -23,7 +27,7 @@ function readStored(): string | null {
   }
 }
 
-export const i18n = reactive<{ lang: Lang }>({ lang: pickLang(readStored(), navigator.language) })
+export const i18n = reactive<{ lang: Lang }>({ lang: pickLang(readStored(), browserLanguages()) })
 
 export function setLang(lang: Lang): void {
   i18n.lang = lang

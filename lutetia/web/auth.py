@@ -12,7 +12,9 @@ from urllib.parse import quote, unquote, urlsplit
 from aiohttp import web
 
 from .callers import check_access
-from .html import ops_header, page
+from .html import esc, ops_header, page
+from .i18n import pick_lang
+from .i18n import t as translate
 
 COOKIE_NAME = "lutetia_session"
 
@@ -236,8 +238,6 @@ def require_session_json(handler: Handler) -> Handler:
     return wrapper
 
 
-COMING_SOON = "The project dashboard is coming soon."
-
 
 def require_admin(handler: Handler) -> Handler:
     """Ops pages: admin only. Other signed-in accounts get 200 with one line of notice, no ops data (the handler never runs)."""
@@ -247,7 +247,9 @@ def require_admin(handler: Handler) -> Handler:
             raise web.HTTPFound("/login?next=" + quote(request.path))
         request["user"] = user
         if not is_admin(request, user):
-            return page("Lutetia", ops_header(user) + '<p id="coming-soon">%s</p><p><a href="/app/">Open the project dashboard</a></p>' % COMING_SOON)
+            lang = pick_lang(request)
+            return page(request, "Lutetia", ops_header(request, user) + '<p id="coming-soon">%s</p><p><a href="/app/">%s</a></p>'
+                        % (esc(translate(lang, "soon.text")), esc(translate(lang, "soon.open"))))
         return await handler(request)
     return wrapper
 

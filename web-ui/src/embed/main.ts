@@ -4,7 +4,7 @@ import { createApp } from 'vue'
 import '../styles/fonts.css'
 import '../styles/tokens.css'
 import '../styles/base.css'
-import { i18n, pickLang } from '../i18n'
+import { browserLanguages, i18n, pickLang } from '../i18n'
 import { RANGES } from '../range'
 import type { Range } from '../range'
 import { WIDGETS } from './data'
@@ -18,7 +18,7 @@ const query = new URLSearchParams(window.location.search)
 document.documentElement.dataset.theme = 'light'
 // ?lang=en|fr from the host; otherwise the browser language. The full app's stored choice is not used and nothing is stored.
 const lang = query.get('lang')
-i18n.lang = lang === 'en' || lang === 'fr' ? lang : pickLang(null, navigator.language)
+i18n.lang = lang === 'en' || lang === 'fr' ? lang : pickLang(null, browserLanguages())
 document.documentElement.lang = i18n.lang
 
 const name = window.location.pathname.replace(/^\/embed\//, '')

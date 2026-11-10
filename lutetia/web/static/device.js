@@ -37,19 +37,23 @@
           scales: { x: { ticks: { maxTicksLimit: 8 } } } }
       });
     });
-    var msg = data.hourly ? '30 天按小时平均' : '';
-    if (data.truncated) { msg += (msg ? '；' : '') + '仅显示最新 1500 点'; }
+    var msg = data.hourly ? T('chart.hourly') : '';
+    if (data.truncated) { msg += (msg ? '; ' : '') + T('chart.truncated'); }
     say(msg);
   }
 
   function drawMap(data) {
     var map = L.map('map');
     L.Icon.Default.imagePath = '/static/vendor/images/';
-    L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map);
+    // The site-wide Referrer-Policy is same-origin, which OSM's tile servers refuse (no Referer); the tile <img> overrides it.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    }).addTo(map);
     var pos = data.positions;
     if (!pos.length) {
-      say('暂无位置');
+      say(T('pos.none'));
       map.setView([48.8566, 2.3522], 11);
       return;
     }
@@ -76,6 +80,6 @@
     if (kind === 'dingtek') { drawCharts(data); } else { drawMap(data); }
   }).catch(function (err) {
     console.error('device page load failed', err);
-    say('加载失败');
+    say(T('load.failed'));
   });
 })();

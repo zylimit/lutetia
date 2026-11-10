@@ -19,8 +19,8 @@ from aiohttp import web
 log = logging.getLogger(__name__)
 
 SPA_PREFIX = "/app"
-GOOGLE_TILES = "https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com"
-SPA_CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: " + GOOGLE_TILES + "; "
+OSM_TILES = "https://tile.openstreetmap.org"
+SPA_CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: " + OSM_TILES + "; "
            "connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 NOT_BUILT = "Project dashboard is not built on this server (web-ui build directory missing). Run `npm run build` in web-ui/."
 INDEX_CACHE = "no-cache"

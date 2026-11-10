@@ -9,6 +9,7 @@ from aiohttp import web
 from ..db import device_stale
 from . import anomalies
 from .auth import require_admin_json
+from .i18n import pick_lang
 from .jsonutil import _dumps, validate_device_id
 
 log = logging.getLogger(__name__)
@@ -61,11 +62,11 @@ def heartbeat_view(row: Optional[Dict[str, Any]]) -> Tuple[Optional[Dict[str, An
 
 
 async def build_anomalies(ctx: object, now: datetime, devices: List[Dict], sensors: List[Dict], calls: List[Dict], backup: Dict,
-                          receiver: Optional[Dict], collector: Dict) -> List[Dict]:
+                          receiver: Optional[Dict], collector: Dict, lang: str = "en") -> List[Dict]:
     return anomalies.compute(now, devices, sensors, await ctx.db.latest_alarm_values(anomalies.ALARM_KEYS), receiver,  # type: ignore[attr-defined]
                              calls, ctx.cfg.gps51_daily_budget, ctx.cfg.low_volt,  # type: ignore[attr-defined]
                              push_silent_limit_sec=ctx.cfg.push_silence_min * 60,  # type: ignore[attr-defined]
-                             backup=backup, collector=collector)
+                             backup=backup, collector=collector, lang=lang)
 
 
 @require_admin_json
@@ -80,7 +81,8 @@ async def overview(request: web.Request) -> web.Response:
     calls = await ctx.db.call_summary(24)
     backup = await ctx.db.backup_summary()
     receiver, collector = heartbeat_view(await ctx.db.collector_status())
-    items = await build_anomalies(ctx, now, devices, sensors, calls, backup, receiver, collector)
+    lang = pick_lang(request)
+    items = await build_anomalies(ctx, now, devices, sensors, calls, backup, receiver, collector, lang)
     return _json({
         "generated_at": now,
         "devices": devices,
@@ -90,7 +92,7 @@ async def overview(request: web.Request) -> web.Response:
         "collector": collector,
         "api_calls_24h": calls,
         "anomalies": items,
-        "anomaly_summary": anomalies.summarize(items),
+        "anomaly_summary": anomalies.summarize(items, lang),
         "last_backup": {"at": backup["last_ok_at"], "bytes": backup["last_ok_bytes"],
                         "latest_ok": backup["latest_ok"], "latest_at": backup["latest_at"]},
     })

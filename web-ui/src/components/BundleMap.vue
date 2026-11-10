@@ -8,6 +8,7 @@ import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { dateTime } from '../format'
 import { t } from '../i18n'
+import { addOsmTiles } from '../osm-tiles'
 import type { Bundle, TrackPoint } from '../resources'
 import { markerSvg } from './marker-svg'
 
@@ -90,8 +91,7 @@ function focusSelected(): void {
 onMounted(() => {
   if (!el.value) return
   map = L.map(el.value, { center: FRANCE, zoom: 5 })
-  // Test-phase tiles, same as ManholeMap (Decisions 2026-11-07; replaced by #88 / Task 13.2).
-  L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains: '0123', attribution: '© Google', maxZoom: 20 }).addTo(map)
+  addOsmTiles(map)
   sync()
   drawTrack()
   focusSelected()

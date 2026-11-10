@@ -10,7 +10,7 @@ import aiohttp
 from . import log as logsetup
 from .config import Config
 from .db import Database, max_age_hours
-from .import_cmd import cmd_import_poi, cmd_import_sla
+from .import_cmd import cmd_import_poi, cmd_import_sla, logs_to_stderr
 from .sources.dingtek import DingtekClient, DingtekError, DingtekSync
 from .sources.gps51 import Gps51Client, Gps51Error, Gps51Poller
 
@@ -150,6 +150,8 @@ def main(argv=None) -> None:
     args = build_parser().parse_args(argv)
     cfg = Config.from_env()
     logsetup.setup(cfg.log_level)
+    if args.cmd == "import":
+        logs_to_stderr()  # 标准输出只留导入结果行；LOG_LEVEL=DEBUG 时 asyncio 的日志也进标准错误
     if args.cmd != "import":  # import 自己在解析台账之后再查 DATABASE_URL，台账问题优先报
         cfg.require("database_url")
     try:

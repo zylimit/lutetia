@@ -45,10 +45,10 @@ def test_heartbeat_60s_old_is_not_red():
     assert got == [] and items == []
 
 
-def test_heartbeat_91s_old_is_red_with_chinese_text():
+def test_heartbeat_91s_old_is_red_with_english_text():
     got, _ = collector_items(beat(91))
     assert len(got) == 1 and got[0]["level"] == anomalies.LEVEL_RED
-    assert got[0]["detail"] == "采集心跳已 1 分 31 秒未更新（阈值 90 秒）"
+    assert got[0]["detail"] == "collector heartbeat not updated for 1 min 31 s (limit 90 s)"
 
 
 def test_heartbeat_exactly_90s_is_not_red():
@@ -57,11 +57,12 @@ def test_heartbeat_exactly_90s_is_not_red():
 
 def test_no_heartbeat_row_is_red_never_reported():
     got, _ = collector_items(None)
-    assert len(got) == 1 and got[0]["level"] == anomalies.LEVEL_RED and got[0]["detail"] == "采集从未上报心跳"
+    assert len(got) == 1 and got[0]["level"] == anomalies.LEVEL_RED and got[0]["detail"] == "collector has never reported a heartbeat"
 
 
 def test_collector_kind_sorts_first_and_has_label():
-    assert anomalies.KIND_ORDER[0] == "collector" and anomalies.KIND_LABELS["collector"] == "采集"
+    from lutetia.web.i18n import t
+    assert anomalies.KIND_ORDER[0] == "collector" and t("en", "kind.collector") == "Collector"
     _, items = collector_items(beat(3000))
     assert items[0]["kind"] == "collector"
 
@@ -94,13 +95,14 @@ def test_version_comes_from_package_metadata():
 def test_collector_line_wording():
     from lutetia.web.dashboard import collector_line
     fresh = heartbeat_view(beat(60))[1]
-    assert "最后已知" not in collector_line(fresh) and "WS 已连" in collector_line(fresh) and "巴黎时间" in collector_line(fresh)
+    assert "last known" not in collector_line(fresh) and "WS connected" in collector_line(fresh) and "Paris time" in collector_line(fresh)
     stale = heartbeat_view(beat(91))[1]
     line = collector_line(stale)
-    assert line.startswith("采集心跳已过期，最后已知（") and line.index("最后已知") < line.index("WS 已连")
-    assert "WS 未启用" in collector_line(heartbeat_view(beat(5, ws_connected=None))[1])
-    assert "WS 未连" in collector_line(heartbeat_view(beat(5, ws_connected=False))[1])
-    assert collector_line(heartbeat_view(None)[1]) == "采集从未上报心跳"
+    assert line.startswith("Collector heartbeat is stale, last known (") and line.index("last known") < line.index("WS connected")
+    assert "WS disabled" in collector_line(heartbeat_view(beat(5, ws_connected=None))[1])
+    assert "WS disconnected" in collector_line(heartbeat_view(beat(5, ws_connected=False))[1])
+    assert collector_line(heartbeat_view(None)[1]) == "Collector has never reported a heartbeat"
+    assert "heure de Paris" in collector_line(fresh, "fr") and collector_line(heartbeat_view(None)[1], "fr").startswith("Le collecteur")
 
 
 def test_negative_age_reads_as_zero_not_error():
@@ -246,9 +248,9 @@ async def test_overview_without_heartbeat_row(db):
         await _login(client)
         body = await (await client.get("/dashboard/data/overview")).json()
         assert body["receiver"] is None and body["collector"]["updated_at"] is None and body["collector"]["stale"] is True
-        assert [a["detail"] for a in body["anomalies"] if a["kind"] == "collector"] == ["采集从未上报心跳"]
+        assert [a["detail"] for a in body["anomalies"] if a["kind"] == "collector"] == ["collector has never reported a heartbeat"]
         html = await (await client.get("/dashboard/")).text()
-        assert 'id="collector-line"' in html and "采集从未上报心跳" in html
+        assert 'id="collector-line"' in html and "Collector has never reported a heartbeat" in html
 
 
 async def test_dashboard_html_marks_old_values_when_heartbeat_stale(db):
@@ -257,12 +259,12 @@ async def test_dashboard_html_marks_old_values_when_heartbeat_stale(db):
         async with TestClient(TestServer(make_app(db))) as client:
             await _login(client)
             html = await (await client.get("/dashboard/")).text()
-        assert html.count("WS 已连") == 1
-        if stale:  # SV-1: every "WS 已连" must sit behind a 最后已知 qualifier, and the red bar is there too
-            assert "最后已知" in html and html.index("最后已知") < html.index("WS 已连")
-            assert "采集心跳已过期" in html and "[采集]" in html and "接收端计数为最后已知值" in html
+        assert html.count("WS connected") == 1
+        if stale:  # SV-1: every "WS connected" must sit behind a "last known" qualifier, and the red bar is there too
+            assert "last known" in html and html.index("last known") < html.index("WS connected")
+            assert "Collector heartbeat is stale" in html and "[Collector]" in html and "Receiver counters below are the last known values" in html
         else:
-            assert "最后已知" not in html and "采集心跳：" in html and "[采集]" not in html
+            assert "last known" not in html and "Collector heartbeat:" in html and "[Collector]" not in html
 
 
 async def test_age_uses_database_clock_only(db):
@@ -319,7 +321,7 @@ async def test_dashboard_page_and_api_status_read_heartbeat(db):
     async with TestClient(TestServer(make_app(db))) as client:
         await _login(client)
         html = await (await client.get("/dashboard/")).text()
-        assert "WS 已连" in html and "轮询中" in html and 'id="tbl-receiver"' in html
+        assert "WS connected" in html and "polling" in html and 'id="tbl-receiver"' in html
         r = await client.get("/api/v1/status", headers={"Authorization": "Bearer " + KEY})
         body = await r.json()
     assert r.status == 200 and "started_at" in body
