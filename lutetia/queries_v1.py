@@ -167,7 +167,12 @@ async def poi_summary(db: Database) -> Dict[str, Any]:
 
 async def poi_snapshot_at(db: Database) -> Optional[datetime]:
     async with db.pool.acquire() as conn:
-        return await conn.fetchval("SELECT max(imported_at) FROM poi")
+        # newest import run (008: every successful import, even one that changed nothing). A run writes its changed rows in the same
+        # transaction, so their imported_at equals the run's: GREATEST is the newest run, and the rows' own time before the first
+        # recorded run. Null while the poi table is empty (nothing to describe).
+        return await conn.fetchval(
+            "SELECT CASE WHEN EXISTS (SELECT 1 FROM poi) THEN "
+            "GREATEST((SELECT max(imported_at) FROM poi_import_run), (SELECT max(imported_at) FROM poi)) END")
 
 
 async def poi_page(db: Database, filters: Dict[str, Any], after: Optional[str], limit: int) -> List[Dict[str, Any]]:
@@ -207,14 +212,16 @@ async def sla_templates(db: Database, after: Optional[str], limit: int) -> List[
     """Templates (sorted by name, keyset on the name) with their steps in order; at most `limit` templates."""
     async with db.pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT template, seq, step, owner, sla_text FROM sla_template_step WHERE template IN ("
+            "SELECT template, seq, step, owner, sla_text, sla_value, sla_value_min, sla_unit, sla_scope FROM sla_template_step WHERE template IN ("
             "SELECT DISTINCT template FROM sla_template_step WHERE ($1::text IS NULL OR template > $1) ORDER BY template LIMIT $2) "
             "ORDER BY template, seq", after, limit)
     out: List[Dict[str, Any]] = []
     for r in rows:
         if not out or out[-1]["template"] != r["template"]:
             out.append({"template": r["template"], "steps": []})
-        out[-1]["steps"].append({"seq": r["seq"], "step": r["step"], "owner": r["owner"], "sla_text": r["sla_text"]})
+        out[-1]["steps"].append({"seq": r["seq"], "step": r["step"], "owner": r["owner"], "sla_text": r["sla_text"],
+                                 "sla_value": r["sla_value"], "sla_value_min": r["sla_value_min"], "sla_unit": r["sla_unit"],
+                                 "sla_scope": r["sla_scope"]})
     return out
 
 

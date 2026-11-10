@@ -64,7 +64,15 @@ def closed_copy(doc):
     for path, item in out["paths"].items():
         if path not in LEGACY_PATHS:
             close(item)
+    # value sets published open ("may gain new values"), closed here so a value the code starts sending unannounced turns red
+    for schema, fields in TEST_ENUMS.items():
+        for field, values in fields.items():
+            out["components"]["schemas"][schema]["properties"][field]["enum"] = list(values)
     return out
+
+
+TEST_ENUMS = {"SlaStep": {"sla_unit": ["minute", "hour", "day", "workday", "week", "month", "tonne_per_day", None],
+                          "sla_scope": ["access", "aggregation", "backbone", "other", None]}}
 
 
 CLOSED = closed_copy(DOC)
@@ -422,6 +430,10 @@ def test_published_contract_is_open_and_the_test_copy_is_closed():
     """Published: no additionalProperties false anywhere, and the document tells clients to ignore unknown fields. Test copy: every
     object of the new resources is closed, the original four stay open."""
     assert '"additionalProperties": false' not in json.dumps(DOC)
+    for schema, fields in TEST_ENUMS.items():  # open value sets: no enum published, the description says so
+        for field in fields:
+            prop = DOC["components"]["schemas"][schema]["properties"][field]
+            assert "enum" not in prop and "clients must tolerate unknown values" in prop["description"], (schema, field)
     assert "ignore unknown fields" in DOC["info"]["description"] and "never removes or renames" in DOC["info"]["description"]
     assert "ignore unknown fields" in DOC["info"]["description"] and "enum values they do not know" in DOC["info"]["description"]
     for name, schema in CLOSED["components"]["schemas"].items():

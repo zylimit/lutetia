@@ -92,13 +92,19 @@ async def _apply(conn: Any, pois: Sequence[PoiRecord]) -> Dict[str, int]:
     return res
 
 
-async def apply_ledger(pool: Any, pois: Sequence[PoiRecord], dry_run: bool = False) -> Dict[str, int]:
-    """一个事务内入库并返回五个计数；任何语句出错整批回滚并抛出；dry_run 算完即回滚。"""
+async def apply_ledger(pool: Any, pois: Sequence[PoiRecord], dry_run: bool = False,
+                       file_sha256: Optional[str] = None) -> Dict[str, int]:
+    """一个事务内入库并返回五个计数；任何语句出错整批回滚并抛出；dry_run 算完即回滚。
+    给了 file_sha256（`lutetia import poi` 总会给）就在同一事务里往 poi_import_run 记一行（008），POI as_of 取它；
+    dry_run 时这一行随事务回滚，不留痕。"""
     async with pool.acquire() as conn:
         tr = conn.transaction()
         await tr.start()
         try:
             res = await _apply(conn, pois)
+            if file_sha256 is not None:
+                await conn.execute("INSERT INTO poi_import_run (file_sha256, total, changed, gone) VALUES ($1, $2, $3, $4)",
+                                   file_sha256, len(pois), res["new"] + res["updated"], res["gone"])
         except BaseException:
             await tr.rollback()
             raise

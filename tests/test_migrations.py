@@ -16,7 +16,8 @@ load_dotenv()
 DB_URL = os.environ.get("DATABASE_URL", "")
 
 EXPECTED = ["001_schema.sql", "002_raw_jsonb_fix.sql", "003_poi.sql", "004_backup_run.sql",
-            "005_readonly_status_events.sql", "006_sla_template.sql"]
+            "005_readonly_status_events.sql", "006_sla_template.sql", "007_sla_duration.sql",
+            "008_poi_import_run.sql", "009_sla_scope.sql"]
 
 
 @pytest.fixture

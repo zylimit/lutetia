@@ -5,7 +5,6 @@ import { i18n, t } from './i18n'
 import type { Key } from './i18n'
 import Bundles from './pages/Bundles.vue'
 import Overview from './pages/Overview.vue'
-import Plan from './pages/Plan.vue'
 import SignIn from './pages/SignIn.vue'
 import { session } from './session'
 
@@ -19,7 +18,8 @@ export const router = createRouter({
     // lazy: the drawer's charts (ECharts) load only when someone opens the Manholes page
     { path: '/manholes', name: 'manholes', component: () => import('./pages/Manholes.vue') },
     { path: '/bundles', name: 'bundles', component: Bundles },
-    { path: '/plan', name: 'plan', component: Plan },
+    // lazy too: the Plan charts (ECharts) load only when someone opens the Plan page
+    { path: '/plan', name: 'plan', component: () => import('./pages/Plan.vue') },
     // CSP probe of Task 9.1 (ECharts + Leaflet under the strict CSP); lazy so the shell does not carry the chart libraries.
     { path: '/csp-probe', name: 'csp-probe', component: () => import('./pages/CspProbe.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },

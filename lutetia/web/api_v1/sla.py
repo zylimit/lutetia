@@ -1,5 +1,6 @@
 """SLA process templates of /api/v1 (scope poi:read): reference only, never a per-order timeout (OUT-9). The tables are an Excel
-snapshot like the POI ones: source "excel-snapshot", as_of = the newest imported_at (null when nothing was imported)."""
+snapshot like the POI ones: source "excel-snapshot", as_of = the newest imported_at (null when nothing was imported).
+Each step carries sla_text as written plus sla_value / sla_value_min / sla_unit parsed at import (null when not parsed)."""
 from aiohttp import web
 
 from ... import queries_v1 as q

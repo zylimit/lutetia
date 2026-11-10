@@ -6,6 +6,7 @@
 """
 import asyncio
 import os
+from decimal import Decimal
 import subprocess
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ from test_api_v1_resources import AUTH, DB_URL, PFX, _entry, get_json, login, ma
 from test_api_v1_resources import db as sla_db  # noqa: F401  (fixture under another name)
 from xlsx_builder import build_xlsx
 
-from lutetia.sla_import import SlaError, parse_template, template_name
+from lutetia.sla_import import SlaError, parse_duration, parse_template, template_name
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ("Transportation", "Distribution", "MASSIVE")
@@ -92,6 +93,65 @@ def test_parse_skips_trailing_blank_rows_and_accepts_extra_columns_in_any_order(
     assert [(s.seq, s.step, s.owner) for s in t.steps] == [(1, "a", "customer"), (2, "b", "huawei")]
 
 
+@pytest.mark.parametrize("text, expected", [
+    ("1工作日", (1, None, "workday")),
+    ("15 个工作日", (15, None, "workday")),
+    ("２工作日", (2, None, "workday")),  # 全角数字
+    ("3天", (3, None, "day")),
+    ("3日", (3, None, "day")),
+    ("5 自然日", (5, None, "day")),
+    ("1-2天", (2, 1, "day")),  # 范围：value 存上限，value_min 存下限
+    ("1～2天", (2, 1, "day")),
+    ("2至3周", (3, 2, "week")),
+    ("≤3天", (3, None, "day")),
+    ("3天内", (3, None, "day")),
+    ("不超过 5 工作日", (5, None, "workday")),
+    ("48小时", (48, None, "hour")),
+    ("0.5小时", (Decimal("0.5"), None, "hour")),
+    ("30分钟", (30, None, "minute")),
+    ("2周", (2, None, "week")),
+    ("两周", (2, None, "week")),
+    ("1个月", (1, None, "month")),
+    ("2 days", (2, None, "day")),
+    ("4 h", (4, None, "hour")),
+    ("接入层：1吨/天", (1, None, "tonne_per_day")),  # 拆除节点的产能写法
+    ("主干层:2吨/天", (2, None, "tonne_per_day")),
+])
+def test_parse_duration_known_forms(text, expected):
+    d = parse_duration(text)
+    assert d is not None, text
+    assert (d.value, d.value_min, d.unit) == (Decimal(expected[0]), None if expected[1] is None else Decimal(expected[1]), expected[2])
+    assert d.scope == ("access" if text.startswith("接入层") else "backbone" if text.startswith("主干层") else None)
+
+
+@pytest.mark.parametrize("text, scope", [
+    ("接入层：1吨/天", "access"),
+    ("汇聚层：1.5吨/天", "aggregation"),
+    ("主干层：2吨/天", "backbone"),
+    ("骨干层:2吨/天", "backbone"),
+    ("zz某层：3工作日", "other"),  # 不认识的前缀：值照解析，层级记 other，前端注「scope in source table」
+    ("3工作日", None),
+])
+def test_parse_duration_scope_prefix(text, scope):
+    d = parse_duration(text)
+    assert d is not None and d.scope == scope
+
+
+@pytest.mark.parametrize("text", [None, "", "按照80用户每工作日排程", "3-1天", "看情况", "2", "天", "1-2",
+                                  "接入层：主干层：1吨/天",  # 两个冒号：不猜（审查 L-1）
+                                  "二月", "三月", "2月", "12月"])  # 月份名不是时长（审查 L-2）；时长要写「个月」
+def test_parse_duration_unknown_forms_give_none(text):
+    assert parse_duration(text) is None  # 解析不了：两列 NULL，原文照存，前端显示「—」
+
+
+def test_parse_template_attaches_durations_and_counts_unparsed(tmp_path):
+    rows = tpl_rows(3)
+    rows[3][3] = "zz-free-text"
+    t = parse_template(make(tmp_path, "Distribution", rows))
+    assert [(s.duration.value, s.duration.unit) if s.duration else None for s in t.steps] == [(1, "workday"), None, None]
+    assert t.unparsed == 1  # 第 2 步没写时长，不算解析不了
+
+
 @pytest.mark.parametrize("name", ["Other", "Transportation2"])
 def test_unknown_template_file_name_is_refused(tmp_path, name):
     with pytest.raises(SlaError):
@@ -133,15 +193,23 @@ def test_duplicate_step_number_and_empty_template_are_refused(tmp_path):
 # ---- CLI + 库 ---------------------------------------------------------------------------------------------------------
 
 def test_import_writes_all_files_and_prints_name_and_step_count_only(tmp_path, sla):
-    files = [make(tmp_path, "Transportation", tpl_rows(3)), make(tmp_path, "Distribution", tpl_rows(2)),
+    dist = tpl_rows(2)
+    dist[1][3] = "主干层：2吨/天"
+    files = [make(tmp_path, "Transportation", tpl_rows(3)), make(tmp_path, "Distribution", dist),
              make(tmp_path, "MASSIVE", tpl_rows(4))]
     r = run_cli(files)
     assert r.returncode == 0, r.stderr
+    assert [tuple(x) for x in q("SELECT sla_value, sla_unit, sla_scope FROM sla_template_step WHERE template = 'Distribution' AND seq = 1")] \
+        == [(Decimal(2), "tonne_per_day", "backbone")]
+    assert "主干层" not in r.stdout + r.stderr  # 计数里只有层级代号，不带原文
     assert r.stdout.splitlines() == ["Transportation: 3 steps", "Distribution: 2 steps", "MASSIVE: 4 steps"]
     assert SENTINEL not in r.stdout + r.stderr
     assert steps_in_db("Transportation") == [(1, SENTINEL + "-1", "customer", "1工作日"), (2, SENTINEL + "-2", "huawei", None),
                                              (3, SENTINEL + "-3", "partner", "3工作日")]
     assert len(steps_in_db("MASSIVE")) == 4
+    parsed = [tuple(r) for r in q("SELECT sla_value, sla_value_min, sla_unit FROM sla_template_step WHERE template = 'Transportation' ORDER BY seq")]
+    assert parsed == [(Decimal(1), None, "workday"), (None, None, None), (Decimal(3), None, "workday")]
+    assert [r[0] for r in q("SELECT sla_scope FROM sla_template_step WHERE template = 'Transportation' ORDER BY seq")] == [None, None, None]
 
 
 def test_import_twice_leaves_the_same_rows_and_replaces_a_whole_template(tmp_path, sla):
@@ -198,8 +266,10 @@ def test_missing_file_is_an_error(tmp_path):
 async def seed(database, name, n):
     async with database.pool.acquire() as conn:
         for i in range(1, n + 1):
-            await conn.execute("INSERT INTO sla_template_step (template, seq, step, owner, sla_text) VALUES ($1, $2, $3, 'huawei', $4)",
-                               name, i, "step-%d" % i, None if i == 2 else "%d d" % i)
+            await conn.execute("INSERT INTO sla_template_step (template, seq, step, owner, sla_text, sla_value, sla_value_min, sla_unit, "
+                               "sla_scope) VALUES ($1, $2, $3, 'huawei', $4, $5, $6, $7, $8)", name, i, "step-%d" % i,
+                               None if i == 2 else "%d d" % i, None if i == 2 else Decimal(i), Decimal(1) if i == 3 else None,
+                               None if i == 2 else "day", "access" if i == 1 else None)
 
 
 async def test_api_lists_templates_with_ordered_steps_for_orange_session_and_pages(sla, tmp_path):
@@ -211,9 +281,13 @@ async def test_api_lists_templates_with_ordered_steps_for_orange_session_and_pag
         body = await get_json(c, "/api/v1/sla-templates?limit=1", orange)
         assert body["source"] == "excel-snapshot" and body["as_of"].endswith("Z") and body["next"]
         assert [i["template"] for i in body["items"]] == [PFX + "sla-a"]
-        assert body["items"][0]["steps"] == [{"seq": 1, "step": "step-1", "owner": "huawei", "sla_text": "1 d"},
-                                             {"seq": 2, "step": "step-2", "owner": "huawei", "sla_text": None},
-                                             {"seq": 3, "step": "step-3", "owner": "huawei", "sla_text": "3 d"}]
+        assert body["items"][0]["steps"] == [
+            {"seq": 1, "step": "step-1", "owner": "huawei", "sla_text": "1 d", "sla_value": 1, "sla_value_min": None, "sla_unit": "day",
+             "sla_scope": "access"},
+            {"seq": 2, "step": "step-2", "owner": "huawei", "sla_text": None, "sla_value": None, "sla_value_min": None, "sla_unit": None,
+             "sla_scope": None},
+            {"seq": 3, "step": "step-3", "owner": "huawei", "sla_text": "3 d", "sla_value": 3, "sla_value_min": 1, "sla_unit": "day",
+             "sla_scope": None}]
         page2 = await get_json(c, "/api/v1/sla-templates?limit=1&cursor=" + body["next"], orange)
         assert [i["template"] for i in page2["items"]] == [PFX + "sla-b"] and page2["next"] is None
         assert (await c.get("/api/v1/sla-templates?limit=0", headers=orange)).status == 400

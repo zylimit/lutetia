@@ -223,6 +223,9 @@ async def test_summary_bundles_pois_and_collector_blocks(db):
             listed, _ = await walk(c, "/api/v1/pois")  # SC-10: the number on the overview opens into a list that has exactly that many
             assert p["count"] == len(listed) and p["with_segments"] == sum(1 for i in listed if i["segment_count"] > 0)
             assert p["without_weight"] - p0["without_weight"] == 2  # p2 has a segment but no weight, p3 has no segment
+            # Plan chart coverage (Task 10.2 L-3): "work orders with a planned weight" = count - without_weight, the same rule as a
+            # listed row with planned_tonnes not null (at least one segment carries a weight)
+            assert p["count"] - p["without_weight"] == sum(1 for i in listed if i["planned_tonnes"] is not None)
             assert p["planned_tonnes"] - p0["planned_tonnes"] == pytest.approx(9.0)  # 2 + 3 + 4; p4's 10 t and p2's missing weight stay out
             assert set(data["collector"]) == {"updated_at", "stale"} and data["collector"]["stale"] is False
         finally:

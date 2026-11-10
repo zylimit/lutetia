@@ -521,7 +521,9 @@
 
 ---
 
-## Phase 10: Bundles 与 Plan 页、CSV 导出、SLA 参考（SCOPE-14、16，SCREEN-3、4，SC-10 其余部分）
+## Phase 10: Bundles 与 Plan 页、CSV 导出、SLA 参考（SCOPE-14、16，SCREEN-3、4，SC-10 其余部分） ✅
+
+本机完成（2026-11-10，CONCERNS：#112、#113）：Task 10.1 ～ 10.3 提交；Spec v1.17（段级筛选只算命中段、FR CSV 分号、去 OCC 时间轴）；fra 隔离栈 Playwright walk-bundles 三场景、walk-plan 15 步全过，ui-audit 溢出 0 对比度 0；带库全量 950 passed / 1 failed（#70）。真 SLA 表导入与「生产快照图注覆盖数」核对随下一次发版由 deployer 在 fra 做。
 
 **交付内容**：
 - Bundles 页：每台铜缆捆追踪器的最后位置与 7 天轨迹，顶部写明「只显示位置与轨迹，运输状态尚未计算」；生产当前没有上报时显示空态而不是 0。
@@ -557,7 +559,7 @@
 **验收标准**：
 - Python 全量回归、`npm run build`、`npm run test` 绿。
 - fra 上 Playwright：Plan 筛选与导出行数一致，Bundles 轨迹与空态都出现；UI 审计溢出 0、对比度不足 0。
-- 生产快照上 Plan 页图注覆盖数 = `/api/v1/summary` 里有明细工单数。
+- 生产快照上 Plan 页图注覆盖数 = `/api/v1/summary` 里有计划重量的工单数（`count − without_weight`；2026-11-10 由「有明细」改为「有计划重量」，有段无重量的工单不算覆盖，Task 10.2 审查 L-3）。
 
 ---
 

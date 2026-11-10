@@ -127,6 +127,83 @@ export const en = {
   hidetrack: 'Hide track',
   bundlesfailed: 'Couldn’t load the trackers. Retrying in 60 s — or reload now.',
   loadingState: 'Loading',
+  // Plan (Task 10.2) and SLA reference (Task 10.3). Excel snapshot; SLA durations parsed at import, never shown in Chinese.
+  sourcesnapshot: 'Excel snapshot, as of {t} · Ariane is the source of truth', // {t}: the resource as_of
+  sourceariane: 'From Ariane, as of {t}', // new: once /api/v1/pois says source ariane
+  filters: 'Filters',
+  uci: 'UCI', // new
+  sub: 'Subcontractor',
+  commune: 'Commune',
+  category: 'Category',
+  infrastructure: 'Underground / Aerial',
+  cable: 'Cable type',
+  all: 'All',
+  clear: 'Clear filters',
+  removefilter: 'Remove filter: {f}', // new
+  bysub: 'Planned tonnes by subcontractor',
+  bycable: 'Planned tonnes by cable type',
+  covers: 'Covers {n} of {m} work orders — only work orders with a planned weight count', // demo key covers, made a template; counts orders with a planned weight (review L-3)
+  chartnone: 'No planned weight in these work orders', // new
+  cablechartfailed: 'Couldn’t load the cable segments for this chart. Reload to retry.', // new
+  notset: 'Not set', // new: empty ledger cell in a chart or filter
+  orders: 'Work orders',
+  segments: 'Segments',
+  length: 'Length (km)',
+  planned: 'Planned (t)',
+  received: 'Received',
+  opdate: 'Planned op date',
+  occ: 'OCC', // new
+  pending: 'Weight pending',
+  ariane: 'Open in Ariane', // demo key ariAne
+  exportcsv: 'Export filtered rows (CSV)', // demo key export
+  exportfailed: 'Couldn’t build the CSV. Reload and try again.', // new
+  nomatch: 'No work order matches these filters.',
+  noorders: 'No work order imported yet.', // new
+  expand: 'Expand segments',
+  collapse: 'Collapse segments',
+  nodetail: 'Cable detail pending. Weight is not available.',
+  segmentsfailed: 'Couldn’t load the segments. Collapse and expand to retry.', // new
+  seq: 'No.', // new
+  cablecategory: 'Cable category', // new
+  network: 'Network', // new
+  weight: 'Weight (t)',
+  planfailed: 'Couldn’t load the work orders. Retrying in 60 s — or reload now.', // new
+  sla: 'SLA reference',
+  refonly: 'Reference only — not tracked per work order',
+  slanone: 'SLA templates not imported yet.', // new
+  slafailed: 'Couldn’t load the SLA templates. Reload to retry.', // new
+  slamatch: 'Matches the Category filter', // new
+  step: 'Step', // new
+  owner: 'Responsible', // new
+  sladuration: 'SLA', // new
+  ownercustomer: 'Customer', // new
+  ownerhuawei: 'Huawei', // new
+  ownerpartner: 'Partner', // new
+  seesource: 'see source table', // new: SLA duration not parsed at import
+  tplTransportation: 'Transportation', // demo key transportation
+  tplDistribution: 'Distribution',
+  tplMASSIVE: 'Massive', // demo key massive
+  uminute: '{n} min', // new: SLA units, {n} is a number or a range
+  uminute1: '{n} min', // new
+  uhour: '{n} h', // new
+  uhour1: '{n} h', // new
+  uday: '{n} days', // new
+  uday1: '{n} day', // new
+  uworkday: '{n} working days', // new
+  uworkday1: '{n} working day', // new
+  uweek: '{n} weeks', // new
+  uweek1: '{n} week', // new
+  umonth: '{n} months', // new
+  umonth1: '{n} month', // new
+  utonne_per_day: '{n} t/day', // new: dismantling rate
+  utonne_per_day1: '{n} t/day', // new
+  ordercount: '{n} work orders', // new
+  ordercount1: '{n} work order', // new
+  matchingonly: 'matching segments only', // new
+  scopeaccess: 'Access layer: {d}', // new
+  scopeaggregation: 'Aggregation layer: {d}', // new
+  scopebackbone: 'Backbone layer: {d}', // new
+  scopeother: '{d} (scope in source table)', // new
 }
 
 export type Key = keyof typeof en

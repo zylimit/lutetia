@@ -62,7 +62,7 @@ const PAGE = 1000
 const MAX_PAGES = 20 // 20 000 rows: far beyond the project's dozen manholes; reaching it is reported, not silently cut
 
 /** Every page of a list resource. */
-async function all<T>(path: string, params: Record<string, string | number>): Promise<{ items: T[]; asOf: string }> {
+export async function all<T>(path: string, params: Record<string, string | number>): Promise<{ items: T[]; asOf: string }> {
   const items: T[] = []
   let cursor: string | null = null
   let asOf = ''

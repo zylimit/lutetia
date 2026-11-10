@@ -4,6 +4,7 @@
 标准输出只有固定的汇总行；除可疑工单号外不打印任何行内容（台账是真实业务数据）。
 """
 import asyncio
+import hashlib
 import logging
 import sys
 from pathlib import Path
@@ -29,6 +30,15 @@ def _read(path: Path) -> LedgerParse:
     return parse_ledger(path)
 
 
+def _sha256(path: Path) -> str:
+    """台账文件摘要，记进 poi_import_run（只记摘要，不记内容）。"""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _logs_to_stderr() -> None:
     """本命令内日志改走标准错误：标准输出只留固定汇总行（不改 log.py 的全局行为，collector 仍写标准输出）。"""
     for h in logging.getLogger().handlers:
@@ -41,6 +51,7 @@ async def cmd_import_poi(cfg: Config, args) -> int:
     path = Path(args.file)
     try:
         parsed = _read(path)
+        file_sha = _sha256(path)
     except FileNotFoundError:
         return _fail("file not found: %s" % path)
     except (LedgerError, XlsxError) as e:
@@ -57,7 +68,7 @@ async def cmd_import_poi(cfg: Config, args) -> int:
     try:
         await db.connect()
         try:
-            res = await apply_ledger(db.pool, parsed.pois, dry_run=args.dry_run)
+            res = await apply_ledger(db.pool, parsed.pois, dry_run=args.dry_run, file_sha256=file_sha)
         finally:
             await db.close()
     except (OSError, asyncio.TimeoutError, asyncpg.PostgresError, asyncpg.InterfaceError) as e:

@@ -2354,13 +2354,45 @@
               "null"
             ],
             "description": "SLA duration as written in the template; null when the template gives none."
+          },
+          "sla_value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "sla_text parsed at import: the number (the upper bound of a range such as 1-2 days); null when sla_text is null or could not be parsed."
+          },
+          "sla_value_min": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Lower bound when sla_text is a range; null for a single value or when not parsed."
+          },
+          "sla_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unit of sla_value: today minute, hour, day, workday, week, month or tonne_per_day (a dismantling rate, not a duration). Null exactly when sla_value is null. May gain new values; clients must tolerate unknown values."
+          },
+          "sla_scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Network layer the value applies to, from a prefix in the template: today access, aggregation, backbone, or other (a prefix not recognised: see the source table). Null without a prefix or when sla_value is null. May gain new values; clients must tolerate unknown values."
           }
         },
         "required": [
           "seq",
           "step",
           "owner",
-          "sla_text"
+          "sla_text",
+          "sla_value",
+          "sla_value_min",
+          "sla_unit",
+          "sla_scope"
         ]
       },
       "SlaTemplate": {

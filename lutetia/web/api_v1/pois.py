@@ -1,6 +1,7 @@
 """POI resources of /api/v1 (scope poi:read). The poi tables are an Excel snapshot; Ariane is the authority (Decisions 2026-11-08),
-so every response says so: source "excel-snapshot" and as_of = the newest imported_at (rows only get a new imported_at when
-their content changed, so this is the last import that changed something)."""
+so every response says so: source "excel-snapshot" and as_of = the time of the newest `lutetia import poi` run (poi_import_run,
+migration 008), so re-importing an unchanged ledger moves it forward; before any recorded run it falls back to the newest row
+imported_at (rows only get a new imported_at when their content changed)."""
 from datetime import date, datetime
 from typing import Any, Dict
 

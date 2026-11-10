@@ -326,6 +326,32 @@ async def test_reimport_same_ledger_is_unchanged_and_touches_nothing(store):
     assert await snap(store) == before, "原样再导：两张表（含 imported_at）必须逐行一致"
 
 
+# risk: medium
+async def test_reimport_unchanged_ledger_moves_the_snapshot_as_of_forward(db, store):
+    """Task 10.2 M-1：原样重导入不动 poi 行，但记一行 poi_import_run，/api/v1/pois 的 as_of 前进；dry-run 不记。"""
+    from pathlib import Path
+
+    from lutetia import queries_v1 as q
+    from lutetia.poi_store import apply_ledger
+    await db.migrate(Path(__file__).resolve().parent.parent / "lutetia" / "sql")
+    sha = "zz-test-" + MARK
+    try:
+        await apply_ledger(store, [poi_a(), poi_b()], file_sha256=sha)
+        first = await q.poi_snapshot_at(db)
+        rows_before = await snap(store)
+        await asyncio.sleep(0.05)
+        res = await apply_ledger(store, [poi_a(), poi_b()], file_sha256=sha)
+        assert res == counts(unchanged=2) and await snap(store) == rows_before  # 行一个没动
+        second = await q.poi_snapshot_at(db)
+        assert second > first, "重导入后 as_of 应前进"
+        await apply_ledger(store, [poi_a(), poi_b()], dry_run=True, file_sha256=sha)
+        assert await q.poi_snapshot_at(db) == second  # dry-run 的 run 行随事务回滚
+        runs = await store.fetch("SELECT total, changed, gone FROM poi_import_run WHERE file_sha256 = $1 ORDER BY id", sha)
+        assert [tuple(r) for r in runs] == [(2, 2, 0), (2, 0, 0)]
+    finally:
+        await store.execute("DELETE FROM poi_import_run WHERE file_sha256 = $1", sha)
+
+
 # risk: high
 async def test_changed_segment_weight_is_updated_other_poi_untouched(store):
     await run(store, [poi_a(), poi_b()])
