@@ -31,15 +31,27 @@ export function signinUrl(next: string): string {
 export interface GetOptions {
   /** Default true: a 401 sends the browser to the sign-in page. The route guard sets false and routes itself. */
   redirectOn401?: boolean
+  /** Give up after this many milliseconds (Design-Brief: loading longer than 10 s turns into the error state). */
+  timeoutMs?: number
 }
 
 export async function apiGet<T>(path: string, params?: Record<string, string | number>, opts: GetOptions = {}): Promise<T> {
   const qs = params ? '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
+  const ctrl = opts.timeoutMs ? new AbortController() : null
+  const timer = ctrl ? window.setTimeout(() => ctrl.abort(), opts.timeoutMs) : 0
   let resp: Response
   try {
-    resp = await fetch(`/api/v1${path}${qs}`, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } })
+    resp = await fetch(`/api/v1${path}${qs}`, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      signal: ctrl?.signal,
+    })
   } catch (e) {
+    if (ctrl?.signal.aborted) throw new ApiError(0, `timeout after ${opts.timeoutMs} ms`)
     throw new ApiError(0, `network error: ${e instanceof Error ? e.message : String(e)}`) // status 0 = never reached the server (offline)
+  } finally {
+    if (timer) window.clearTimeout(timer)
   }
   if (resp.status === 401 && opts.redirectOn401 !== false) {
     if (!window.location.pathname.startsWith(SIGNIN_PATH)) window.location.assign(signinUrl(window.location.pathname + window.location.search))

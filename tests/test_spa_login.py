@@ -241,6 +241,37 @@ async def test_post_logout_cross_site_or_unsourced_is_403_and_the_session_surviv
         assert (await c.get("/api/v1/me", headers=headers)).status == 200  # still signed in
 
 
+async def test_post_logout_from_a_look_alike_host_is_403_and_the_session_survives(tmp_path):
+    """#110 ②: the Origin host must equal Host exactly, a prefix or suffix match is not enough."""
+    async with make_client(tmp_path) as c:
+        headers = session_header(await post_login(c, "orange"))
+        host = "%s:%s" % (c.server.host, c.server.port)
+        for origin in ("http://%s.evil" % host, "http://evil.%s" % host):
+            r = await c.post("/logout", data={"next": "/app/signin"}, headers={**headers, "Origin": origin}, allow_redirects=False)
+            assert r.status == 403 and "lutetia_session" not in r.cookies, origin
+            assert (await c.get("/api/v1/me", headers=headers)).status == 200, origin  # still signed in
+
+
+@pytest.mark.parametrize("site", ["cross-site", "same-site"])
+async def test_get_logout_from_another_site_does_not_revoke_the_session(tmp_path, site):
+    """#110 ①: a top-level link from another site only lands on /login; the session stays valid."""
+    async with make_client(tmp_path) as c:
+        headers = session_header(await post_login(c, "orange"))
+        r = await c.get("/logout?next=/app/signin", headers={**headers, "Sec-Fetch-Site": site}, allow_redirects=False)
+        assert r.status == 302 and r.headers["Location"] == "/login"
+        assert "lutetia_session" not in r.cookies
+        assert (await c.get("/api/v1/me", headers=headers)).status == 200
+
+
+@pytest.mark.parametrize("site", ["same-origin", "none"])
+async def test_get_logout_from_this_site_or_typed_in_still_signs_out(tmp_path, site):
+    async with make_client(tmp_path) as c:
+        headers = session_header(await post_login(c, "orange"))
+        r = await c.get("/logout", headers={**headers, "Sec-Fetch-Site": site}, allow_redirects=False)
+        assert r.status == 302 and r.headers["Location"] == "/login"
+        assert (await c.get("/api/v1/me", headers=headers)).status == 401
+
+
 async def test_get_logout_is_unchanged_for_the_ops_dashboard_link(tmp_path):
     async with make_client(tmp_path) as c:
         headers = session_header(await post_login(c, "admin"))

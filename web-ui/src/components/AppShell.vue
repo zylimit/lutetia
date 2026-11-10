@@ -5,6 +5,8 @@ import { t } from '../i18n'
 import type { Key } from '../i18n'
 import { session } from '../session'
 import { nextTheme, setTheme, themeState } from '../theme'
+import { clock } from '../format'
+import { live } from '../live'
 import LangSwitch from './LangSwitch.vue'
 
 // Project name is the only brand (DESIGN.md Overview): no logo, not translated.
@@ -44,7 +46,7 @@ const themeLabel = computed(() => t(themeState.theme === 'projector' ? 'projecti
       </RouterLink>
     </nav>
     <div class="toptools">
-      <span class="asof">{{ t('asof') }} —</span>
+      <span class="asof" data-testid="asof">{{ t('asof') }} {{ live.asOf ? clock(live.asOf) : '—' }}</span>
       <button type="button" class="themebutton" :aria-label="`${t('theme')}: ${themeLabel}`" @click="setTheme(nextTheme(themeState.theme))">
         {{ themeLabel }}
       </button>

@@ -153,6 +153,7 @@ def requests_for(w):
         "/api/v1/fall-events": "/api/v1/fall-events",
         "/api/v1/bundles": "/api/v1/bundles",
         "/api/v1/bundles/{device_id}/track": "/api/v1/bundles/%s/track?days=1" % w.track,
+        "/api/v1/manholes/{device_id}/series": "/api/v1/manholes/%s/series?days=7" % w.manhole,
         "/api/v1/pois": "/api/v1/pois",
         "/api/v1/pois/{poi_no}/segments": "/api/v1/pois/%s/segments" % w.poi,
         "/api/v1/collector-status": "/api/v1/collector-status",

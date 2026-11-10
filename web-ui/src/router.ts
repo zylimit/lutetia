@@ -4,7 +4,6 @@ import { ApiError, getMe } from './api'
 import { i18n, t } from './i18n'
 import type { Key } from './i18n'
 import Bundles from './pages/Bundles.vue'
-import Manholes from './pages/Manholes.vue'
 import Overview from './pages/Overview.vue'
 import Plan from './pages/Plan.vue'
 import SignIn from './pages/SignIn.vue'
@@ -17,7 +16,8 @@ export const router = createRouter({
   routes: [
     { path: '/signin', name: 'signin', component: SignIn },
     { path: '/', name: 'overview', component: Overview },
-    { path: '/manholes', name: 'manholes', component: Manholes },
+    // lazy: the drawer's charts (ECharts) load only when someone opens the Manholes page
+    { path: '/manholes', name: 'manholes', component: () => import('./pages/Manholes.vue') },
     { path: '/bundles', name: 'bundles', component: Bundles },
     { path: '/plan', name: 'plan', component: Plan },
     // CSP probe of Task 9.1 (ECharts + Leaflet under the strict CSP); lazy so the shell does not carry the chart libraries.

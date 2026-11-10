@@ -87,6 +87,12 @@ async def bundle_exists(db: Database, device_id: str) -> bool:
             "OR EXISTS (SELECT 1 FROM device WHERE source = 'gps51' AND device_id = $1)", device_id))
 
 
+async def manhole_exists(db: Database, device_id: str) -> bool:
+    """A manhole is a registered Dingtek device (the same set manholes() lists)."""
+    async with db.pool.acquire() as conn:
+        return bool(await conn.fetchval("SELECT EXISTS (SELECT 1 FROM device WHERE source = 'dingtek' AND device_id = $1)", device_id))
+
+
 async def track_page(db: Database, device_id: str, days: int, bucket_sec: int, before_bucket: Optional[int],
                      limit: int) -> List[Dict[str, Any]]:
     """Same thinning as the map (one newest point per bucket_sec bucket; the caller passes the map's MAP_TRACK_BUCKET_SEC), newest first, keyset on the bucket number."""

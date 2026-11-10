@@ -101,7 +101,13 @@ def _end_session(request: web.Request, raw_next: str) -> web.Response:
 
 
 async def logout(request: web.Request) -> web.Response:
-    """GET stays for the ops dashboard's plain link."""
+    """GET stays for the ops dashboard's plain link. A browser that says the request came from another site
+    (Sec-Fetch-Site present and neither same-origin nor none) only gets sent to /login: the session is not revoked, so a
+    foreign page cannot sign anyone out with a top-level link (#110). No header (old browsers, scripts) keeps the old behaviour."""
+    site = request.headers.get("Sec-Fetch-Site")
+    if site is not None and site not in ("same-origin", "none"):
+        log.warning("web logout: cross-site GET not honoured (Sec-Fetch-Site=%r)", site)
+        raise web.HTTPFound("/login")
     return _end_session(request, request.query.get("next", ""))
 
 

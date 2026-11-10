@@ -414,6 +414,75 @@
         "x-scope": "iot:read"
       }
     },
+    "/api/v1/manholes/{device_id}/series": {
+      "get": {
+        "summary": "Voltage and signal (RSRP) series of one manhole for the detail charts: 7 days of raw readings, or 30 days of hourly averages; oldest first.",
+        "operationId": "getManholeSeries",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeviceId"
+            },
+            "description": "Manhole id."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [
+                7,
+                30
+              ],
+              "minimum": 7,
+              "maximum": 30,
+              "default": 7
+            },
+            "description": "7 = raw readings, 30 = hourly averages."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Single object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManholeSeriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-scope": "iot:read"
+      }
+    },
     "/api/v1/pois": {
       "get": {
         "summary": "POI work orders (Excel snapshot).",
@@ -1951,6 +2020,78 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/Me"
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "data",
+          "as_of"
+        ]
+      },
+      "SeriesPoint": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "value"
+        ]
+      },
+      "ManholeSeries": {
+        "type": "object",
+        "properties": {
+          "device_id": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer"
+          },
+          "hourly": {
+            "type": "boolean",
+            "description": "true for days=30: each point is the average of one hour, stamped at the start of the hour."
+          },
+          "volt": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            }
+          },
+          "rsrp": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "true when a series had more than 1500 points and only the newest 1500 are returned."
+          }
+        },
+        "required": [
+          "device_id",
+          "days",
+          "hourly",
+          "volt",
+          "rsrp",
+          "truncated"
+        ]
+      },
+      "ManholeSeriesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ManholeSeries"
           },
           "as_of": {
             "$ref": "#/components/schemas/Timestamp"

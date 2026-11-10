@@ -40,4 +40,15 @@ export function t(key: Key): string {
   return DICTS[i18n.lang][key] ?? en[key]
 }
 
+/** t() with {name} placeholders filled in; a placeholder without a value stays visible rather than vanishing. */
+export function tf(key: Key, vars: Record<string, string | number>): string {
+  return t(key).replace(/\{(\w+)\}/g, (whole, name: string) => (name in vars ? String(vars[name]) : whole))
+}
+
+/** Singular / plural by count: English singular only for 1, French also for 0 ("0 inactif"). */
+export function tp(one: Key, many: Key, n: number, vars: Record<string, string | number> = {}): string {
+  const singular = i18n.lang === 'fr' ? n >= 0 && n < 2 : n === 1
+  return tf(singular ? one : many, { n, ...vars })
+}
+
 document.documentElement.lang = i18n.lang
