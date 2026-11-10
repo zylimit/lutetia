@@ -201,4 +201,7 @@ export const fr: Record<Key, string> = {
   scopeaggregation: 'Couche d’agrégation : {d}',
   scopebackbone: 'Couche cœur de réseau : {d}',
   scopeother: '{d} (périmètre dans le tableau source)',
+  embedsignin: 'Connectez-vous à Lutetia pour voir ceci.',
+  embedopen: 'Ouvrir la connexion',
+  embedopenhint: 's’ouvre dans un nouvel onglet',
 }

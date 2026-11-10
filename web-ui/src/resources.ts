@@ -1,6 +1,6 @@
 // Typed readers for the /api/v1 resources the security pages use. Field names are exactly those of lutetia/web/openapi.json.
 import { apiGet } from './api'
-import type { Envelope, ListEnvelope } from './api'
+import type { Envelope, GetOptions, ListEnvelope } from './api'
 
 /** Priority order, first match wins (progress Decisions 2026-11-10): inactive > offline > moving > moved > quiet. */
 export type ManholeStatus = 'inactive' | 'offline' | 'moving' | 'moved' | 'quiet'
@@ -60,16 +60,18 @@ export interface ManholeSeries {
 export const TIMEOUT_MS = 10_000
 const PAGE = 1000
 const MAX_PAGES = 20 // 20 000 rows: far beyond the project's dozen manholes; reaching it is reported, not silently cut
+/** The pages' default; the embedded widgets pass redirectOn401 false (a widget shows its sign-in prompt, never navigates). */
+const PAGE_OPTS: GetOptions = { timeoutMs: TIMEOUT_MS }
 
 /** Every page of a list resource. */
-export async function all<T>(path: string, params: Record<string, string | number>): Promise<{ items: T[]; asOf: string }> {
+export async function all<T>(path: string, params: Record<string, string | number>, opts: GetOptions = PAGE_OPTS): Promise<{ items: T[]; asOf: string }> {
   const items: T[] = []
   let cursor: string | null = null
   let asOf = ''
   for (let n = 0; n < MAX_PAGES; n++) {
     const q: Record<string, string | number> = { ...params, limit: PAGE }
     if (cursor) q.cursor = cursor
-    const page: ListEnvelope<T> = await apiGet<ListEnvelope<T>>(path, q, { timeoutMs: TIMEOUT_MS })
+    const page: ListEnvelope<T> = await apiGet<ListEnvelope<T>>(path, q, opts)
     items.push(...page.items)
     if (!asOf) asOf = page.as_of
     cursor = page.next
@@ -79,12 +81,12 @@ export async function all<T>(path: string, params: Record<string, string | numbe
   return { items, asOf }
 }
 
-export function getSummary(): Promise<Envelope<Summary>> {
-  return apiGet<Envelope<Summary>>('/summary', undefined, { timeoutMs: TIMEOUT_MS })
+export function getSummary(opts: GetOptions = PAGE_OPTS): Promise<Envelope<Summary>> {
+  return apiGet<Envelope<Summary>>('/summary', undefined, opts)
 }
 
-export function getManholes(): Promise<{ items: Manhole[]; asOf: string }> {
-  return all<Manhole>('/manholes', {})
+export function getManholes(opts: GetOptions = PAGE_OPTS): Promise<{ items: Manhole[]; asOf: string }> {
+  return all<Manhole>('/manholes', {}, opts)
 }
 
 /** The newest `n` events, whatever their age (Overview). */
@@ -93,10 +95,10 @@ export async function getLatestEvents(n: number): Promise<FallEvent[]> {
 }
 
 /** Events overlapping the last `hours` hours, newest start first; optionally of one device. */
-export async function getEventsSince(hours: number, deviceId?: string): Promise<FallEvent[]> {
+export async function getEventsSince(hours: number, deviceId?: string, opts: GetOptions = PAGE_OPTS): Promise<FallEvent[]> {
   const params: Record<string, string | number> = { since: new Date(Date.now() - hours * 3_600_000).toISOString() }
   if (deviceId) params.device_id = deviceId
-  return (await all<FallEvent>('/fall-events', params)).items
+  return (await all<FallEvent>('/fall-events', params, opts)).items
 }
 
 export async function getSeries(deviceId: string, days: 7 | 30): Promise<ManholeSeries> {

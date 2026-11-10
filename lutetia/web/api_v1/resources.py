@@ -8,6 +8,7 @@ from ... import queries_v1 as q
 from ..callers import API_SCOPES
 from ..auth import require_api
 from ..data import MAP_TRACK_BUCKET_SEC, heartbeat_view
+from ..embed import EMBED_ORIGINS
 from ..jsonutil import validate_device_id
 from .envelope import (BadParam, NotFound, c_dt, c_int64, c_str, data_response, decode_cursor, errors_as_responses,
                        list_response, no_nul, now_utc, parse_days, parse_limit, parse_time)
@@ -128,6 +129,12 @@ async def bundle_track(request: web.Request) -> web.Response:
     items = [{"at": r["update_time"], "lat": r["lat"], "lon": r["lon"], "speed_kmh": r["speed_kmh"],
               "moving": None if r["moving"] is None else bool(r["moving"])} for r in page]  # newest first
     return list_response(items, now, [page[-1]["bucket"]] if len(rows) > limit else None)
+
+
+async def embed_config(request: web.Request) -> web.Response:
+    """The origin patterns allowed to frame /embed/* (Phase 12, THR-3). No credential needed: a signed-out widget must still know
+    whom it may talk to, and the list is the frame-ancestors of every /embed/<widget> answer anyway; it holds no data (OUT-12)."""
+    return data_response({"origins": list(request.app[EMBED_ORIGINS])}, now_utc())
 
 
 @require_api("status:read")

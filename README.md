@@ -45,6 +45,7 @@ pytest
 | `CALLERS_FILE` | 空 | 调用方登记文件路径（容器内 `/callers/callers.json`），格式见下节「调用方登记」；文件有任何格式错误 web 拒绝启动 |
 | `LEGACY_RATE_PER_MIN` | `600` | `legacy` 调用方每分钟限额 |
 | `SESSION_RATE_PER_MIN` | `600` | 浏览器会话调 `/api/v1` 的每分钟限额，按账号名各算各的 |
+| `EMBED_FRAME_ANCESTORS` | `https://*.digifiber.net` | 允许用 iframe 框入 `/embed/*` 部件的来源，空格或逗号分隔；每项是 `https://<名字>.digifiber.net` 或 `https://*.<名字>` 通配（无端口、无路径、小写）；与 `CALLERS_FILE` 的来源白名单无关。不合格的项丢弃并打 warning，全部不合格时打 error、部件页仍是 `frame-ancestors 'none'`；其余页面始终禁止被框入 |
 | `SESSION_SECRET` | 空 | cookie 签名密钥；`docker compose` 下**必填**（空则起不来，`host-deploy.sh` 第 2 步校验：非空、只许字母数字，生成用 `openssl rand -hex 32`）；本机不跑 compose 时可留空，此时每次启动随机生成并打 warning，重启后所有人（含 30 天会话）都要重新登录。会话签名密钥另按账号名与该账号密码派生：改某个账号的密码只让该账号的会话失效，改 `SESSION_SECRET` 让全部失效 |
 | `DATABASE_RO_PASSWORD` | 空 | 只读库角色 `lutetia_ro` 的登录密码。collector 启动迁移时设到库里，web 容器用它连库（compose 里拼成 `postgresql://lutetia_ro:…@db:5432/lutetia`，所以没有 `DATABASE_RO_URL`）；`docker compose` 下必填，空则起不来；**只许字母数字**（密码直接拼进连接串，含 `/ @ # ? %` 会解析失败或连错账号；`host-deploy.sh` 第 2 步会校验），生成用 `openssl rand -hex 24`。轮换：改 `.env` 后重跑 `bash deploy/host-deploy.sh`。收回登录要手工执行 `ALTER ROLE lutetia_ro NOLOGIN PASSWORD NULL`（删掉变量不会收回） |
 

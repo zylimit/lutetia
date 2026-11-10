@@ -599,7 +599,9 @@
 
 ---
 
-## Phase 12: 嵌入部件 `/embed/*`（SCOPE-20，SCREEN-E1 ～ E3，SC-15，THR-2、3、4）
+## Phase 12: 嵌入部件 `/embed/*`（SCOPE-20，SCREEN-E1 ～ E3，SC-15，THR-2、3、4） ✅
+
+本机完成（2026-11-10，CONCERNS：#115）：12.1、12.2 提交；同站 iframe 带会话 cookie 假设在 fra 实测成立（ADR-6）；框入来源改由 EMBED_FRAME_ANCESTORS 单独配置（取代下文「取调用方登记 origins 的并集」，见 progress Decisions）；带库全量 977 passed / 1 failed（#70）。
 
 **交付内容**：
 - digifiber.net 下的页面用 iframe 框入 `/embed/fall-timeline`、`/embed/manhole-map`、`/embed/security-summary`：用户已登录 Lutetia 时直接显示，未登录显示「Sign in to Lutetia to see this.」并给新窗口登录链接，部件里不收密码。

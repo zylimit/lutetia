@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -17,6 +18,25 @@ const API_CACHE_ENTRIES = 200
 const API_CACHE_MAX_AGE_S = 7 * 24 * 3600
 // Under the 10 s request timeout of the pages (resources.ts TIMEOUT_MS): a weak signal falls back to the last answer first.
 const API_NETWORK_TIMEOUT_S = 5
+
+// vite-plugin-pwa adds its manifest link to every HTML page of the build; the embedded widgets (embed.html, Phase 12) must not
+// carry it (no install prompt, no PWA inside a host page). Runs after the PWA plugin and fails the build if anything remains.
+function embedWithoutPwa(): Plugin {
+  return {
+    name: 'lutetia:embed-without-pwa',
+    enforce: 'post',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (ctx.path !== '/embed.html') return html
+        const out = html.replace(/\s*<link rel="manifest"[^>]*>/g, '')
+        if (/manifest|registerSW|serviceWorker/.test(out)) throw new Error('embed.html still references the PWA (manifest / worker)')
+        return out
+      },
+    },
+  }
+}
 
 export default defineConfig({
   base: '/app/',
@@ -115,6 +135,7 @@ export default defineConfig({
         ],
       },
     }),
+    embedWithoutPwa(), // after VitePWA: its manifest link must already be in the page to be taken out
   ],
   build: {
     outDir: 'dist',
@@ -122,5 +143,10 @@ export default defineConfig({
     sourcemap: false,
     // Never inline assets as data: URIs: the /app/ CSP has font-src 'self' (no data:), so inlined fonts would be refused.
     assetsInlineLimit: 0,
+    // Two pages from one build (Phase 12): the dashboard (index.html) and the embedded widgets (embed.html, served by the
+    // server at /embed/<name>, assets under /app/assets). embed.html gets no manifest link and never registers the worker.
+    rolldownOptions: {
+      input: { main: 'index.html', embed: 'embed.html' },
+    },
   },
 })

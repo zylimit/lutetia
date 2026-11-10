@@ -790,6 +790,26 @@
         "x-scope": "status:read"
       }
     },
+    "/api/v1/embed-config": {
+      "get": {
+        "summary": "Origin patterns allowed to frame the /embed/* widgets.",
+        "description": "No credential needed: it holds no data, only the origins a widget may exchange postMessage with (the same list as the frame-ancestors of every /embed/<widget> page, set by the operator, not by the API caller registry). Each entry is either an exact origin https://<name>.digifiber.net or a pattern https://*.<name> (one or more labels before <name>, https only, no port).",
+        "operationId": "getEmbedConfig",
+        "responses": {
+          "200": {
+            "description": "Single object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/api/v1/devices": {
       "get": {
         "summary": "[original] All devices.",
@@ -2450,6 +2470,36 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/CollectorStatus"
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "data",
+          "as_of"
+        ]
+      },
+      "EmbedConfig": {
+        "type": "object",
+        "properties": {
+          "origins": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Exact origins and origin patterns (https://*.digifiber.net); empty when no site may frame the widgets."
+          }
+        },
+        "required": [
+          "origins"
+        ]
+      },
+      "EmbedConfigResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EmbedConfig"
           },
           "as_of": {
             "$ref": "#/components/schemas/Timestamp"

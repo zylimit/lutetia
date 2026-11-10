@@ -31,6 +31,7 @@ def register_api(app: web.Application) -> None:
     r.add_get("/api/v1/pois/{poi_no}/segments", pois.poi_segments)
     r.add_get("/api/v1/sla-templates", sla.sla_templates)
     r.add_get("/api/v1/collector-status", resources.collector_status)
+    r.add_get("/api/v1/embed-config", resources.embed_config)
 
 
 __all__ = ["register_api"]

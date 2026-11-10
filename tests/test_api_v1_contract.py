@@ -40,6 +40,7 @@ def bearer(key):
 
 
 ANY_CREDENTIAL_PATHS = ("/api/v1/openapi.json", "/api/v1/me")  # no x-scope: a key or session with any scope may call them
+NO_CREDENTIAL_PATHS = ("/api/v1/embed-config",)  # security []: origin patterns only, no data (Phase 12, THR-3)
 LEGACY_PATHS = ("/api/v1/devices", "/api/v1/positions", "/api/v1/telemetry", "/api/v1/status", "/api/v1/openapi.json")
 
 
@@ -170,6 +171,7 @@ def requests_for(w):
         "/api/v1/pois/{poi_no}/segments": "/api/v1/pois/%s/segments" % w.poi,
         "/api/v1/sla-templates": "/api/v1/sla-templates",
         "/api/v1/collector-status": "/api/v1/collector-status",
+        "/api/v1/embed-config": "/api/v1/embed-config",
         "/api/v1/devices": "/api/v1/devices",
         "/api/v1/positions": "/api/v1/positions?device_id=" + w.legacy,
         "/api/v1/telemetry": "/api/v1/telemetry?device_id=" + w.manhole,
@@ -366,6 +368,10 @@ async def test_x_scope_is_what_the_code_enforces(env):
     urls = requests_for(env)
     for path in PATHS:
         scope = DOC["paths"][path]["get"].get("x-scope")
+        if path in NO_CREDENTIAL_PATHS:
+            assert scope is None and DOC["paths"][path]["get"]["security"] == []
+            assert (await env.c.get(urls[path])).status == 200  # neither key nor session
+            continue
         if path in ANY_CREDENTIAL_PATHS:
             assert scope is None  # any valid credential, whatever its scopes
             for name in ("iot", "poi", "status"):

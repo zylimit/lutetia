@@ -154,7 +154,7 @@ sequenceDiagram
 ```
 
 ### 场景 2：Ariane 嵌入挪动事件时间线，并在后台调用 API
-Ariane 页面放 `<iframe src="https://iot.digifiber.net/embed/fall-timeline?site=…">`。iot. 与 ofr. 同属 digifiber.net（同站），用户在 iot. 的会话 cookie 在 iframe 里照常带上；没有会话时部件显示「请登录」并给登录链接（新窗口），不在 iframe 里收密码。部件点击某条事件时向宿主发 `{"type": "lutetia:fall-event-selected", "v": 1, "device_id": …}`。同时 Ariane 后台用自己的 API key 调 `/api/v1/fall-events` 拿同一份数据做自己的报表。两条路径读的是同一个契约，所以数字一致。
+Ariane 页面放 `<iframe src="https://iot.digifiber.net/embed/fall-timeline?site=…">`。iot. 与 ofr. 同属 digifiber.net（同站），用户在 iot. 的会话 cookie 在 iframe 里照常带上；没有会话时部件显示「请登录」并给登录链接（新窗口），不在 iframe 里收密码。部件点击某条事件时向宿主发 `{"type": "lutetia:fall-event-selected", "v": 1, "device_id": …, "imei": …, "started_at": …}`（`device_id` 是内部 id，`imei` 是井盖设备号，都不含位置；2026-11-10 Phase 12 实现时加 `imei`）；内容高度变化发 `{"type": "lutetia:resize", "v": 1, "height": …}`。部件可被框入的来源由环境变量 `EMBED_FRAME_ANCESTORS` 单独配置（默认 `https://*.digifiber.net`，可收窄到具体子域，THR-4），与 API 调用方的 CORS 登记分开。同时 Ariane 后台用自己的 API key 调 `/api/v1/fall-events` 拿同一份数据做自己的报表。两条路径读的是同一个契约，所以数字一致。
 
 ```mermaid
 sequenceDiagram

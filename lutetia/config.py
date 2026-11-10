@@ -53,6 +53,9 @@ class Config:
     low_volt: float = 3.4
     login_lockout: bool = True
     web_ui_dist: Path = Path("web-ui/dist")
+    # Who may frame /embed/* (Phase 12, ADR-6): space or comma separated origins / https://*.<name> patterns, checked in
+    # lutetia/web/embed.py. Separate from the API callers' CORS origins (CALLERS_FILE).
+    embed_frame_ancestors: str = "https://*.digifiber.net"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -93,6 +96,7 @@ class Config:
             low_volt=float(e("DASHBOARD_LOW_VOLT", "3.4")),
             login_lockout=e("DASHBOARD_LOGIN_LOCKOUT", "on").strip().lower() not in ("off", "0", "false", "no"),
             web_ui_dist=Path(e("WEB_UI_DIST", "web-ui/dist")),
+            embed_frame_ancestors=e("EMBED_FRAME_ANCESTORS", "https://*.digifiber.net"),
         )
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
         return cfg

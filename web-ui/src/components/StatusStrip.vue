@@ -9,7 +9,12 @@ import type { Key } from '../i18n'
 import type { Summary } from '../resources'
 import StatusIcon from './StatusIcon.vue'
 
-const props = defineProps<{ counts: Summary['manholes']; asOf: string | null }>()
+// linkless: the embedded summary card (SCREEN-E3) shows the same strip without links, a widget never navigates (Design-Brief E1–E3).
+const props = defineProps<{ counts: Summary['manholes']; asOf: string | null; linkless?: boolean }>()
+const tag = computed(() => (props.linkless ? 'div' : RouterLink))
+function to(status: string): Record<string, unknown> {
+  return props.linkless ? { role: 'group' } : { to: { path: '/manholes', query: { status } } }
+}
 
 interface Item {
   filter: 'moved' | 'offline' | 'quiet'
@@ -52,12 +57,13 @@ const items = computed<Item[]>(() => {
 
 <template>
   <div class="statusstrip" role="group" :aria-label="t('security')">
-    <RouterLink
+    <component
+      :is="tag"
       v-for="it in items"
       :key="it.filter"
+      v-bind="to(it.filter)"
       class="statusitem"
       :class="it.tone"
-      :to="{ path: '/manholes', query: { status: it.filter } }"
       :aria-label="tp(it.aria1, it.aria, it.n) + (it.note ? `, ${it.note}` : '')"
       :data-status-filter="it.filter"
     >
@@ -67,12 +73,12 @@ const items = computed<Item[]>(() => {
         <span class="small">{{ t(it.label) }}</span>
         <span v-if="it.note" class="small note">{{ it.note }}</span>
       </span>
-    </RouterLink>
+    </component>
     <div class="side small">
       <span v-if="asOf" class="muted">{{ t('asof') }} {{ clock(asOf) }}</span>
-      <RouterLink v-if="counts.inactive > 0" :to="{ path: '/manholes', query: { status: 'inactive' } }" class="muted">
+      <component :is="linkless ? 'span' : RouterLink" v-if="counts.inactive > 0" v-bind="linkless ? {} : to('inactive')" class="muted">
         {{ tp('inactivecount1', 'inactivecount', counts.inactive) }}
-      </RouterLink>
+      </component>
     </div>
   </div>
 </template>
@@ -99,6 +105,9 @@ const items = computed<Item[]>(() => {
 }
 .statusitem:hover {
   background: var(--color-surface-raised);
+}
+.statusitem:not(a):hover {
+  background: var(--color-surface); /* linkless (embedded): nothing to click, no hover feedback */
 }
 .statusitem .status-icon {
   width: 24px;

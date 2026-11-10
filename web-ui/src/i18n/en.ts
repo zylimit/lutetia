@@ -205,6 +205,10 @@ export const en = {
   scopeaggregation: 'Aggregation layer: {d}', // new
   scopebackbone: 'Backbone layer: {d}', // new
   scopeother: '{d} (scope in source table)', // new
+  // embedded widgets (Phase 12, CMP-11)
+  embedsignin: 'Sign in to Lutetia to see this.', // new
+  embedopen: 'Open sign-in', // new
+  embedopenhint: 'opens in a new tab', // new: screen readers, the link leaves the host page
 }
 
 export type Key = keyof typeof en

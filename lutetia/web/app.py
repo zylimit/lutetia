@@ -15,6 +15,7 @@ from .auth import LoginLimiter, SessionSigner
 from .callers import CallerRegistry, api_middleware
 from .dashboard import register_dashboard
 from .data import register_data
+from .embed import EMBED_CSP, register_embed
 from .pages_device import register_device_pages
 from .pages_map import register_map_pages
 from .spa import SPA_CSP, is_spa_path, register_spa
@@ -33,11 +34,15 @@ SECURITY_HEADERS = {
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
 
 
-def _stamp(resp: web.StreamResponse, path: str) -> None:
+def _stamp(resp: web.StreamResponse, request: web.Request) -> None:
     for name, value in SECURITY_HEADERS.items():
         resp.headers[name] = value
-    if is_spa_path(path):  # project dashboard SPA: strict CSP without 'unsafe-inline' (THR-7)
+    if is_spa_path(request.path):  # project dashboard SPA: strict CSP without 'unsafe-inline' (THR-7)
         resp.headers["Content-Security-Policy"] = SPA_CSP
+    embed_csp = request.get(EMBED_CSP)
+    if embed_csp is not None and resp.status == 200:  # a served /embed/<widget> page: the one framable answer (ADR-6, THR-2)
+        resp.headers["Content-Security-Policy"] = embed_csp
+        del resp.headers["X-Frame-Options"]
 
 
 @web.middleware
@@ -49,7 +54,7 @@ async def security_headers(request: web.Request, handler: Any) -> web.StreamResp
     except Exception:
         log.exception("unhandled error on %s %s", request.method, request.path)
         resp = web.json_response({"error": "internal error"}, status=500)
-    _stamp(resp, request.path)
+    _stamp(resp, request)
     return resp
 
 
@@ -81,6 +86,7 @@ class WebServer:
         register_device_pages(app)
         register_map_pages(app)
         register_spa(app, self.cfg.web_ui_dist)
+        register_embed(app, self.cfg.web_ui_dist, self.cfg.embed_frame_ancestors)
         app.router.add_static("/static/", STATIC_DIR, show_index=False, follow_symlinks=False)
         return app
 
