@@ -1,0 +1,30 @@
+// French strings; typed against en.ts so every key exists in both languages (Design-Brief 6.1: both languages ship together).
+import type { Key } from './en'
+
+export const fr: Record<Key, string> = {
+  overview: 'Vue d’ensemble',
+  manholes: 'Regards',
+  bundles: 'Tourets',
+  plan: 'Plan',
+  asof: 'Données de',
+  account: 'Compte',
+  theme: 'Thème',
+  dark: 'Sombre',
+  light: 'Clair',
+  projection: 'Projection',
+  language: 'Langue',
+  signout: 'Se déconnecter',
+  mainnav: 'Navigation principale',
+  comingsoon: 'Disponible dans une prochaine version',
+  comingsoonhint: 'Cette page n’est pas encore disponible.',
+  sessionerror: 'Impossible de vérifier votre session. Rechargez la page pour réessayer.',
+  reload: 'Recharger maintenant',
+  signin: 'Se connecter',
+  username: 'Nom d’utilisateur',
+  password: 'Mot de passe',
+  keep: 'Rester connecté pendant 30 jours',
+  wrong: 'Nom d’utilisateur ou mot de passe incorrect.',
+  locked: 'Trop de tentatives. Réessayez dans 5 minutes.',
+  offlinesignin: 'Vous êtes hors ligne. Une connexion est nécessaire pour vous connecter.',
+  signednote: 'Tableau de bord de sécurité et de projet en lecture seule',
+}

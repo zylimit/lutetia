@@ -44,6 +44,39 @@
         "operationId": "getOpenapi"
       }
     },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Who this credential is.",
+        "description": "Any valid key or session; no particular scope is needed. For a session it is the account name, for a key the caller name registered for it.",
+        "responses": {
+          "200": {
+            "description": "Single object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "security": [
+          {
+            "bearerKey": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "operationId": "getMe"
+      }
+    },
     "/api/v1/summary": {
       "get": {
         "summary": "Overview counts: manholes, bundles, POIs, collector.",
@@ -1899,6 +1932,33 @@
           "receiver",
           "collector",
           "api_calls_24h"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": "Account name of the session, or the caller name of the key."
+          }
+        },
+        "required": [
+          "account"
+        ]
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Me"
+          },
+          "as_of": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        },
+        "required": [
+          "data",
+          "as_of"
         ]
       },
       "SummaryResponse": {

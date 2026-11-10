@@ -39,6 +39,7 @@ def bearer(key):
     return {"Authorization": "Bearer " + key}
 
 
+ANY_CREDENTIAL_PATHS = ("/api/v1/openapi.json", "/api/v1/me")  # no x-scope: a key or session with any scope may call them
 LEGACY_PATHS = ("/api/v1/devices", "/api/v1/positions", "/api/v1/telemetry", "/api/v1/status", "/api/v1/openapi.json")
 
 
@@ -146,6 +147,7 @@ def requests_for(w):
     """path template -> (url, key of the array when the response is a plain list of rows)."""
     return {
         "/api/v1/openapi.json": "/api/v1/openapi.json",
+        "/api/v1/me": "/api/v1/me",
         "/api/v1/summary": "/api/v1/summary",
         "/api/v1/manholes": "/api/v1/manholes",
         "/api/v1/fall-events": "/api/v1/fall-events",
@@ -350,10 +352,10 @@ async def test_x_scope_is_what_the_code_enforces(env):
     urls = requests_for(env)
     for path in PATHS:
         scope = DOC["paths"][path]["get"].get("x-scope")
-        if path == "/api/v1/openapi.json":
+        if path in ANY_CREDENTIAL_PATHS:
             assert scope is None  # any valid credential, whatever its scopes
             for name in ("iot", "poi", "status"):
-                assert (await env.c.get(path, headers=bearer(KEYS[name]))).status == 200, name
+                assert (await env.c.get(urls[path], headers=bearer(KEYS[name]))).status == 200, name
             continue
         assert scope in SCOPES, path
         for name in ("iot", "poi", "status"):

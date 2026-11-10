@@ -1,3 +1,4 @@
+/* Global element defaults, written with tokens only (see tokens.css). Component layout lives in the components. */
 *,
 *::before,
 *::after {
@@ -5,13 +6,124 @@
 }
 body {
   margin: 0;
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
+  background: var(--color-neutral);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  font-size: var(--body-size);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line);
+  font-variant-numeric: tabular-nums;
 }
-h1 {
-  font-weight: 600;
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button,
+a,
+select,
+summary {
+  touch-action: manipulation;
+}
+button {
+  cursor: pointer;
+  min-height: var(--size-button-height);
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+  transition: background var(--motion-feedback) var(--motion-easing);
+}
+button:hover {
+  background: var(--color-surface-raised);
+}
+button:disabled {
+  cursor: default;
+  color: var(--color-on-surface-muted);
+}
+button.primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+button.primary:hover {
+  background: var(--color-primary-hover);
+}
+/* light / projector: the hover colour equals the base colour, so feedback is a slight fade (same as the design prototype) */
+[data-theme='light'] button.primary:hover,
+[data-theme='projector'] button.primary:hover {
+  opacity: 0.9;
+}
+input {
+  min-height: var(--size-input-height);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+input[type='checkbox'] {
+  min-height: initial;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-on-surface);
+}
+label {
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+}
+a {
+  color: var(--color-on-surface);
+  text-underline-offset: var(--space-xs);
+}
+:focus-visible {
+  outline: 2px solid var(--color-on-surface);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3 {
+  font-size: var(--type-headline-size);
+  font-weight: var(--type-headline-weight);
+  line-height: var(--type-headline-line);
+  letter-spacing: var(--type-letter-spacing);
+}
+p {
+  max-width: 65ch;
+}
+.small {
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+}
+.muted {
+  color: var(--color-on-surface-muted);
 }
 .mono {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-size);
+  line-height: var(--type-mono-line);
+}
+@media (max-width: 600px) {
+  button {
+    min-height: var(--size-touch);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

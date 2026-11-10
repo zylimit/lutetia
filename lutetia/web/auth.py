@@ -7,7 +7,7 @@ import json
 import secrets
 import time
 from typing import Awaitable, Callable, Dict, List, Optional
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 from aiohttp import web
 
@@ -178,6 +178,31 @@ def client_ip(request: web.Request, trust_proxy: bool = False) -> str:
     return request.remote or "unknown"
 
 
+SPA_NEXT_PREFIX = "/app/"
+SPA_NEXT_MAX_LEN = 512
+
+
+def safe_app_next(target: str) -> Optional[str]:
+    """A same-site path inside the project dashboard (/app/...) or None. Strict: one leading /app/, no backslash, no control
+    character, no empty-segment or dot-segment trick, checked on the raw value and on its percent-decoded forms (%2f%2f, %5c, %2e%2e)."""
+    if not target or len(target) > SPA_NEXT_MAX_LEN or not target.startswith(SPA_NEXT_PREFIX):
+        return None
+    forms, cur = [target], target
+    for _ in range(2):  # a double-encoded %252f is refused too
+        cur = unquote(cur)
+        forms.append(cur)
+    for form in forms:
+        path = form.split("?", 1)[0].split("#", 1)[0]
+        if not form.startswith(SPA_NEXT_PREFIX) or "\\" in form or any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in form):
+            return None
+        if "//" in path or any(seg in (".", "..") for seg in path.split("/")):
+            return None
+        parts = urlsplit(form)
+        if parts.scheme or parts.netloc:
+            return None
+    return target
+
+
 Handler = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
 
@@ -222,7 +247,7 @@ def require_admin(handler: Handler) -> Handler:
             raise web.HTTPFound("/login?next=" + quote(request.path))
         request["user"] = user
         if not is_admin(request, user):
-            return page("Lutetia", ops_header(user) + '<p id="coming-soon">%s</p>' % COMING_SOON)
+            return page("Lutetia", ops_header(user) + '<p id="coming-soon">%s</p><p><a href="/app/">Open the project dashboard</a></p>' % COMING_SOON)
         return await handler(request)
     return wrapper
 

@@ -1,7 +1,7 @@
 """Login pages and the read-only dashboard (server-rendered, every dynamic value escaped)."""
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
@@ -10,7 +10,8 @@ from aiohttp import web
 from ..db import max_age_hours
 from . import anomalies
 from .data import build_anomalies, heartbeat_view
-from .auth import COOKIE_NAME, authenticate, client_ip, require_admin
+from .auth import COOKIE_NAME, authenticate, client_ip, is_admin, require_admin, safe_app_next
+from .spa import is_spa_path
 from .html import esc, fmt_ago, fmt_ts, ops_header, page, table
 
 log = logging.getLogger(__name__)
@@ -40,8 +41,24 @@ def safe_next(target: str) -> str:
     return "/dashboard/"
 
 
+def resolve_next(raw: str) -> Tuple[str, bool]:
+    """(where to go after login, whether the request comes from the project dashboard SPA). A target under /app is accepted only
+    when safe_app_next approves it; otherwise it falls back to the ops dashboard like any other unsafe target."""
+    if is_spa_path(urlsplit(raw).path):
+        ok = safe_app_next(raw)
+        return (ok, True) if ok else ("/dashboard/", False)
+    return safe_next(raw), False
+
+
+def spa_signin_url(error: str, next_url: str) -> str:
+    return "/app/signin?error=%s&next=%s" % (error, quote(next_url, safe=""))
+
+
 async def root(request: web.Request) -> web.Response:
-    raise web.HTTPFound("/dashboard/")
+    """Site root: a signed-in admin goes to the ops dashboard; everyone else to the project dashboard (the SPA sends the
+    signed-out to its own sign-in page)."""
+    user = request.app["ctx"].signer.verify(request.cookies.get(COOKIE_NAME, ""))
+    raise web.HTTPFound("/dashboard/" if user is not None and is_admin(request, user) else "/app/")
 
 
 async def login_get(request: web.Request) -> web.Response:
@@ -52,14 +69,18 @@ async def login_post(request: web.Request) -> web.Response:
     ctx = request.app["ctx"]
     ip = client_ip(request, ctx.cfg.trust_proxy)
     form = await request.post()
-    next_url = safe_next(str(form.get("next", "")))
+    next_url, from_spa = resolve_next(str(form.get("next", "")))
     if ctx.limiter.is_globally_locked() or ctx.limiter.is_locked(ip):
         log.warning("web login: ip %s locked", ip)
+        if from_spa:
+            raise web.HTTPSeeOther(spa_signin_url("locked", next_url))
         return login_page("尝试次数过多，请稍后再试", next_url, 429)
     user = authenticate(ctx.cfg.accounts(), str(form.get("username", "")), str(form.get("password", "")))
     if user is None:
         ctx.limiter.record_failure(ip)
         log.warning("web login: failed attempt from %s", ip)
+        if from_spa:
+            raise web.HTTPSeeOther(spa_signin_url("1", next_url))
         return login_page("账号或密码错误", next_url, 401)
     ctx.limiter.reset(ip)
     resp = web.HTTPFound(next_url)
@@ -71,11 +92,32 @@ async def login_post(request: web.Request) -> web.Response:
     raise resp
 
 
-async def logout(request: web.Request) -> web.Response:
+def _end_session(request: web.Request, raw_next: str) -> web.Response:
     request.app["ctx"].signer.revoke(request.cookies.get(COOKIE_NAME, ""))
-    resp = web.HTTPFound("/login")
+    target = safe_app_next(raw_next) or "/login"  # the project dashboard asks to land on its own sign-in page
+    resp = web.HTTPFound(target)
     resp.del_cookie(COOKIE_NAME)
     raise resp
+
+
+async def logout(request: web.Request) -> web.Response:
+    """GET stays for the ops dashboard's plain link."""
+    return _end_session(request, request.query.get("next", ""))
+
+
+def same_origin(request: web.Request) -> bool:
+    """Origin (else Referer) must name this request's Host; neither header, or an opaque `null` Origin, counts as cross-site."""
+    source = request.headers.get("Origin") or request.headers.get("Referer") or ""
+    return bool(source) and urlsplit(source).netloc == request.host
+
+
+async def logout_post(request: web.Request) -> web.Response:
+    """POST /logout (the project dashboard's Sign out form): same-origin only, so another site cannot force a sign-out."""
+    if not same_origin(request):
+        log.warning("web logout: refused cross-site POST (Origin=%r)", request.headers.get("Origin"))
+        raise web.HTTPForbidden(text="cross-site logout refused")
+    form = await request.post()
+    return _end_session(request, str(form.get("next", "")))
 
 
 def device_url(source: str, device_id: str) -> str:
@@ -187,4 +229,5 @@ def register_dashboard(app: web.Application) -> None:
     app.router.add_get("/login", login_get)
     app.router.add_post("/login", login_post)
     app.router.add_get("/logout", logout)
+    app.router.add_post("/logout", logout_post)
     app.router.add_get("/dashboard/", dashboard)

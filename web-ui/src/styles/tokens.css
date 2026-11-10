@@ -1,0 +1,114 @@
+/* Design tokens, one-to-one from DESIGN.md (front matter, "Light theme", "Motion").
+   The only place in web-ui/src where a hex colour may be written; scripts/check-tokens.mjs fails the build on any other hex
+   and on any hex DESIGN.md does not list. Components use var(--…) only.
+   Themes: dark (default), light, projector (= light values + one step up in type size, DESIGN.md "Layout"). */
+
+:root,
+[data-theme='dark'] {
+  --color-primary: #E8EBEF;
+  --color-on-primary: #15181C;
+  --color-secondary: #7E8792;
+  --color-neutral: #15181C;
+  --color-surface: #1C2025;
+  --color-surface-raised: #252A31;
+  --color-on-surface: #E8EBEF;
+  --color-on-surface-muted: #A2AAB5;
+  --color-border: #343B44;
+  --color-success: #5CB98A;
+  --color-warning: #F0A73A;
+  --color-error: #F26B66;
+  --color-offline: #7E8792;
+  --color-primary-hover: #FFFFFF; /* components.button-primary-hover */
+  color-scheme: dark;
+}
+
+[data-theme='light'],
+[data-theme='projector'] {
+  --color-primary: #171B20;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #6A727D;
+  --color-neutral: #F5F6F8;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F0F2F5;
+  --color-on-surface: #171B20;
+  --color-on-surface-muted: #4E5661;
+  --color-border: #D3D8DF;
+  --color-success: #2E7D57;
+  --color-warning: #A65A00;
+  --color-error: #B3261E;
+  --color-offline: #6A727D;
+  --color-primary-hover: #171B20;
+  color-scheme: light;
+}
+
+:root {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --type-display-size: 28px;
+  --type-display-weight: 600;
+  --type-display-line: 1.2;
+  --type-headline-size: 18px;
+  --type-headline-weight: 600;
+  --type-headline-line: 1.3;
+  --type-body-size: 15px;
+  --type-body-weight: 400;
+  --type-body-line: 1.5;
+  --type-body-mobile-size: 16px;
+  --type-label-size: 13px;
+  --type-label-weight: 500;
+  --type-label-line: 1.4;
+  --type-mono-size: 13px;
+  --type-mono-weight: 400;
+  --type-mono-line: 1.5;
+  --type-letter-spacing: 0em;
+  --body-size: var(--type-body-size); /* the size body text really uses; phones and projector override this one */
+
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-gutter: 16px;
+  --space-section: 32px;
+
+  --size-button-height: 36px;
+  --size-input-height: 44px;
+  --size-touch: 44px;
+  --size-max-width: 1440px;
+
+  --motion-feedback: 120ms;
+  --motion-content: 200ms;
+  --motion-pulse: 600ms;
+  --motion-easing: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Projector: every type size steps up once (DESIGN.md Layout). */
+[data-theme='projector'] {
+  --type-display-size: 32px;
+  --type-headline-size: 28px;
+  --type-body-size: 18px;
+  --type-body-mobile-size: 18px;
+  --type-label-size: 15px;
+  --type-mono-size: 15px;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --body-size: var(--type-body-mobile-size);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-feedback: 0ms;
+    --motion-content: 0ms;
+    --motion-pulse: 0ms;
+  }
+}
