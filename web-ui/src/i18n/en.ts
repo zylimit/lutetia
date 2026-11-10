@@ -110,6 +110,22 @@ export const en = {
   delaybanner: 'Data may be delayed — collector last seen {t}',
   delaybannernever: 'Data may be delayed — collector not seen yet', // new
   errorbanner: 'Couldn’t load events. Retrying in 60 s — or reload now.',
+  // Bundles (Task 10.1). Trackers only: no copper bundle number, no trip status (Architecture §9, Spec #96).
+  bundlesnote: 'Shows last position and 7-day track only; trip status is not computed yet',
+  bundlesmap: 'Tracker positions',
+  bundlelist: 'Trackers',
+  nopos24: 'No GPS tracker has reported in the last 24 h',
+  lastpositionat: 'Last position: {t}',
+  notrackers: 'No GPS tracker registered yet.',
+  trackof: 'Track of {who}, last 7 days',
+  tracknone: 'No track points in the last 7 days',
+  trackfailed: 'Couldn’t load the track. Select the tracker again to retry.',
+  trackstart: 'Track start',
+  trackend: 'Track end',
+  trackpoints: '{n} points',
+  trackpoints1: '{n} point',
+  hidetrack: 'Hide track',
+  bundlesfailed: 'Couldn’t load the trackers. Retrying in 60 s — or reload now.',
   loadingState: 'Loading',
 }
 

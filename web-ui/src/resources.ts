@@ -108,3 +108,33 @@ export async function getSeries(deviceId: string, days: 7 | 30): Promise<Manhole
 export function eventKey(e: FallEvent): string {
   return `${e.device_id}|${e.started_at}`
 }
+
+/** GPS tracker with its last position (openapi Bundle). `online` = reported within 24 h. `moving` is carried by the contract but not shown: trip status is not computed (Spec #96). */
+export interface Bundle {
+  device_id: string
+  name: string | null
+  lat: number | null
+  lon: number | null
+  at: string | null
+  moving: boolean | null
+  online: boolean
+}
+
+/** One thinned track point (openapi TrackPoint). */
+export interface TrackPoint {
+  at: string
+  lat: number
+  lon: number
+  speed_kmh: number | null
+  moving: boolean | null
+}
+
+export function getBundles(): Promise<{ items: Bundle[]; asOf: string }> {
+  return all<Bundle>('/bundles', {})
+}
+
+/** The thinned track of one tracker, oldest point first (the API sends newest first). */
+export async function getTrack(deviceId: string, days = 7): Promise<TrackPoint[]> {
+  const { items } = await all<TrackPoint>(`/bundles/${encodeURIComponent(deviceId)}/track`, { days })
+  return items.reverse()
+}
