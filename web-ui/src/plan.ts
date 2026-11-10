@@ -110,7 +110,7 @@ export function segmentMatches(s: PoiSegment, f: Filters): boolean {
 }
 
 /** Under a segment-level filter, each row's planned_tonnes is the sum of its matching segments that carry a weight; none of them
- * weighted -> null (weight pending). Without such a filter the rows are returned as they are (whole work order). */
+ * weighted -> null (weight pending). Its segment_count and total_length_km are those of the matching segments too. Without such a filter the rows are returned as they are (whole work order). */
 export function withMatchingTonnes(rows: Poi[], segments: Map<string, PoiSegment[]>, f: Filters): Poi[] {
   if (!segmentFiltered(f)) return rows
   return rows.flatMap((p) => {
@@ -119,7 +119,13 @@ export function withMatchingTonnes(rows: Poi[], segments: Map<string, PoiSegment
     // although no single segment is both; such an order is dropped here, not shown as weight pending (review N-2)
     if (f.cable_type && f.network && !matching.length) return []
     const weights = matching.filter((s) => s.weight_t !== null).map((s) => s.weight_t as number)
-    return [{ ...p, planned_tonnes: weights.length ? round3(weights.reduce((a, b) => a + b, 0)) : null }]
+    const lengths = matching.filter((s) => s.length_km !== null).map((s) => s.length_km as number)
+    return [{
+      ...p,
+      segment_count: matching.length, // segment count and total length follow the same matching-only rule as the tonnes
+      total_length_km: lengths.length ? round3(lengths.reduce((a, b) => a + b, 0)) : null,
+      planned_tonnes: weights.length ? round3(weights.reduce((a, b) => a + b, 0)) : null,
+    }]
   })
 }
 

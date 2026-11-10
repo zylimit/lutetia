@@ -18,6 +18,7 @@ export const live = reactive({
   pageAsOf: null as string | null, // as_of of the page's own resource (Bundles, Plan): the offline banner shows this one
   manholes: [] as Manhole[],
   latest: [] as FallEvent[],
+  quietSince: null as string | null, // latest ended_at when every manhole is quiet and it can be told; null = show no time
   loaded: false, // at least one refresh succeeded
   loading: false,
   error: null as ApiError | null, // the last refresh failed (old data stays on screen)
@@ -66,6 +67,26 @@ async function openEvents(manholes: Manhole[]): Promise<FallEvent[]> {
   return (await getEventsSince(1)).filter((e) => e.ended_at === null)
 }
 
+const QUIET_WINDOW_HOURS = 24 * 30
+
+/** When the last movement ended, for "all quiet since …". The newest three events settle it only when they are all the events
+ * there are; otherwise the 30-day window (it holds every event that ended in it) is asked. Nothing in it, or the ask failing,
+ * gives null: the page then says "all quiet" without a time rather than a time that may be too early. */
+async function quietSinceOf(summary: Summary, newest: FallEvent[]): Promise<string | null> {
+  const c = summary.manholes
+  if (c.total === 0 || c.quiet !== c.total) return null
+  let events = newest
+  if (newest.length >= LATEST_N) {
+    try {
+      events = await getEventsSince(QUIET_WINDOW_HOURS)
+    } catch (e) {
+      console.error('quiet-since lookup failed; the page shows no time', e)
+      return null
+    }
+  }
+  return events.reduce<string | null>((a, e) => (e.ended_at !== null && (a === null || Date.parse(e.ended_at) > Date.parse(a)) ? e.ended_at : a), null)
+}
+
 export async function refresh(): Promise<void> {
   if (live.loading) return
   live.loading = true
@@ -73,12 +94,15 @@ export async function refresh(): Promise<void> {
   beginRound() // one saved answer in this round = the screen is offline (offline.ts)
   try {
     const [summary, manholes, latest] = await Promise.all([getSummary(), getManholes(), getLatestEvents(LATEST_N)])
+    const latest3 = pickLatest(latest, await openEvents(manholes.items), manholes.items, LATEST_N)
+    const since = await quietSinceOf(summary.data, latest)
+    // One round succeeds as a whole or changes nothing: the page never shows a summary that disagrees with its events.
     live.summary = summary.data
     live.asOf = summary.as_of
     live.manholes = manholes.items
-    const latest3 = pickLatest(latest, await openEvents(manholes.items), manholes.items, LATEST_N)
     markNew(latest3)
     live.latest = latest3
+    live.quietSince = since
     live.loaded = true
     live.error = null
     live.tick++

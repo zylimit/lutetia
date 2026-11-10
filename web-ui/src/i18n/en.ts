@@ -165,6 +165,8 @@ export const en = {
   nodetail: 'Cable detail pending. Weight is not available.',
   segmentsfailed: 'Couldn’t load the segments. Collapse and expand to retry.', // new
   seq: 'No.', // new
+  segmentn: 'Segment {n}', // new
+  drawernodata: 'This manhole’s data isn’t loaded, so its state is unknown. Reload to try again.', // new
   cablecategory: 'Cable category', // new
   network: 'Network', // new
   weight: 'Weight (t)',

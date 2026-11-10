@@ -143,6 +143,19 @@ async def test_no_valid_entry_falls_back_to_none(tmp_path, caplog, raw):
         assert (await (await c.get("/api/v1/embed-config")).json())["data"]["origins"] == []
 
 
+def test_only_ascii_space_tab_and_comma_separate_entries(caplog):
+    # THR-4: a newline or a no-break space is not a separator; it stays in its entry and the entry is left out with a warning
+    assert parse_frame_ancestors("https://a.digifiber.net\t" + OFR + ",https://b.digifiber.net") == [
+        "https://a.digifiber.net", OFR, "https://b.digifiber.net"]
+    for tail in ("\n", "\r", "\r\n", " \n"):  # a trailing line end (env file, shell) is trimmed, not part of the last entry
+        assert parse_frame_ancestors(OFR + tail) == [OFR]
+    for odd in ("\n", "\r\n", " ", " "):
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="lutetia.web.embed"):
+            assert parse_frame_ancestors(OFR + odd + "https://a.digifiber.net") == []
+        assert sum("left out" in m for m in caplog.messages) == 1
+
+
 def test_wildcards_and_exact_origins_accepted():
     assert parse_frame_ancestors("https://*.digifiber.net https://*.ofr.digifiber.net," + OFR) == [
         DEFAULT_PATTERN, "https://*.ofr.digifiber.net", OFR]

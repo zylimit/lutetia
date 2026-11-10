@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Cable segments of one work order, inside an expanded DataTable row. A missing weight shows "weight pending", never 0.
 import { num } from '../format'
-import { t } from '../i18n'
+import { t, tf } from '../i18n'
 import type { PoiSegment } from '../plan'
 
 defineProps<{ segments: PoiSegment[] }>()
@@ -21,7 +21,7 @@ defineProps<{ segments: PoiSegment[] }>()
     </thead>
     <tbody role="rowgroup">
       <tr role="row" v-for="s in segments" :key="s.seq">
-        <td role="cell" class="num c-seq">{{ s.seq }}</td>
+        <td role="cell" class="num c-seq">{{ tf('segmentn', { n: s.seq }) }}</td>
         <td role="cell" class="c-cat" :data-label="t('cablecategory')">{{ s.cable_category ?? '—' }}</td>
         <td role="cell" class="c-cable" :data-label="t('cable')">{{ s.cable_type ?? '—' }}</td>
         <td role="cell" class="c-net" :data-label="t('network')">{{ s.infra ?? '—' }}</td>
@@ -74,7 +74,7 @@ th {
   }
   .segments tr {
     display: grid;
-    grid-template-columns: 2em minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-xs) var(--space-md);
     padding: var(--space-sm) 0;
     border-bottom: 1px solid var(--color-border);

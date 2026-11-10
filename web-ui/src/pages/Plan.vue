@@ -74,7 +74,12 @@ async function loadRows(): Promise<void> {
     source.value = r.source
     loaded.value = true
     failed.value = false
-    if (reimported) void loadBase() // a new import since the last load: options and segments too
+    if (reimported) {
+      // a new import since the last load: options and segments too. Under a segment-level filter the old segments no longer fit
+      // the new rows, so the page goes back to loading rather than show the "weight pending" in between.
+      if (segmentFiltered(filters.value)) segState.value = 'loading'
+      void loadBase()
+    }
   } catch (e) {
     if (mine !== rowsReq || (e instanceof ApiError && e.status === 401)) return
     failed.value = true // the rows on screen stay as they were

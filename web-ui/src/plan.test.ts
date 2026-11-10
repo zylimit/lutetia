@@ -40,6 +40,14 @@ describe('plan sums', () => {
     expect(tonnesBySubcontractor(y)).toEqual([{ label: 'zz C', tonnes: 10 }])
     expect(withMatchingTonnes(one, segs, {})[0].planned_tonnes).toBe(10) // no segment-level filter: whole work order
   })
+  it('under a segment-level filter the segment count and total length are those of the matching segments too', () => {
+    const one = [{ ...poi('zz-L', 'zz G', 3, 6), total_length_km: 10 }]
+    const segs = new Map([['zz-L', [{ ...seg(1, 'X', 1), length_km: 2 }, { ...seg(2, 'X', 2), length_km: 3.5 }, { ...seg(3, 'Y', 3), length_km: 4.5 }]]])
+    const v = withMatchingTonnes(one, segs, { cable_type: 'X' })[0]
+    expect([v.segment_count, v.total_length_km, v.planned_tonnes]).toEqual([2, 5.5, 3])
+    const whole = withMatchingTonnes(one, segs, {})[0]
+    expect([whole.segment_count, whole.total_length_km]).toEqual([3, 10]) // no segment-level filter: the order as it is
+  })
   it('filters on network (infra) the same way', () => {
     const one = [poi('zz-8', 'zz D', 2, 5)]
     const a = { ...seg(1, 'T', 2), infra: 'zz-aerial' }

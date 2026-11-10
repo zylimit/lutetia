@@ -87,20 +87,22 @@ defineExpose({ dialog })
       <div class="head">
         <div class="title">
           <h2 id="drawer-title" class="mono">{{ imei(deviceId) }}</h2>
-          <span class="badge" :class="kind"><StatusIcon :kind="kind" />{{ stateLabel }}</span>
+          <span v-if="manhole" class="badge" :class="kind"><StatusIcon :kind="kind" />{{ stateLabel }}</span>
         </div>
         <button ref="closeBtn" type="button" class="close" :aria-label="t('close')" @click="dialog?.close()">×</button>
       </div>
-      <p v-if="!manhole?.location_verified" class="small muted" data-testid="location-unverified">{{ t('location') }}</p>
+      <p v-if="!manhole && (live.loaded || live.error)" class="small error" role="alert" data-testid="drawer-no-data">{{ t('drawernodata') }}</p>
+      <div v-else-if="!manhole" class="skeleton" :aria-label="t('loadingState')" aria-busy="true"></div>
+      <p v-else-if="!manhole.location_verified" class="small muted" data-testid="location-unverified">{{ t('location') }}</p>
       <p v-if="live.asOf" class="small muted">{{ t('asof') }} {{ clock(live.asOf) }}</p>
       <dl class="kv">
         <div>
           <dt>{{ t('lastreport') }}</dt>
-          <dd class="mono">{{ manhole?.last_seen ? dateTime(manhole.last_seen, true) : t('never') }}</dd>
+          <dd class="mono">{{ !manhole ? '—' : manhole.last_seen ? dateTime(manhole.last_seen, true) : t('never') }}</dd>
         </div>
         <div>
           <dt>{{ t('status') }}</dt>
-          <dd>{{ stateLabel }}</dd>
+          <dd>{{ manhole ? stateLabel : '—' }}</dd>
         </div>
         <div>
           <dt>{{ t('voltage') }}</dt>

@@ -60,7 +60,13 @@ onMounted(() => {
   stop = useLive()
   void loadEvents()
 })
-onBeforeUnmount(() => stop?.())
+let unmounted = false
+let pendingDone: (() => void) | null = null // the timeline wait of drawerClosed, released when the page goes away
+onBeforeUnmount(() => {
+  unmounted = true
+  pendingDone?.()
+  stop?.()
+})
 watch(range, () => {
   eventsLoaded.value = false
   void loadEvents()
@@ -99,9 +105,29 @@ async function drawerClosed(): Promise<void> {
   // The element that opened the drawer; when the page was opened with ?device= (from Overview) there is none: the event
   // bar of that manhole in the timeline first, then its marker, then the page heading.
   const find = (sel: string) => (id ? document.querySelector<HTMLElement>(`${sel}[data-device="${CSS.escape(id)}"]`) : null)
-  const back = (trigger?.isConnected ? trigger : null) ?? find('.timeline .event') ?? find('.mh-marker') ?? document.querySelector<HTMLElement>('main h1')
+  const opener = trigger?.isConnected ? trigger : null
   trigger = null
+  if (!opener && id && !find('.timeline .event')) await timelineRendered() // Esc before the timeline arrived: wait for it
+  if (unmounted) return // the page was left meanwhile: nothing here to focus
+  const back = opener ?? find('.timeline .event') ?? find('.mh-marker') ?? document.querySelector<HTMLElement>('main h1')
   back?.focus()
+}
+
+const TIMELINE_WAIT_MS = 2000
+/** Resolves after the next render of the timeline, or after 2 s (then the marker takes the focus). */
+function timelineRendered(): Promise<void> {
+  if (eventsLoaded.value) return Promise.resolve() // already loaded: this device simply has no event bar
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => done(), TIMELINE_WAIT_MS)
+    const unwatch = watch(timeline, () => done(), { flush: 'post' })
+    function done(): void {
+      window.clearTimeout(timer)
+      unwatch()
+      pendingDone = null
+      resolve()
+    }
+    pendingDone = done
+  })
 }
 
 /** CMP-4 keyboard: up / down move between rows of the timeline, Enter opens (the rows are buttons). */

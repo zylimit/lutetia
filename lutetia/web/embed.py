@@ -44,9 +44,10 @@ def _entry_ok(entry: str) -> bool:
 
 
 def parse_frame_ancestors(raw: str) -> List[str]:
-    """EMBED_FRAME_ANCESTORS (space or comma separated) -> the valid entries in order, without duplicates; [] = none valid."""
+    """EMBED_FRAME_ANCESTORS (ASCII spaces, tabs or commas between entries) -> the valid entries in order, without duplicates;
+    [] = none valid. Any other whitespace (a newline, a no-break space) stays inside its entry, which then fails and is left out."""
     found: List[str] = []
-    for entry in (x for x in re.split(r"[\s,]+", raw) if x):
+    for entry in (x for x in re.split(r"[ \t,]+", raw.strip()) if x):
         if _entry_ok(entry):
             if entry not in found:
                 found.append(entry)

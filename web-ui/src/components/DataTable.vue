@@ -47,8 +47,8 @@ function ariane(p: Poi): string | null {
           <th role="columnheader" scope="col">{{ t('sub') }}</th>
           <th role="columnheader" scope="col" class="wide">{{ t('commune') }}</th>
           <th role="columnheader" scope="col" class="wide">{{ t('category') }}</th>
-          <th role="columnheader" scope="col" class="num wide">{{ t('segments') }}</th>
-          <th role="columnheader" scope="col" class="num wide">{{ t('length') }}</th>
+          <th role="columnheader" scope="col" class="num wide">{{ t('segments') }}<span v-if="matchingOnly" class="hint"><br />{{ t('matchingonly') }}</span></th>
+          <th role="columnheader" scope="col" class="num wide">{{ t('length') }}<span v-if="matchingOnly" class="hint"><br />{{ t('matchingonly') }}</span></th>
           <th role="columnheader" scope="col" class="num">{{ t('planned') }}<span v-if="matchingOnly" class="hint"><br />{{ t('matchingonly') }}</span></th>
           <th role="columnheader" scope="col" class="wide">{{ t('received') }}</th>
           <th role="columnheader" scope="col" class="wide">{{ t('opdate') }}</th>
@@ -94,8 +94,8 @@ function ariane(p: Poi): string | null {
                   <div><dt>{{ t('uci') }}</dt><dd>{{ p.uci ?? '—' }}</dd></div>
                   <div class="wrap"><dt>{{ t('commune') }}</dt><dd>{{ p.site_ville ?? '—' }} <span v-if="p.commune_code" class="mono muted">{{ p.commune_code }}</span></dd></div>
                   <div class="wrap"><dt>{{ t('category') }}</dt><dd>{{ p.category ?? '—' }}</dd></div>
-                  <div><dt>{{ t('segments') }}</dt><dd>{{ p.segment_count || '—' }}</dd></div>
-                  <div><dt>{{ t('length') }}</dt><dd>{{ p.total_length_km === null ? '—' : num(p.total_length_km, 2) }}</dd></div>
+                  <div><dt>{{ t('segments') }}<template v-if="matchingOnly"> · {{ t('matchingonly') }}</template></dt><dd>{{ p.segment_count || '—' }}</dd></div>
+                  <div><dt>{{ t('length') }}<template v-if="matchingOnly"> · {{ t('matchingonly') }}</template></dt><dd>{{ p.total_length_km === null ? '—' : num(p.total_length_km, 2) }}</dd></div>
                   <div><dt>{{ t('received') }}</dt><dd>{{ p.received_date ?? '—' }}</dd></div>
                   <div><dt>{{ t('opdate') }}</dt><dd>{{ p.planned_op_date ?? '—' }}</dd></div>
                   <div class="wrap full">

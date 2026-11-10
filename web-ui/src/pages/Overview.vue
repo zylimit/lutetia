@@ -25,10 +25,8 @@ const empty = computed(() => counts.value !== null && counts.value.all === 0)
 const allQuiet = computed(() => counts.value !== null && counts.value.total > 0 && counts.value.quiet === counts.value.total)
 const quietLine = computed(() => {
   const n = counts.value?.total ?? 0
-  // The latest end among the finished events on hand (the newest three; allQuiet means none is unfinished).
-  const ends = live.latest.map((e) => e.ended_at).filter((x): x is string => x !== null)
-  const since = ends.reduce<string | null>((a, b) => (a === null || Date.parse(b) > Date.parse(a) ? b : a), null)
-  return since ? tp('allquiet1', 'allquiet', n, { t: dateTime(since) }) : tp('allquietever1', 'allquietever', n)
+  const since = live.quietSince // live.ts: null when it cannot be told, so no time rather than a time that may be too early
+  return since ?tp('allquiet1', 'allquiet', n, { t: dateTime(since) }) : tp('allquietever1', 'allquietever', n)
 })
 const located = computed(() => live.manholes.filter((m) => m.lat !== null && m.lon !== null).length)
 

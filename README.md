@@ -45,7 +45,7 @@ pytest
 | `CALLERS_FILE` | 空 | 调用方登记文件路径（容器内 `/callers/callers.json`），格式见下节「调用方登记」；文件有任何格式错误 web 拒绝启动 |
 | `LEGACY_RATE_PER_MIN` | `600` | `legacy` 调用方每分钟限额 |
 | `SESSION_RATE_PER_MIN` | `600` | 浏览器会话调 `/api/v1` 的每分钟限额，按账号名各算各的 |
-| `EMBED_FRAME_ANCESTORS` | `https://*.digifiber.net` | 允许用 iframe 框入 `/embed/*` 部件的来源，空格或逗号分隔；每项是 `https://<名字>.digifiber.net` 或 `https://*.<名字>` 通配（无端口、无路径、小写）；与 `CALLERS_FILE` 的来源白名单无关。不合格的项丢弃并打 warning，全部不合格时打 error、部件页仍是 `frame-ancestors 'none'`；其余页面始终禁止被框入 |
+| `EMBED_FRAME_ANCESTORS` | `https://*.digifiber.net` | 允许用 iframe 框入 `/embed/*` 部件的来源，只用 ASCII 空格、制表符或逗号分隔（换行等其它空白不算分隔符，那一项连同后面粘着的内容会被丢弃并打 warning）；每项是 `https://<名字>.digifiber.net` 或 `https://*.<名字>` 通配（无端口、无路径、小写）；与 `CALLERS_FILE` 的来源白名单无关。不合格的项丢弃并打 warning，全部不合格时打 error、部件页仍是 `frame-ancestors 'none'`；其余页面始终禁止被框入 |
 | `SESSION_SECRET` | 空 | cookie 签名密钥；`docker compose` 下**必填**（空则起不来，`host-deploy.sh` 第 2 步校验：非空、只许字母数字，生成用 `openssl rand -hex 32`）；本机不跑 compose 时可留空，此时每次启动随机生成并打 warning，重启后所有人（含 30 天会话）都要重新登录。会话签名密钥另按账号名与该账号密码派生：改某个账号的密码只让该账号的会话失效，改 `SESSION_SECRET` 让全部失效 |
 | `DATABASE_RO_PASSWORD` | 空 | 只读库角色 `lutetia_ro` 的登录密码。collector 启动迁移时设到库里，web 容器用它连库（compose 里拼成 `postgresql://lutetia_ro:…@db:5432/lutetia`，所以没有 `DATABASE_RO_URL`）；`docker compose` 下必填，空则起不来；**只许字母数字**（密码直接拼进连接串，含 `/ @ # ? %` 会解析失败或连错账号；`host-deploy.sh` 第 2 步会校验），生成用 `openssl rand -hex 24`。轮换：改 `.env` 后重跑 `bash deploy/host-deploy.sh`。收回登录要手工执行 `ALTER ROLE lutetia_ro NOLOGIN PASSWORD NULL`（删掉变量不会收回） |
 
@@ -62,6 +62,18 @@ pytest
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `WEB_UI_DIST` | `web-ui/dist`（镜像内 `/app/web-ui-dist`） | 项目看板构建产物目录；目录或其中 `index.html` 不存在时 `/app/` 返回 503 |
+
+## 嵌入部件（`/embed/*`）
+
+三个只读部件可以用 iframe 嵌进别的网页：`/embed/fall-timeline`（移动事件时间线）、`/embed/manhole-map`（井盖地图）、`/embed/security-summary`（防盗摘要）。
+
+- **默认允许 `https://*.digifiber.net`；配置 `EMBED_FRAME_ANCESTORS` 后以配置为准（替换默认值）**，见上面环境变量表。部件页的 `frame-ancestors` 只放行这些来源，别的站点框不进来；运维看板与 `/app/` 始终禁止被框入。
+- **部件只读，不收密码。** 登录态沿用同一浏览器里项目看板的会话；未登录时部件只显示一句说明和一个登录链接（在新标签页打开 `/app/` 登录），登录后回到该标签页时部件自动重试。
+- **部件怎么认宿主：** 用 `location.ancestorOrigins[0]`（Chromium / Safari 有），没有就用 `document.referrer` 的 origin；认出的 origin 不在白名单里就不发消息，也不收消息。**Firefox 没有 `ancestorOrigins`，若宿主页设了 `Referrer-Policy: no-referrer`，部件拿不到宿主 origin，就收不到部件发出的任何消息**（部件本身照常显示）。要让 Firefox 用户也收到，宿主页的 Referrer-Policy 至少要是 `strict-origin-when-cross-origin`（浏览器默认值）。
+- **消息（`postMessage`，部件到宿主，只发给上一条认出的宿主 origin）：**
+  - `fall-event-selected`：用户点了时间线里的一条事件。`{ type: "lutetia:fall-event-selected", v: 1, device_id, imei, started_at }` 五个字段：`device_id` 是内部设备 id（查询 API 的 `?device_id=`），`imei` 是部件上显示的名字（井盖没有名字时等于 `device_id`），`started_at` 是事件开始时间（ISO 8601）。不带位置。
+  - `resize`：部件内容高度变了。`{ type: "lutetia:resize", v: 1, height }`，`height` 是向上取整的像素高度，宿主据此调 iframe 高度；有节流，高度没变不重发。
+  - 宿主到部件的消息 v1 没有定义，收到会被忽略（只在控制台留一行提示）。
 
 ## 查询 API
 

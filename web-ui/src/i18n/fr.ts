@@ -161,6 +161,8 @@ export const fr: Record<Key, string> = {
   nodetail: 'Détail des câbles en attente. Poids indisponible.',
   segmentsfailed: 'Impossible de charger les tronçons. Masquez puis affichez pour réessayer.',
   seq: 'N°',
+  segmentn: 'Tronçon {n}',
+  drawernodata: 'Les données de ce regard ne sont pas chargées : son état est inconnu. Rechargez pour réessayer.',
   cablecategory: 'Catégorie de câble',
   network: 'Réseau',
   weight: 'Poids (t)',

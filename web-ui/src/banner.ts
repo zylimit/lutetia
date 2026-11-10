@@ -13,6 +13,12 @@ export function offlineAsOf(pageAsOf: string | null, liveAsOf: string | null): s
   return pageAsOf ?? liveAsOf
 }
 
+/** Whether two instants fall on the same calendar day in Europe/Paris (the zone every time on screen is shown in). */
+export function sameParisDay(a: Date, b: Date): boolean {
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  return day(a) === day(b)
+}
+
 /** Offline wins over everything: delay cannot be known without a connection, the time of the saved data is what counts
  * (Decisions 2026-11-10, Task 11.1). Online: error > data delayed. */
 export function pickBanner(s: BannerInput): BannerKind | null {

@@ -1,5 +1,6 @@
 // Dates, durations and numbers in the interface language; every time is shown in Europe/Paris with its abbreviation
 // (Design-Brief 6.1, CMP-4: "Sun 8 Nov, 02:14:07 CET" / "dim. 8 nov., 02:14:07 CET").
+import { sameParisDay } from './banner'
 import { i18n, t } from './i18n'
 
 export const TZ = 'Europe/Paris'
@@ -40,7 +41,13 @@ export function clock(iso: string): string {
   return `${new Intl.DateTimeFormat(locale(), { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(d)} ${tzAbbr(d)}`
 }
 
-/** "6 min", "2 h 05 min"; under a minute counts as 1 min (an event lasts at least one reading). */
+/** "08:42 CET" for today (Europe/Paris), "8 Nov, 14:05 CET" for another day: a saved copy's age has to be readable. */
+export function clockOrDay(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso)
+  return sameParisDay(d, now) ? clock(iso) : `${axisStamp(d.getTime())} ${tzAbbr(d)}`
+}
+
+/** "6 min","2 h 05 min"; under a minute counts as 1 min (an event lasts at least one reading). */
 export function duration(sec: number): string {
   const minutes = Math.max(1, Math.round(sec / 60))
   if (minutes < 120) return `${minutes} ${t('min')}`

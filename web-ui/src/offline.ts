@@ -76,6 +76,8 @@ export async function clearApiCache(): Promise<void> {
   offline.cached = false
 }
 
+let clearedFor: string | null = null // the account the saved answers were cleared for in this page session (memory only)
+
 /** After /me said who is signed in: a different (or unknown) previous account on this device loses its saved answers. */
 export async function rememberAccount(account: string): Promise<void> {
   let previous: string | null = null
@@ -84,7 +86,10 @@ export async function rememberAccount(account: string): Promise<void> {
   } catch (e) {
     console.warn('account name not readable from storage: clearing the saved answers to be safe', e)
   }
-  if (mustClearForAccount(previous, account)) await clearApiCache()
+  if (mustClearForAccount(previous, account, clearedFor)) {
+    await clearApiCache()
+    clearedFor = account
+  }
   try {
     localStorage.setItem(ACCOUNT_KEY, account)
   } catch (e) {
