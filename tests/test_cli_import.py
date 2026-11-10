@@ -291,10 +291,57 @@ def test_compose_mounts_ledger_read_only_and_keeps_state_volume():
 
 # risk: high
 def test_dockerfile_copies_only_package_files_so_data_dir_stays_out_of_image():
-    copies = [ln.split()[1:] for ln in (ROOT / "Dockerfile").read_text(encoding="utf-8").splitlines()
-              if ln.strip().upper().startswith("COPY")]
-    sources = {s for args in copies for s in args[:-1]}
-    assert sources == {"pyproject.toml", "README.md", "lutetia"}, sources
+    _assert_dockerfile_keeps_data_out((ROOT / "Dockerfile").read_text(encoding="utf-8"))
+
+
+def _assert_dockerfile_keeps_data_out(text):
+    """多阶段 Dockerfile：运行阶段只收包文件 + 从 node 阶段拷 dist；node 阶段只许 web-ui/；任何阶段不得拷 data 等。"""
+    stages, cur = {}, None  # stage 名（或序号）-> [(from_stage 或 None, 源列表)]
+    for ln in text.replace("\\\n", " ").splitlines():
+        parts = ln.split()
+        if not parts:
+            continue
+        op = parts[0].upper()
+        if op == "FROM":
+            cur = parts[parts.index("AS") + 1] if "AS" in [p.upper() for p in parts] else "stage%d" % len(stages)
+            stages[cur] = []
+        elif op in ("COPY", "ADD"):
+            flags = [p for p in parts[1:] if p.startswith("--")]
+            args = [p for p in parts[1:] if not p.startswith("--")]
+            src_stage = next((f.split("=", 1)[1] for f in flags if f.startswith("--from=")), None)
+            stages[cur].append((src_stage, args[:-1]))
+    names = list(stages)
+    assert len(names) >= 1
+    runtime = names[-1]
+    for stage, items in stages.items():
+        for src_stage, sources in items:
+            for s in sources:
+                norm = s[2:] if s.startswith("./") else s
+                norm = norm.lstrip("/") if norm not in (".", "") else "."
+                first = norm.split("/")[0]
+                assert norm != "." and s not in ("*", "..") and first not in ("data", "state", "callers") \
+                    and not first.startswith(".env"), "[%s] 禁止 COPY/ADD 源 %r（真台账/凭据不得进镜像）" % (stage, s)
+                if stage != runtime:
+                    assert src_stage is None and (s == "web-ui/" or s.startswith("web-ui/")), \
+                        "[%s] node 阶段只许 web-ui/ 下路径: %r" % (stage, s)
+    plain = {s for src_stage, srcs in stages[runtime] if src_stage is None for s in srcs}
+    assert plain == {"pyproject.toml", "README.md", "lutetia"}, plain
+    for src_stage, srcs in stages[runtime]:
+        if src_stage is not None:
+            assert src_stage in names[:-1], "运行阶段 --from 必须指向前面的构建阶段: %r" % src_stage
+            assert all(s.startswith("/web-ui/dist") for s in srcs), srcs
+
+
+# risk: high
+@pytest.mark.parametrize("extra", ["COPY data /data", "COPY . .", "COPY ./data/poi /x", "COPY .env /app/.env",
+                                   "COPY state /s", "COPY --from=web-ui /web-ui/node_modules /m"])
+def test_dockerfile_guard_rejects_data_leaks_in_any_stage(extra):
+    base = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    for marker in ("RUN npm run build", "ENV STATE_DIR"):  # 分别注入 node 阶段与运行阶段
+        mutated = base.replace(marker, extra + "\n" + marker, 1)
+        assert mutated != base
+        with pytest.raises(AssertionError):
+            _assert_dockerfile_keeps_data_out(mutated)
 
 
 # risk: low

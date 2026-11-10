@@ -1,0 +1,17 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+h1 {
+  font-weight: 600;
+}
+.mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}

@@ -17,6 +17,7 @@ from .dashboard import register_dashboard
 from .data import register_data
 from .pages_device import register_device_pages
 from .pages_map import register_map_pages
+from .spa import SPA_CSP, is_spa_path, register_spa
 
 log = logging.getLogger(__name__)
 
@@ -32,9 +33,11 @@ SECURITY_HEADERS = {
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
 
 
-def _stamp(resp: web.StreamResponse) -> None:
+def _stamp(resp: web.StreamResponse, path: str) -> None:
     for name, value in SECURITY_HEADERS.items():
         resp.headers[name] = value
+    if is_spa_path(path):  # project dashboard SPA: strict CSP without 'unsafe-inline' (THR-7)
+        resp.headers["Content-Security-Policy"] = SPA_CSP
 
 
 @web.middleware
@@ -46,7 +49,7 @@ async def security_headers(request: web.Request, handler: Any) -> web.StreamResp
     except Exception:
         log.exception("unhandled error on %s %s", request.method, request.path)
         resp = web.json_response({"error": "internal error"}, status=500)
-    _stamp(resp)
+    _stamp(resp, request.path)
     return resp
 
 
@@ -77,6 +80,7 @@ class WebServer:
         register_data(app)
         register_device_pages(app)
         register_map_pages(app)
+        register_spa(app, self.cfg.web_ui_dist)
         app.router.add_static("/static/", STATIC_DIR, show_index=False, follow_symlinks=False)
         return app
 

@@ -49,6 +49,18 @@ pytest
 
 本机可以把 `DASHBOARD_PWD` 填成简单密码，**上云主机前必须换成强密码、`API_KEY` 换成随机长串**。`docker compose` 下 `DASHBOARD_PWD`、`API_KEY`、`DATABASE_RO_PASSWORD`、`SESSION_SECRET` 缺一不能启动；看板端口只发布到宿主机 `127.0.0.1:8081`，云主机经 HTTPS 域名访问（Phase 3）。
 
+## 项目看板前端（`web-ui/`，`/app/`）
+
+项目看板是 `web-ui/` 下的 Vite + Vue 单页应用，构建产物由 web 容器在 `/app/` 下托管（前端路由如 `/app/manholes` 回退到 `index.html`；`/app/assets/` 下或带扩展名的路径找不到时返回 404，不回退）。`/app` 与 `/app/*` 带单独的严格 CSP（`style-src 'self'`、`script-src 'self'`，不含 `'unsafe-inline'` / `'unsafe-eval'`）与 `X-Frame-Options: DENY`；运维看板其余路径的安全头不变。字体（IBM Plex Sans 400 / 500 / 600、Mono 400，latin + latin-ext）来自 npm 的 `@fontsource` 包、随产物自托管，不从任何外部域加载。
+
+- 本机构建：`cd web-ui && npm ci && npm run build`（先 `vue-tsc --noEmit` 类型检查，再出 `web-ui/dist/`）；本机跑 `lutetia run` 时默认读 `./web-ui/dist`，可用 `WEB_UI_DIST` 指向别处。没构建时 web 照常启动，`/app/` 返回 503 并提示先构建，其余路由不受影响。
+- 依赖：`package.json` 全部锁精确版本、`package-lock.json` 入库；加或升依赖后重新生成 lockfile，发版前跑 `npm audit --audit-level=critical`。
+- 镜像：`Dockerfile` 是两阶段，`node:24-slim` 里 `npm ci && npm run build`，只把 `dist/` 拷进 `python:3.12-slim` 运行镜像的 `/app/web-ui-dist`（`WEB_UI_DIST` 已指向它）；运行镜像里没有 Node 与 `node_modules`。
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `WEB_UI_DIST` | `web-ui/dist`（镜像内 `/app/web-ui-dist`） | 项目看板构建产物目录；目录或其中 `index.html` 不存在时 `/app/` 返回 503 |
+
 ## 查询 API
 
 只读 JSON，四个 GET 接口，没有任何写入接口。每个请求都要带 `Authorization: Bearer <API_KEY>`；缺头、key 错或服务端没配 `API_KEY` 一律返回 `401`，并带 `WWW-Authenticate: Bearer`。`since` / `until` 的时区偏移请用 `Z` 或把 `+` 编码为 `%2B`。
